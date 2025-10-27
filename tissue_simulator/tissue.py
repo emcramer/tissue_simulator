@@ -238,8 +238,9 @@ class TissueSection:
             color = color_map[cell.cell_type]
             alpha = 0.3 if cell.is_boundary else 0.6
             
-            ax.plot_surface(x, y, z, color=color, alpha=alpha, 
-                          edgecolors='none', shade=True)
+            # Convert color to proper format for plot_surface
+            ax.plot_surface(x, y, z, facecolors=np.tile(color, x.shape + (1,)), 
+                          alpha=alpha, linewidth=0, antialiased=True, shade=False)
         
         # Draw boundary box
         if show_boundary:

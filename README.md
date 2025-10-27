@@ -10,6 +10,7 @@ A comprehensive Python package for generating 3D simulated biological tissue sec
 - **🎯 Flexible Cell Configuration**: Define single or multiple cell types with customizable size ranges
 - **🔬 Realistic 3D Sphere Packing**: Random sequential addition algorithm with collision detection
 - **🎨 Interactive GUI**: Real-time 3D visualization with PyQt5 interface
+- **✂️ 2D Slicing**: Extract planar sections at any angle through the tissue
 - **📊 Statistical Analysis**: Automatic calculation of packing fractions and cell distributions
 - **💾 Data Export**: CSV output for further analysis and integration with other tools
 - **🧪 Boundary Cell Support**: Handle cells that extend beyond tissue section boundaries
@@ -101,6 +102,13 @@ tissue = TissueSection(
 
 tissue.generate_cells(max_attempts=2000)
 tissue.visualize()
+
+# Extract a 2D slice
+from tissue_simulator import TissueSlicer
+slicer = TissueSlicer(tissue)
+slicer.slice_plane(z_position=50)  # Horizontal slice at z=50
+slicer.visualize_slice_2d()        # View 2D cross-section
+slicer.export_slice_csv('slice_data.csv')  # Export slice data
 ```
 
 ## 📚 Documentation
@@ -113,6 +121,8 @@ tissue.visualize()
 ## 💡 Examples
 
 The `examples/` directory contains several demonstration scripts:
+
+### Tissue Generation Examples
 
 ### 1. Simple Example
 Basic tissue generation with uniform cell sizes:
@@ -142,6 +152,26 @@ python examples/batch_generation.py
 Multiple viewing angles and detailed plots:
 ```bash
 python examples/advanced_visualization.py
+```
+
+### Tissue Slicing Examples
+
+### 6. Simple Slicing
+Extract a horizontal 2D slice:
+```bash
+python examples/simple_slicing.py
+```
+
+### 7. Angled Slicing
+Create slices at various angles:
+```bash
+python examples/angled_slicing.py
+```
+
+### 8. Serial Slices
+Generate multiple parallel slices through tissue:
+```bash
+python examples/serial_slices.py
 ```
 
 ## 🎮 GUI Features

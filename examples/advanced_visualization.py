@@ -43,7 +43,7 @@ for cell in tissue.cells:
     
     color = color_dict[cell.cell_type]
     alpha = 0.3 if cell.is_boundary else 0.6
-    ax1.plot_surface(x, y, z, color=color, alpha=alpha, edgecolors='none')
+    ax1.plot_surface(x, y, z, facecolors=np.tile(color, x.shape + (1,)), alpha=alpha, linewidth=0, antialiased=True, shade=False)
 
 ax1.set_xlabel('Width (μm)')
 ax1.set_ylabel('Height (μm)')
@@ -62,7 +62,7 @@ for cell in tissue.cells:
     
     color = color_dict[cell.cell_type]
     alpha = 0.3 if cell.is_boundary else 0.6
-    ax2.plot_surface(x, y, z, color=color, alpha=alpha, edgecolors='none')
+    ax2.plot_surface(x, y, z, facecolors=np.tile(color, x.shape + (1,)), alpha=alpha, linewidth=0, antialiased=True, shade=False)
 
 ax2.set_xlabel('Width (μm)')
 ax2.set_ylabel('Height (μm)')
@@ -81,7 +81,7 @@ for cell in tissue.cells:
     
     color = color_dict[cell.cell_type]
     alpha = 0.3 if cell.is_boundary else 0.6
-    ax3.plot_surface(x, y, z, color=color, alpha=alpha, edgecolors='none')
+    ax3.plot_surface(x, y, z, facecolors=np.tile(color, x.shape + (1,)), alpha=alpha, linewidth=0, antialiased=True, shade=False)
 
 ax3.set_xlabel('Width (μm)')
 ax3.set_ylabel('Height (μm)')
