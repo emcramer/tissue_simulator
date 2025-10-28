@@ -213,6 +213,60 @@ Define multiple cell types in the text box:
 }
 ```
 
+## 🤖 LLM Integration (MCP)
+
+The Tissue Simulator can be used as a tool by Large Language Models through the Model Context Protocol (MCP).
+
+### Quick Setup
+
+```bash
+# Install MCP support
+pip install mcp
+
+# Configure Claude Desktop
+# Edit: ~/Library/Application Support/Claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "tissue-simulator": {
+      "command": "python",
+      "args": ["/Users/cramere/tissue_simulator/run_mcp_server.py"]
+    }
+  }
+}
+```
+
+### Example Usage
+
+Once configured, you can use natural language:
+
+```
+You: "Create a tissue with epithelial and stromal cells, 
+      then create 5 serial sections and analyze them."
+
+Claude: [Uses create_tissue, generate_cells, create_serial_slices tools]
+        I've created a 400x400x100 μm tissue with 234 cells...
+```
+
+### Available Tools
+
+- **create_tissue** - Define tissue dimensions and cell types
+- **generate_cells** - Populate with sphere packing
+- **get_tissue_statistics** - Analyze composition
+- **create_slice** - Extract 2D slice at any angle
+- **get_slice_statistics** - Analyze slice
+- **create_serial_slices** - Create multiple slices
+- **export_tissue_csv** - Export 3D data
+- **export_slice_csv** - Export 2D data
+- **visualize_tissue** - Generate 3D visualization
+- **visualize_slice_2d** - Generate 2D visualization
+- **reset_tissue** - Start fresh
+
+### Documentation
+
+- **[MCP Quick Start](MCP_README.md)** - Get started in 5 minutes
+- **[MCP Complete Guide](MCP_GUIDE.md)** - Full API reference
+- **[Example Conversations](examples/mcp_examples/)** - Usage examples
+
 ## 🔬 Scientific Background
 
 ### Cell Sizes (typical ranges)
