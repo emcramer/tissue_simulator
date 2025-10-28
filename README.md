@@ -300,17 +300,6 @@ Performance tips:
 - Smaller cell radii = more cells = longer generation time
 - Enable boundary cells for higher packing efficiency
 
-## 🤝 Contributing
-
-Contributions are welcome! Areas for enhancement:
-
-- Non-spherical cell shapes (ellipsoids, cylinders)
-- Tissue layering with different cell compositions
-- Physical force models for cell interactions
-- Time-dependent growth simulations
-- Import from microscopy data
-- Additional export formats (VTK, HDF5)
-
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -330,16 +319,6 @@ For issues and questions:
 2. Review the [examples](examples/) directory
 3. Run `verify_installation.py` to check setup
 4. File an issue on the project repository
-
-## 🗺️ Roadmap
-
-Future enhancements:
-- [ ] GPU acceleration for large-scale simulations
-- [ ] Advanced force-based packing algorithms
-- [ ] Cell division and growth dynamics
-- [ ] Multi-scale tissue organization
-- [ ] Integration with microscopy file formats
-- [ ] Web-based visualization interface
 
 ---
 
