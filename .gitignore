@@ -75,3 +75,6 @@ batch_analysis.png
 # Generated tissue data
 output/
 results/
+
+# Additional Files
+TODO.md
