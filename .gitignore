@@ -76,5 +76,8 @@ batch_analysis.png
 output/
 results/
 
-# Additional Files
+# Future plans - don't want this public yet
 TODO.md
+
+# Handoff instructions for using LLM coding assistants
+REPO_SUMMARY.md
