@@ -117,10 +117,10 @@ slicer.export_slice_csv('slice_data.csv')  # Export slice data
 
 ## 📚 Documentation
 
-- **[Quick Start Guide](QUICKSTART.md)**: Get up and running in minutes
-- **[Comprehensive Guide](GUIDE.md)**: Detailed documentation with examples
-- **[Package Structure](STRUCTURE.md)**: Architecture and module descriptions
-- **[API Reference](GUIDE.md#api-reference)**: Complete function and class documentation
+- **[Quick Start Guide](docs/QUICKSTART.md)**: Get up and running in minutes
+- **[Comprehensive Guide](docs/GUIDE.md)**: Detailed documentation with examples
+- **[Package Structure](docs/STRUCTURE.md)**: Architecture and module descriptions
+- **[API Reference](docs/GUIDE.md#api-reference)**: Complete function and class documentation
 
 ## 💡 Examples
 
@@ -213,6 +213,47 @@ Define multiple cell types in the text box:
   "endothelial": [5, 8]
 }
 ```
+## 🕸️ Spatial Analysis
+### Network Construction:
+
+**Contact mode:** Connects touching cells
+**Radius mode:** Connects cells within distance threshold
+Works with 3D tissues and 2D slices
+
+### Comprehensive Statistics:
+
+**Global:** degree, density, clustering, path lengths
+**Per cell type:** degree, clustering, centrality measures
+**Pairwise interactions:** counts (normalized), distances
+
+### Export & Visualization:
+
+CSV exports (3 files per analysis)
+Network formats (GraphML, GEXF, GML)
+Network visualizations
+
+### Example Usage
+
+```python
+from tissue_simulator import TissueSection, SpatialNetworkAnalyzer
+
+# Generate tissue
+tissue = TissueSection(400, 400, 100, cell_radii={'epithelial': (6, 10)})
+tissue.generate_cells(max_attempts=1000)
+
+# Analyze
+analyzer = SpatialNetworkAnalyzer()
+analyzer.build_network_from_tissue(tissue, mode="contact")
+
+# Get statistics
+stats = analyzer.compute_global_statistics()
+print(f"Avg degree: {stats.avg_degree:.2f}")
+print(f"Clustering: {stats.avg_clustering:.4f}")
+
+# Export
+analyzer.export_statistics_csv("analysis")
+analyzer.visualize_network(save_path="network.png")
+```
 
 ## 🤖 LLM Integration (MCP)
 
@@ -264,8 +305,8 @@ Claude: [Uses create_tissue, generate_cells, create_serial_slices tools]
 
 ### Documentation
 
-- **[MCP Quick Start](MCP_README.md)** - Get started in 5 minutes
-- **[MCP Complete Guide](MCP_GUIDE.md)** - Full API reference
+- **[MCP Quick Start](docs/MCP_README.md)** - Get started in 5 minutes
+- **[MCP Complete Guide](docs/MCP_GUIDE.md)** - Full API reference
 - **[Example Conversations](examples/mcp_examples/)** - Usage examples
 
 ## 🔬 Scientific Background
@@ -373,7 +414,7 @@ This package implements concepts from:
 
 For issues and questions:
 
-1. Check the [Comprehensive Guide](GUIDE.md)
+1. Check the [Comprehensive Guide](docs/GUIDE.md)
 2. Review the [examples](examples/) directory
 3. Run `verify_installation.py` to check setup
 4. File an issue on the project repository
