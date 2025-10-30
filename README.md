@@ -120,6 +120,8 @@ slicer.export_slice_csv('slice_data.csv')  # Export slice data
 - **[Quick Start Guide](docs/QUICKSTART.md)**: Get up and running in minutes
 - **[Comprehensive Guide](docs/GUIDE.md)**: Detailed documentation with examples
 - **[Package Structure](docs/STRUCTURE.md)**: Architecture and module descriptions
+- **[Spatial Analysis](docs/SPATIAL_ANALYSIS.md)**: Network-based spatial analysis guide
+- **[Replicate Generation](docs/REPLICATE_GENERATION.md)**: Generate tissues matching spatial statistics
 - **[API Reference](docs/GUIDE.md#api-reference)**: Complete function and class documentation
 
 ## 💡 Examples
@@ -255,6 +257,72 @@ analyzer.export_statistics_csv("analysis")
 analyzer.visualize_network(save_path="network.png")
 ```
 
+## 🔄 Replicate Generation
+
+Generate multiple tissue samples matching specific spatial interaction patterns:
+
+### Key Features:
+
+- **Target-based generation**: Match spatial statistics from existing tissues or CSV
+- **Iterative optimization**: Automatically tunes parameters to achieve targets
+- **Batch processing**: Generate multiple replicates efficiently
+- **Statistical validation**: Track divergence from target patterns
+- **Full MCP support**: Accessible to LLM coding assistants
+
+### Example Usage
+
+```python
+from tissue_simulator import (
+    TissueSection,
+    load_target_statistics_from_tissue,
+    ReplicateGenerator
+)
+
+# Create reference tissue
+reference = TissueSection(400, 400, 100, 
+                         cell_radii={'cancer': (8, 12), 'immune': (5, 8)})
+reference.generate_cells(max_attempts=1000)
+
+# Extract spatial statistics
+target_stats = load_target_statistics_from_tissue(
+    reference, 
+    network_mode="contact"
+)
+
+# Setup generator
+generator = ReplicateGenerator(
+    target_stats=target_stats,
+    tissue_dimensions=(400, 400, 100),
+    base_cell_radii={'cancer': (8, 12), 'immune': (5, 8)},
+    network_mode="contact"
+)
+
+# Generate replicates
+replicates = generator.generate_replicates(num_replicates=10)
+
+# Export results
+generator.export_replicate_statistics(replicates, "output/stats")
+generator.export_replicate_tissues(replicates, "output/tissues")
+```
+
+### Load from CSV
+
+```python
+from tissue_simulator import load_target_statistics_from_csv
+
+# Load target statistics from CSV file
+target_stats = load_target_statistics_from_csv("statistics.csv")
+
+generator = ReplicateGenerator(
+    target_stats=target_stats,
+    tissue_dimensions=(400, 400, 100),
+    base_cell_radii={'cancer': (8, 12), 'immune': (5, 8)},
+    network_mode="contact"
+)
+
+replicates = generator.generate_replicates(num_replicates=10)
+```
+
 ## 🤖 LLM Integration (MCP)
 
 The Tissue Simulator can be used as a tool by Large Language Models through the Model Context Protocol (MCP).
@@ -291,17 +359,30 @@ Claude: [Uses create_tissue, generate_cells, create_serial_slices tools]
 
 ### Available Tools
 
+#### Tissue Generation
 - **create_tissue** - Define tissue dimensions and cell types
 - **generate_cells** - Populate with sphere packing
 - **get_tissue_statistics** - Analyze composition
+- **reset_tissue** - Start fresh
+
+#### 2D Slicing
 - **create_slice** - Extract 2D slice at any angle
 - **get_slice_statistics** - Analyze slice
 - **create_serial_slices** - Create multiple slices
+
+#### Export & Visualization
 - **export_tissue_csv** - Export 3D data
 - **export_slice_csv** - Export 2D data
 - **visualize_tissue** - Generate 3D visualization
 - **visualize_slice_2d** - Generate 2D visualization
-- **reset_tissue** - Start fresh
+
+#### Replicate Generation (New!)
+- **load_target_statistics** - Load target spatial statistics from CSV or current tissue
+- **setup_replicate_generator** - Configure replicate generator
+- **generate_replicates** - Generate multiple replicates matching targets
+- **get_replicate_summary** - Get statistics across all replicates
+- **export_replicate_statistics** - Export replicate statistics to CSV
+- **export_replicate_tissues** - Export each replicate tissue to CSV
 
 ### Documentation
 

@@ -24,6 +24,9 @@ except ImportError:
 
 from ..tissue import TissueSection
 from ..slicing import TissueSlicer, create_standard_slices
+from ..replicate_generator import (ReplicateGenerator, TargetStatistics, 
+                                     load_target_statistics_from_csv,
+                                     load_target_statistics_from_tissue)
 
 
 class TissueSimulatorMCPServer:
@@ -41,6 +44,8 @@ class TissueSimulatorMCPServer:
         self.server = Server("tissue-simulator")
         self.current_tissue: Optional[TissueSection] = None
         self.current_slicer: Optional[TissueSlicer] = None
+        self.replicate_generator: Optional[ReplicateGenerator] = None
+        self.generated_replicates: List[Tuple[TissueSection, Any]] = []
         self.temp_dir = tempfile.mkdtemp(prefix="tissue_sim_")
         
         # Register tools
@@ -315,6 +320,175 @@ class TissueSimulatorMCPServer:
                         "type": "object",
                         "properties": {}
                     }
+                ),
+                
+                Tool(
+                    name="load_target_statistics",
+                    description=(
+                        "Load target spatial statistics from a CSV file or extract from current tissue. "
+                        "These statistics will be used to generate replicate tissues."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "csv_filepath": {
+                                "type": "string",
+                                "description": "Path to CSV file with target statistics (optional)"
+                            },
+                            "use_current_tissue": {
+                                "type": "boolean",
+                                "description": "Extract statistics from current tissue",
+                                "default": False
+                            },
+                            "network_mode": {
+                                "type": "string",
+                                "description": "Network analysis mode: 'contact' or 'radius'",
+                                "default": "contact"
+                            },
+                            "network_radius": {
+                                "type": "number",
+                                "description": "Distance threshold for 'radius' mode (micrometers)"
+                            }
+                        }
+                    }
+                ),
+                
+                Tool(
+                    name="setup_replicate_generator",
+                    description=(
+                        "Setup the replicate generator with tissue dimensions and cell parameters. "
+                        "Must be called after load_target_statistics."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "height": {
+                                "type": "number",
+                                "description": "Tissue height in micrometers",
+                                "minimum": 50
+                            },
+                            "width": {
+                                "type": "number",
+                                "description": "Tissue width in micrometers",
+                                "minimum": 50
+                            },
+                            "thickness": {
+                                "type": "number",
+                                "description": "Tissue thickness in micrometers",
+                                "minimum": 20
+                            },
+                            "cell_radii": {
+                                "type": "object",
+                                "description": "Dict mapping cell types to [min_radius, max_radius]",
+                                "additionalProperties": {
+                                    "type": "array",
+                                    "items": {"type": "number"},
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                }
+                            },
+                            "seed": {
+                                "type": "integer",
+                                "description": "Random seed for reproducibility"
+                            }
+                        },
+                        "required": ["height", "width", "thickness", "cell_radii"]
+                    }
+                ),
+                
+                Tool(
+                    name="generate_replicates",
+                    description=(
+                        "Generate multiple tissue replicates matching target statistics. "
+                        "Requires setup_replicate_generator to be called first."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "num_replicates": {
+                                "type": "integer",
+                                "description": "Number of replicates to generate",
+                                "minimum": 1,
+                                "maximum": 100,
+                                "default": 1
+                            },
+                            "max_attempts": {
+                                "type": "integer",
+                                "description": "Max cell packing attempts per replicate",
+                                "default": 1000
+                            },
+                            "min_spacing": {
+                                "type": "number",
+                                "description": "Minimum spacing between cells",
+                                "default": 0.5
+                            },
+                            "allow_boundary": {
+                                "type": "boolean",
+                                "description": "Allow cells extending beyond bounds",
+                                "default": True
+                            },
+                            "max_iterations": {
+                                "type": "integer",
+                                "description": "Max parameter adjustment iterations",
+                                "default": 5,
+                                "minimum": 1,
+                                "maximum": 20
+                            },
+                            "tolerance": {
+                                "type": "number",
+                                "description": "Acceptable divergence threshold",
+                                "default": 0.15,
+                                "minimum": 0.01,
+                                "maximum": 1.0
+                            }
+                        },
+                        "required": ["num_replicates"]
+                    }
+                ),
+                
+                Tool(
+                    name="export_replicate_statistics",
+                    description=(
+                        "Export statistics for all generated replicates to CSV files."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "base_filename": {
+                                "type": "string",
+                                "description": "Base name for output files",
+                                "default": "replicates"
+                            }
+                        }
+                    }
+                ),
+                
+                Tool(
+                    name="export_replicate_tissues",
+                    description=(
+                        "Export each replicate tissue to a separate CSV file."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "output_dir": {
+                                "type": "string",
+                                "description": "Directory for output files",
+                                "default": "replicates"
+                            }
+                        }
+                    }
+                ),
+                
+                Tool(
+                    name="get_replicate_summary",
+                    description=(
+                        "Get summary statistics for all generated replicates."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {}
+                    }
                 )
             ]
     
@@ -348,6 +522,18 @@ class TissueSimulatorMCPServer:
                     return await self._handle_visualize_slice_2d(arguments)
                 elif name == "reset_tissue":
                     return await self._handle_reset_tissue(arguments)
+                elif name == "load_target_statistics":
+                    return await self._handle_load_target_statistics(arguments)
+                elif name == "setup_replicate_generator":
+                    return await self._handle_setup_replicate_generator(arguments)
+                elif name == "generate_replicates":
+                    return await self._handle_generate_replicates(arguments)
+                elif name == "export_replicate_statistics":
+                    return await self._handle_export_replicate_statistics(arguments)
+                elif name == "export_replicate_tissues":
+                    return await self._handle_export_replicate_tissues(arguments)
+                elif name == "get_replicate_summary":
+                    return await self._handle_get_replicate_summary(arguments)
                 else:
                     return [TextContent(
                         type="text",
@@ -746,6 +932,314 @@ class TissueSimulatorMCPServer:
         result = {
             "status": "success",
             "message": "Tissue and slice data cleared. Ready for new simulation."
+        }
+        
+        return [TextContent(
+            type="text",
+            text=json.dumps(result, indent=2)
+        )]
+    
+    async def _handle_load_target_statistics(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle load_target_statistics tool call."""
+        csv_filepath = args.get("csv_filepath")
+        use_current = args.get("use_current_tissue", False)
+        network_mode = args.get("network_mode", "contact")
+        network_radius = args.get("network_radius")
+        
+        try:
+            if csv_filepath:
+                # Load from CSV
+                self.target_stats = load_target_statistics_from_csv(csv_filepath)
+                result = {
+                    "status": "success",
+                    "source": "csv_file",
+                    "filepath": csv_filepath,
+                    "num_interaction_types": len(self.target_stats.interaction_stats),
+                    "interaction_pairs": [
+                        f"{s.type_a}-{s.type_b}" 
+                        for s in self.target_stats.interaction_stats
+                    ]
+                }
+            elif use_current:
+                # Extract from current tissue
+                if self.current_tissue is None or not self.current_tissue.cells:
+                    return [TextContent(
+                        type="text",
+                        text=json.dumps({"error": "No tissue with cells available."})
+                    )]
+                
+                self.target_stats = load_target_statistics_from_tissue(
+                    self.current_tissue,
+                    network_mode=network_mode,
+                    network_radius=network_radius
+                )
+                
+                result = {
+                    "status": "success",
+                    "source": "current_tissue",
+                    "network_mode": network_mode,
+                    "num_cells": self.current_tissue.get_cell_statistics()['total_cells'],
+                    "num_interaction_types": len(self.target_stats.interaction_stats),
+                    "cell_type_proportions": self.target_stats.cell_type_proportions,
+                    "target_cell_count": self.target_stats.target_cell_count,
+                    "target_density": round(self.target_stats.target_density, 4) if self.target_stats.target_density else None
+                }
+            else:
+                return [TextContent(
+                    type="text",
+                    text=json.dumps({"error": "Must specify either csv_filepath or use_current_tissue=True"})
+                )]
+            
+            # Store network mode for replicate generator
+            self.network_mode = network_mode
+            self.network_radius = network_radius
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to load statistics: {str(e)}"})
+            )]
+    
+    async def _handle_setup_replicate_generator(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle setup_replicate_generator tool call."""
+        if not hasattr(self, 'target_stats') or self.target_stats is None:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "Must load target statistics first using load_target_statistics."})
+            )]
+        
+        height = args["height"]
+        width = args["width"]
+        thickness = args["thickness"]
+        cell_radii_dict = args["cell_radii"]
+        seed = args.get("seed")
+        
+        # Convert cell_radii dict to proper format
+        cell_radii = {
+            name: tuple(radii) 
+            for name, radii in cell_radii_dict.items()
+        }
+        
+        try:
+            self.replicate_generator = ReplicateGenerator(
+                target_stats=self.target_stats,
+                tissue_dimensions=(height, width, thickness),
+                base_cell_radii=cell_radii,
+                network_mode=self.network_mode,
+                network_radius=self.network_radius,
+                seed=seed
+            )
+            
+            result = {
+                "status": "success",
+                "tissue_dimensions": {
+                    "width": width,
+                    "height": height,
+                    "thickness": thickness
+                },
+                "cell_types": list(cell_radii.keys()),
+                "network_mode": self.network_mode,
+                "seed": seed,
+                "ready_to_generate": True
+            }
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to setup generator: {str(e)}"})
+            )]
+    
+    async def _handle_generate_replicates(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle generate_replicates tool call."""
+        if self.replicate_generator is None:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "Must setup replicate generator first using setup_replicate_generator."})
+            )]
+        
+        num_replicates = args["num_replicates"]
+        max_attempts = args.get("max_attempts", 1000)
+        min_spacing = args.get("min_spacing", 0.5)
+        allow_boundary = args.get("allow_boundary", True)
+        max_iterations = args.get("max_iterations", 5)
+        tolerance = args.get("tolerance", 0.15)
+        
+        try:
+            # Generate replicates
+            self.generated_replicates = self.replicate_generator.generate_replicates(
+                num_replicates=num_replicates,
+                max_attempts=max_attempts,
+                min_spacing=min_spacing,
+                allow_boundary=allow_boundary,
+                max_iterations=max_iterations,
+                tolerance=tolerance
+            )
+            
+            # Collect summary statistics
+            replicate_summaries = []
+            for tissue, stats in self.generated_replicates:
+                replicate_summaries.append({
+                    "replicate_id": stats.replicate_id,
+                    "num_cells": stats.num_cells,
+                    "cell_types": stats.cell_type_counts,
+                    "packing_fraction": round(stats.packing_fraction, 4),
+                    "divergence_score": round(stats.divergence_score, 4)
+                })
+            
+            result = {
+                "status": "success",
+                "num_replicates_generated": len(self.generated_replicates),
+                "replicates": replicate_summaries,
+                "avg_divergence": round(
+                    sum(s.divergence_score for _, s in self.generated_replicates) / len(self.generated_replicates),
+                    4
+                )
+            }
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to generate replicates: {str(e)}"})
+            )]
+    
+    async def _handle_export_replicate_statistics(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle export_replicate_statistics tool call."""
+        if not self.generated_replicates:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "No replicates generated. Call generate_replicates first."})
+            )]
+        
+        base_filename = args.get("base_filename", "replicates")
+        filepath = os.path.join(self.temp_dir, base_filename)
+        
+        try:
+            self.replicate_generator.export_replicate_statistics(
+                self.generated_replicates,
+                filepath
+            )
+            
+            result = {
+                "status": "success",
+                "summary_file": f"{filepath}_summary.csv",
+                "interactions_file": f"{filepath}_interactions.csv",
+                "num_replicates": len(self.generated_replicates)
+            }
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to export statistics: {str(e)}"})
+            )]
+    
+    async def _handle_export_replicate_tissues(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle export_replicate_tissues tool call."""
+        if not self.generated_replicates:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "No replicates generated. Call generate_replicates first."})
+            )]
+        
+        output_dir = args.get("output_dir", "replicates")
+        full_path = os.path.join(self.temp_dir, output_dir)
+        
+        try:
+            self.replicate_generator.export_replicate_tissues(
+                self.generated_replicates,
+                full_path
+            )
+            
+            result = {
+                "status": "success",
+                "output_directory": full_path,
+                "num_files_created": len(self.generated_replicates)
+            }
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+        
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to export tissues: {str(e)}"})
+            )]
+    
+    async def _handle_get_replicate_summary(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle get_replicate_summary tool call."""
+        if not self.generated_replicates:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "No replicates generated. Call generate_replicates first."})
+            )]
+        
+        # Compute summary statistics across all replicates
+        import numpy as np
+        
+        num_cells_list = [stats.num_cells for _, stats in self.generated_replicates]
+        divergence_list = [stats.divergence_score for _, stats in self.generated_replicates]
+        packing_list = [stats.packing_fraction for _, stats in self.generated_replicates]
+        
+        # Cell type statistics
+        all_cell_types = set()
+        for _, stats in self.generated_replicates:
+            all_cell_types.update(stats.cell_type_counts.keys())
+        
+        cell_type_stats = {}
+        for ct in all_cell_types:
+            counts = [stats.cell_type_counts.get(ct, 0) for _, stats in self.generated_replicates]
+            total_cells = [stats.num_cells for _, stats in self.generated_replicates]
+            proportions = [c/t for c, t in zip(counts, total_cells)]
+            
+            cell_type_stats[ct] = {
+                "mean_count": round(np.mean(counts), 1),
+                "std_count": round(np.std(counts), 1),
+                "mean_proportion": round(np.mean(proportions), 4),
+                "std_proportion": round(np.std(proportions), 4)
+            }
+        
+        result = {
+            "num_replicates": len(self.generated_replicates),
+            "cell_counts": {
+                "mean": round(np.mean(num_cells_list), 1),
+                "std": round(np.std(num_cells_list), 1),
+                "min": int(np.min(num_cells_list)),
+                "max": int(np.max(num_cells_list))
+            },
+            "divergence_scores": {
+                "mean": round(np.mean(divergence_list), 4),
+                "std": round(np.std(divergence_list), 4),
+                "min": round(np.min(divergence_list), 4),
+                "max": round(np.max(divergence_list), 4)
+            },
+            "packing_fractions": {
+                "mean": round(np.mean(packing_list), 4),
+                "std": round(np.std(packing_list), 4),
+                "min": round(np.min(packing_list), 4),
+                "max": round(np.max(packing_list), 4)
+            },
+            "cell_type_statistics": cell_type_stats
         }
         
         return [TextContent(
