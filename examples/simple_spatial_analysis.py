@@ -88,18 +88,18 @@ print("\n" + "="*60)
 print("EXPORTING RESULTS")
 print("="*60)
 
-analyzer.export_statistics_csv("contact_analysis")
-print("  Exported: contact_analysis_global.csv")
-print("  Exported: contact_analysis_cell_types.csv")
-print("  Exported: contact_analysis_interactions.csv")
+analyzer.export_statistics_csv("tmp/output/contact_analysis")
+print("  Exported: tmp/output/contact_analysis_global.csv")
+print("  Exported: tmp/output/contact_analysis_cell_types.csv")
+print("  Exported: tmp/output/contact_analysis_interactions.csv")
 
-analyzer.export_network("contact_network.graphml", format="graphml")
+analyzer.export_network("tmp/output/contact_network.graphml", format="graphml")
 print("  Exported: contact_network.graphml")
 
 # Visualize
 print("\nVisualizing network...")
-analyzer.visualize_network(layout="spring", save_path="contact_network.png")
-print("  Saved: contact_network.png")
+analyzer.visualize_network(layout="spring", save_path="tmp/output/contact_network.png")
+print("  Saved: tmp/output/contact_network.png")
 
 print("\n" + "="*60)
 print("Analysis complete!")

@@ -75,6 +75,7 @@ batch_analysis.png
 # Generated tissue data
 output/
 results/
+tmp/
 
 # Future plans - don't want this public yet
 TODO.md
