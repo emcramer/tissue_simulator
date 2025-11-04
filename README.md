@@ -215,24 +215,85 @@ Define multiple cell types in the text box:
   "endothelial": [5, 8]
 }
 ```
-## 🕸️ Spatial Analysis
-### Network Construction:
+## 🕸️ Spatial Analysis & Graph-Based Cell Type Assignment
 
-**Contact mode:** Connects touching cells
-**Radius mode:** Connects cells within distance threshold
-Works with 3D tissues and 2D slices
+### NEW: Graph-Based Cell Type Assignment
 
-### Comprehensive Statistics:
+Assign cell types to tissues based on target spatial interaction patterns using simulated annealing optimization!
 
-**Global:** degree, density, clustering, path lengths
-**Per cell type:** degree, clustering, centrality measures
-**Pairwise interactions:** counts (normalized), distances
+**Complete Workflow:**
+1. Generate 3D tissue → 2. Extract 2D slice → 3. Build network graph → 4. Assign cell types → 5. Visualize → 6. Export → 7. Evaluate
 
-### Export & Visualization:
+```python
+from tissue_simulator import TissueSection, SpherePacker, quick_workflow
 
-CSV exports (3 files per analysis)
-Network formats (GraphML, GEXF, GML)
-Network visualizations
+# Create tissue
+tissue = TissueSection(height=300, width=300, thickness=80)
+packer = SpherePacker(tissue)
+packer.pack_cells(cell_types={'placeholder': [8, 12]}, max_attempts=1500)
+
+# Define target spatial statistics
+target_stats = {
+    'node_counts': {'cancer': 40, 'immune': 35, 'stroma': 25},
+    'edge_counts': {
+        'cancer-cancer': 60,    # Cancer cells cluster
+        'cancer-immune': 45,    # Moderate interaction
+        'cancer-stroma': 30,
+        'immune-immune': 25,
+        'immune-stroma': 20,
+        'stroma-stroma': 15
+    },
+    'neighbor_dist': {
+        'cancer': {'cancer': 3.0, 'immune': 2.2, 'stroma': 1.5},
+        'immune': {'cancer': 2.5, 'immune': 1.8, 'stroma': 1.3},
+        'stroma': {'cancer': 2.0, 'immune': 1.5, 'stroma': 1.2}
+    }
+}
+
+# Run complete workflow
+from tissue_simulator import TissueNetworkWorkflow
+workflow = TissueNetworkWorkflow()
+evaluation = workflow.run_complete_workflow(
+    tissue=tissue,
+    z_position=40,
+    network_radius=50.0,
+    target_stats_dict=target_stats,
+    cell_types=['cancer', 'immune', 'stroma'],
+    export_dir="results",
+    visualize=True
+)
+
+print(f"JS Divergence: {evaluation['js_divergence']:.4f}")  # Lower is better
+print(f"Cosine Similarity: {evaluation['cosine_similarity']:.4f}")  # Higher is better
+```
+
+**Key Features:**
+- **Target-based assignment**: Match spatial statistics from real tissues or hypothetical patterns
+- **Simulated annealing**: Optimization-based approach for realistic cell distributions
+- **Comprehensive evaluation**: Multiple metrics (JS divergence, cosine similarity, MAE, RMSE)
+- **Full workflow integration**: Seamless integration with tissue generation and analysis
+
+**Documentation:**
+- **[Complete Workflow Guide](docs/COMPLETE_WORKFLOW_GUIDE.md)** - Step-by-step tutorial with examples
+- **[Graph Coloring Guide](docs/GRAPH_COLORING_GUIDE.md)** - Detailed API documentation
+- **[Example Script](examples/complete_graph_coloring_workflow.py)** - Comprehensive working example
+
+### Network-Based Spatial Analysis
+
+**Network Construction:**
+- **Contact mode:** Connects touching cells
+- **Radius mode:** Connects cells within distance threshold
+- Works with 3D tissues and 2D slices
+
+**Comprehensive Statistics:**
+- **Global:** degree, density, clustering, path lengths
+- **Per cell type:** degree, clustering, centrality measures
+- **Pairwise interactions:** counts (normalized), distances
+
+**Export & Visualization:**
+- CSV exports (3 files per analysis)
+- Network formats (GraphML, GEXF, GML)
+- Network visualizations
 
 ### Example Usage
 

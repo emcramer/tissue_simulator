@@ -3,7 +3,7 @@ Tissue Simulator Package
 ========================
 
 A package for creating 3D simulated biological tissue sections using
-random sphere packing algorithms.
+random sphere packing algorithms, with network-based cell type assignment.
 """
 
 from .tissue import TissueSection, Cell
@@ -21,16 +21,49 @@ from .replicate_generator import (
     ReplicateGenerator,
     TargetStatistics,
     ReplicateStatistics,
-    load_target_statistics_from_csv,
+    load_target_statistics_from_csv as load_replicate_stats_csv,
     load_target_statistics_from_tissue
 )
+from .graph_coloring import (
+    GraphColorizer,
+    calculate_graph_statistics,
+    compare_graph_statistics,
+    load_target_statistics_from_csv as load_graph_stats_csv,
+    export_colored_graph_statistics,
+    visualize_colored_graph,
+    visualize_graph_comparison
+)
+from .evaluation import (
+    cosine_similarity,
+    cosine_distance,
+    js_divergence,
+    evaluate_graph_coloring,
+    print_evaluation_report
+)
+from .tissue_workflow import (
+    TissueNetworkWorkflow,
+    quick_workflow
+)
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
+    # Core tissue simulation
     "TissueSection", "Cell", "SpherePacker",
+    # Slicing
     "TissueSlicer", "SliceCell", "create_standard_slices",
+    # Spatial analysis
     "SpatialNetworkAnalyzer", "NetworkStatistics", "CellTypeStatistics",
     "InteractionStatistics", "analyze_tissue_network", "analyze_slice_network",
+    # Replicate generation
     "ReplicateGenerator", "TargetStatistics", "ReplicateStatistics",
-    "load_target_statistics_from_csv", "load_target_statistics_from_tissue"
+    "load_replicate_stats_csv", "load_target_statistics_from_tissue",
+    # Graph coloring and cell type assignment
+    "GraphColorizer", "calculate_graph_statistics", "compare_graph_statistics",
+    "load_graph_stats_csv", "export_colored_graph_statistics",
+    "visualize_colored_graph", "visualize_graph_comparison",
+    # Evaluation
+    "cosine_similarity", "cosine_distance", "js_divergence",
+    "evaluate_graph_coloring", "print_evaluation_report",
+    # Workflow
+    "TissueNetworkWorkflow", "quick_workflow"
 ]
