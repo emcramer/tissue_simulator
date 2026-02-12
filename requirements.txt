@@ -2,5 +2,6 @@ numpy>=1.20.0
 matplotlib>=3.3.0
 PyQt5>=5.15.0
 networkx>=2.6.0
+scipy>=1.7.0
 # Optional: MCP support for LLM integration
 mcp>=0.1.0

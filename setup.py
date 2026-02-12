@@ -11,6 +11,8 @@ setup(
         "numpy>=1.20.0",
         "matplotlib>=3.3.0",
         "PyQt5>=5.15.0",
+        "scipy>=1.7.0",
+        "networkx>=2.6.0",
     ],
     python_requires=">=3.8",
     classifiers=[

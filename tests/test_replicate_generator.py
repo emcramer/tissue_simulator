@@ -18,7 +18,7 @@ def test_imports():
             ReplicateGenerator,
             TargetStatistics,
             ReplicateStatistics,
-            load_target_statistics_from_csv,
+            load_replicate_stats_csv,
             load_target_statistics_from_tissue,
             TissueSection,
             SpatialNetworkAnalyzer,

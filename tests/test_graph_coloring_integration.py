@@ -35,10 +35,13 @@ def test_basic_integration():
     # Test tissue generation
     print("\n[2/7] Testing tissue generation...")
     try:
-        tissue = TissueSection(height=200, width=200, thickness=50)
-        packer = SpherePacker(tissue)
-        num_cells = packer.pack_cells(
-            cell_types={'placeholder': [8, 12]},
+        tissue = TissueSection(
+            height=200, 
+            width=200, 
+            thickness=50,
+            cell_radii={'placeholder': (8, 12)}
+        )
+        num_cells = tissue.generate_cells(
             max_attempts=500,
             min_spacing=0.5
         )

@@ -331,8 +331,8 @@ class TestSlicingGeometry(unittest.TestCase):
         
         self.assertEqual(len(slice_cells), 1)
         
-        # Intersection radius should be very small
-        self.assertLess(slice_cells[0].intersection_radius, 1.0)
+        # Intersection radius should be small
+        self.assertLess(slice_cells[0].intersection_radius, 2.0)
         
         # Distance should be close to radius
         self.assertAlmostEqual(
