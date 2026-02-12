@@ -68,11 +68,14 @@ class GraphColorizer:
                 raise ValueError("Source graph nodes must have a 'color' attribute.")
             print("Calculating target statistics from source graph...")
             source_coloring = nx.get_node_attributes(source_graph, 'color')
-            self.target_stats = self._calculate_statistics(source_graph, source_coloring)
+            self.target_stats, _ = self._calculate_statistics(source_graph, source_coloring)
         else:
             raise ValueError("Either source_graph or target_statistics must be provided.")
         
         print("Target Statistics:", self.target_stats)
+        
+        # Internal state for incremental updates
+        self.neighbor_counts = None
 
     def _calculate_statistics(self, graph: nx.Graph, coloring: dict):
         """Calculates the statistics for a given graph and coloring."""
@@ -120,7 +123,92 @@ class GraphColorizer:
                     # Avg number of c2 neighbors for a c1 node
                     stats['neighbor_dist'][c1][c2] = neighbor_counts[c1][c2] / total_nodes_of_c1
 
-        return stats
+        return stats, neighbor_counts
+
+    def _update_statistics_incremental(self, node1, node2, current_coloring, stats, neighbor_counts):
+        """
+        Incrementally updates statistics after swapping colors of node1 and node2.
+        
+        Args:
+            node1, node2: Nodes being swapped
+            current_coloring: Coloring BEFORE the swap
+            stats: Statistics BEFORE the swap
+            neighbor_counts: Raw neighbor counts BEFORE the swap
+            
+        Returns:
+            tuple: (new_stats, new_neighbor_counts)
+        """
+        # Note: In our simulated annealing, we swap colors between nodes, 
+        # so node counts stay exactly the same. We only update edges and neighbor dist.
+        
+        new_stats = {
+            'node_counts': stats['node_counts'].copy(),
+            'edge_counts': stats['edge_counts'].copy(),
+            'neighbor_dist': defaultdict(lambda: defaultdict(float))
+        }
+        
+        # Deep copy neighbor counts
+        new_neighbor_counts = defaultdict(lambda: defaultdict(int))
+        for c1, counts in neighbor_counts.items():
+            for c2, val in counts.items():
+                new_neighbor_counts[c1][c2] = val
+        
+        c1_old = current_coloring[node1]
+        c2_old = current_coloring[node2]
+        
+        # If nodes have same color, no change
+        if c1_old == c2_old:
+            new_stats['neighbor_dist'] = stats['neighbor_dist']
+            return new_stats, new_neighbor_counts
+            
+        # Process node1 neighbors
+        for neighbor in self.target_graph.neighbors(node1):
+            if neighbor == node2:
+                continue # Handle separately if they are neighbors
+            
+            cn = current_coloring[neighbor]
+            
+            # Edge c1_old-cn disappears, c2_old-cn appears
+            old_key = '-'.join(sorted([c1_old, cn]))
+            new_key = '-'.join(sorted([c2_old, cn]))
+            new_stats['edge_counts'][old_key] -= 1
+            new_stats['edge_counts'][new_key] += 1
+            
+            # Update neighbor counts
+            # For node1: neighbor cn was c1_old's neighbor, now it's c2_old's
+            new_neighbor_counts[c1_old][cn] -= 1
+            new_neighbor_counts[c2_old][cn] += 1
+            # For neighbor cn: node1 was c1_old, now it's c2_old
+            new_neighbor_counts[cn][c1_old] -= 1
+            new_neighbor_counts[cn][c2_old] += 1
+            
+        # Process node2 neighbors
+        for neighbor in self.target_graph.neighbors(node2):
+            if neighbor == node1:
+                continue
+            
+            cn = current_coloring[neighbor]
+            
+            # Edge c2_old-cn disappears, c1_old-cn appears
+            old_key = '-'.join(sorted([c2_old, cn]))
+            new_key = '-'.join(sorted([c1_old, cn]))
+            new_stats['edge_counts'][old_key] -= 1
+            new_stats['edge_counts'][new_key] += 1
+            
+            # Update neighbor counts
+            new_neighbor_counts[c2_old][cn] -= 1
+            new_neighbor_counts[c1_old][cn] += 1
+            new_neighbor_counts[cn][c2_old] -= 1
+            new_neighbor_counts[cn][c1_old] += 1
+
+        # Re-calculate neighbor_dist from new_neighbor_counts
+        for c1 in self.colors:
+            total_nodes_of_c1 = new_stats['node_counts'][c1]
+            if total_nodes_of_c1 > 0:
+                for c2 in self.colors:
+                    new_stats['neighbor_dist'][c1][c2] = new_neighbor_counts[c1][c2] / total_nodes_of_c1
+                    
+        return new_stats, new_neighbor_counts
 
     def _calculate_cost(self, current_stats: dict):
         """Calculates the cost (error) between current and target stats."""
@@ -173,7 +261,7 @@ class GraphColorizer:
         
         best_coloring = current_coloring.copy()
         
-        current_stats = self._calculate_statistics(self.target_graph, current_coloring)
+        current_stats, self.neighbor_counts = self._calculate_statistics(self.target_graph, current_coloring)
         current_cost = self._calculate_cost(current_stats)
         best_cost = current_cost
         
@@ -188,29 +276,36 @@ class GraphColorizer:
             # Propose a new state by swapping colors of two random nodes
             node1, node2 = random.sample(self.nodes, 2)
             
-            new_coloring = current_coloring.copy()
-            new_coloring[node1], new_coloring[node2] = new_coloring[node2], new_coloring[node1]
-
-            # This is the performance bottleneck. For large graphs, this should be
-            # an incremental update, not a full recalculation.
-            new_stats = self._calculate_statistics(self.target_graph, new_coloring)
+            # Incremental update instead of full recalculation
+            new_stats, new_neighbor_counts = self._update_statistics_incremental(
+                node1, node2, current_coloring, current_stats, self.neighbor_counts
+            )
             new_cost = self._calculate_cost(new_stats)
             
             delta_cost = new_cost - current_cost
             
             # Acceptance criteria
             if delta_cost < 0 or random.random() < math.exp(-delta_cost / temperature):
-                current_coloring = new_coloring
+                # Update state
+                c1, c2 = current_coloring[node1], current_coloring[node2]
+                current_coloring[node1], current_coloring[node2] = c2, c1
+                
                 current_cost = new_cost
                 current_stats = new_stats
+                self.neighbor_counts = new_neighbor_counts
                 
                 if current_cost < best_cost:
-                    best_coloring = current_coloring
+                    best_coloring = current_coloring.copy()
                     best_cost = current_cost
             
             # Cool down
             temperature *= cooling_rate
             
+            # Occasionally do a full recalculation to avoid floating point drift
+            if i > 0 and i % 5000 == 0:
+                current_stats, self.neighbor_counts = self._calculate_statistics(self.target_graph, current_coloring)
+                current_cost = self._calculate_cost(current_stats)
+
             if verbose and i % 500 == 0:
                 print(f"Iter {i}: Temp={temperature:.2f}, Cost={current_cost:.4f}, Best Cost={best_cost:.4f}")
         

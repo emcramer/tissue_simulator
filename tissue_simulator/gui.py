@@ -150,7 +150,26 @@ class TissueSimulatorGUI(QMainWindow):
         super().__init__()
         self.tissue = None
         self.packing_thread = None
+        self.dependencies = {
+            'scipy': False,
+            'networkx': False
+        }
+        self.check_dependencies()
         self.init_ui()
+
+    def check_dependencies(self):
+        """Check for optional but recommended dependencies."""
+        try:
+            import scipy
+            self.dependencies['scipy'] = True
+        except ImportError:
+            self.dependencies['scipy'] = False
+
+        try:
+            import networkx
+            self.dependencies['networkx'] = True
+        except ImportError:
+            self.dependencies['networkx'] = False
         
     def init_ui(self):
         """Initialize user interface."""
@@ -169,12 +188,26 @@ class TissueSimulatorGUI(QMainWindow):
         # Right panel for visualization
         viz_panel = self.create_visualization_panel()
         main_layout.addWidget(viz_panel, stretch=2)
+
+        # Show warning if dependencies are missing
+        missing = [pkg for pkg, found in self.dependencies.items() if not found]
+        if missing:
+            msg = f"Optional dependencies not found: {', '.join(missing)}\n\n"
+            msg += "Some advanced features (spatial analysis, graph coloring) will be unavailable."
+            QMessageBox.warning(self, "Missing Dependencies", msg)
         
     def create_control_panel(self):
         """Create left control panel."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
         
+        # Dependency warning label if needed
+        missing = [pkg for pkg, found in self.dependencies.items() if not found]
+        if missing:
+            dep_label = QLabel(f"⚠️ Missing: {', '.join(missing)}")
+            dep_label.setStyleSheet("color: #d32f2f; font-weight: bold;")
+            layout.addWidget(dep_label)
+
         # Tissue dimensions group
         dims_group = QGroupBox("Tissue Dimensions (μm)")
         dims_layout = QVBoxLayout()
