@@ -44,8 +44,32 @@ from .tissue_workflow import (
     TissueNetworkWorkflow,
     quick_workflow
 )
+from .physicell_export import (
+    PhysiCellExporter,
+    export_to_physicell,
+)
+from .physicell_reader import (
+    PhysiCellReader,
+    read_physicell_output,
+    stats_to_target_statistics,
+)
+from .convergence import (
+    adf_test,
+    mann_kendall_test,
+    rolling_cv,
+    find_convergence_time,
+    MultiMetricConvergence,
+)
+from .power_analysis import (
+    cohens_d,
+    coefficient_of_variation,
+    required_replicates,
+    power_curve,
+    compare_initialization_variance,
+    summarize_power_analysis,
+)
 
-__version__ = "0.2.0"
+__version__ = "0.1.1"
 __all__ = [
     # Core tissue simulation
     "TissueSection", "Cell", "SpherePacker",
@@ -65,5 +89,15 @@ __all__ = [
     "cosine_similarity", "cosine_distance", "js_divergence",
     "evaluate_graph_coloring", "print_evaluation_report",
     # Workflow
-    "TissueNetworkWorkflow", "quick_workflow"
+    "TissueNetworkWorkflow", "quick_workflow",
+    # PhysiCell ABM bridge (v0.1.1)
+    "PhysiCellExporter", "export_to_physicell",
+    "PhysiCellReader", "read_physicell_output", "stats_to_target_statistics",
+    # Convergence diagnostics (v0.1.1)
+    "adf_test", "mann_kendall_test", "rolling_cv",
+    "find_convergence_time", "MultiMetricConvergence",
+    # Power analysis (v0.1.1)
+    "cohens_d", "coefficient_of_variation", "required_replicates",
+    "power_curve", "compare_initialization_variance",
+    "summarize_power_analysis",
 ]
