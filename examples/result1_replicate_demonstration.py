@@ -9,10 +9,12 @@ match a single reference fingerprint. We:
      (tumor, immune, stroma) in a 200x200x50 um box.
   2. Extract its spatial fingerprint with
      load_target_statistics_from_tissue (radius-mode network).
-  3. Generate N_REPLICATES tissues with the ReplicateGenerator. Note:
-     SpherePacker / TissueSection currently instantiate their own
-     RNGs internally, so per-replicate seeding is best-effort rather
-     than bit-for-bit reproducible.
+  3. Generate N_REPLICATES tissues with the ReplicateGenerator. Bit-for-bit
+     reproducibility is now guaranteed for a fixed seed: TissueSection and
+     SpherePacker accept an explicit seed argument that is threaded through
+     to every random draw, and ReplicateGenerator derives a deterministic
+     per-replicate seed from (seed, replicate_id) without touching the
+     global numpy RNG.
   4. Measure each replicate's divergence vs. the target and write CSV
      summaries plus three matplotlib figures.
 
@@ -74,12 +76,12 @@ CELL_TYPE_COLORS = {
 
 def generate_reference_tissue() -> TissueSection:
     """Generate a deterministic reference tissue."""
-    np.random.seed(REFERENCE_SEED)
     tissue = TissueSection(
         height=TISSUE_DIMENSIONS[0],
         width=TISSUE_DIMENSIONS[1],
         thickness=TISSUE_DIMENSIONS[2],
         cell_radii=CELL_RADII,
+        seed=REFERENCE_SEED,
     )
     n = tissue.generate_cells(
         max_attempts=MAX_ATTEMPTS,
@@ -325,9 +327,10 @@ def main():
     achieved_long = []
 
     for i in range(N_REPLICATES):
-        # Seed numpy globally before each replicate so the run is reproducible.
-        np.random.seed(REFERENCE_SEED + 1 + i)
-
+        # Each replicate uses a deterministic per-run seed. The generator
+        # threads this seed through TissueSection -> SpherePacker without
+        # touching the global numpy RNG, so the run is bit-for-bit
+        # reproducible.
         generator = ReplicateGenerator(
             target_stats=target_stats,
             tissue_dimensions=TISSUE_DIMENSIONS,
@@ -394,7 +397,8 @@ def main():
     # Concise summary.
     total_elapsed = time.time() - overall_start
     n_cells_array = np.array([r.num_cells for _, r in replicates])
-    div_array = np.array(divergences)
+    div_array = np.array(divergences, dtype=float)
+    n_nan_div = int(np.isnan(div_array).sum())
     print()
     print("=" * 60)
     print("Result 1 summary")
@@ -403,7 +407,10 @@ def main():
     print(f"  Achieved n_cells:        "
           f"mean={n_cells_array.mean():.1f}, std={n_cells_array.std():.1f}")
     print(f"  Mean divergence:         "
-          f"{div_array.mean():.4f} (std {div_array.std():.4f})")
+          f"{np.nanmean(div_array):.4f} (std {np.nanstd(div_array):.4f})")
+    if n_nan_div > 0:
+        print(f"  WARNING: {n_nan_div} replicate(s) had nan divergence "
+              f"(target had no signal in any pair); excluded from the mean.")
     print(f"  Replicates generated:    {len(replicates)}")
     print(f"  Total run time:          {total_elapsed:.1f} s")
     print(f"  Output directory:        {OUTPUT_DIR}")

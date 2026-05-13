@@ -3,10 +3,14 @@ Unit tests for the PhysiCell snapshot reader.
 """
 
 import csv
+import math
 import os
 import tempfile
 import unittest
+import warnings
 from typing import Dict, List
+
+import numpy as np
 
 from tissue_simulator.physicell_reader import (
     PhysiCellReader,
@@ -15,6 +19,46 @@ from tissue_simulator.physicell_reader import (
 )
 from tissue_simulator.replicate_generator import TargetStatistics
 from tissue_simulator.spatial_analysis import InteractionStatistics
+
+
+def _make_physicell_cells_matrix(n_cells: int,
+                                 type_ids: List[int],
+                                 volume: float = 2494.0) -> np.ndarray:
+    """
+    Build a fake PhysiCell-style cells matrix of shape (6, n_cells).
+
+    Rows follow the documented PhysiCell 1.10+ default layout:
+    0=ID, 1=x, 2=y, 3=z, 4=total_volume, 5=cell_type.
+    """
+    if len(type_ids) != n_cells:
+        raise ValueError("type_ids must have length n_cells")
+    matrix = np.zeros((6, n_cells), dtype=float)
+    matrix[0, :] = np.arange(n_cells, dtype=float)
+    matrix[1, :] = np.arange(n_cells, dtype=float) * 10.0
+    matrix[2, :] = np.arange(n_cells, dtype=float) * 10.0 + 1.0
+    matrix[3, :] = np.arange(n_cells, dtype=float) * 10.0 + 2.0
+    matrix[4, :] = float(volume)
+    matrix[5, :] = np.asarray(type_ids, dtype=float)
+    return matrix
+
+
+def _write_cell_definitions_xml(path: str,
+                                mapping: Dict[int, str]) -> None:
+    """Write a tiny PhysiCell XML with <cell_definitions> entries."""
+    lines = [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        "<PhysiCell_snapshot>",
+        "  <cell_definitions>",
+    ]
+    for type_id, name in mapping.items():
+        lines.append(
+            f"    <cell_definition ID=\"{type_id}\" name=\"{name}\">"
+        )
+        lines.append("    </cell_definition>")
+    lines.append("  </cell_definitions>")
+    lines.append("</PhysiCell_snapshot>")
+    with open(path, "w") as fh:
+        fh.write("\n".join(lines))
 
 
 def _write_snapshot_csv(path: str,
@@ -270,21 +314,114 @@ class TestTimeSeriesStats(unittest.TestCase):
 
 
 class TestMatLoading(unittest.TestCase):
-    """Tests for graceful handling of .mat snapshots."""
+    """Tests for .mat snapshot loading via the fallback parser."""
 
     def test_missing_mat_file_raises_file_not_found(self):
         reader = PhysiCellReader()
         with self.assertRaises(FileNotFoundError):
             reader.load_snapshot_mat("/nonexistent/output.mat")
 
-    def test_invalid_mat_file_raises_not_implemented(self):
+    def test_invalid_mat_file_raises_value_error(self):
+        """An unreadable .mat surfaces as ValueError (not NotImplementedError)."""
         reader = PhysiCellReader()
         with tempfile.TemporaryDirectory() as tmp:
             fake_mat = os.path.join(tmp, "fake.mat")
             with open(fake_mat, "wb") as fh:
                 fh.write(b"this is not a valid MATLAB file")
-            with self.assertRaises(NotImplementedError):
+            with self.assertRaises(ValueError):
                 reader.load_snapshot_mat(fake_mat)
+
+    def test_mat_loading_via_direct_parser_default_layout(self):
+        """Synthesize a (6, 10) cells matrix and verify the parser output."""
+        from scipy.io import savemat
+
+        reader = PhysiCellReader()
+        type_ids = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+        matrix = _make_physicell_cells_matrix(10, type_ids, volume=2494.0)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            mat_path = os.path.join(tmp, "out_cells.mat")
+            savemat(mat_path, {"cells": matrix})
+            # Suppress the "no cell-definition mapping" warning here —
+            # it's covered separately in test_mat_loading_no_pymcds_no_xml_warns.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                cells = reader.load_snapshot_mat(mat_path)
+
+        self.assertEqual(len(cells), 10)
+        # First cell: x=0, y=1, z=2 per the synthesizer.
+        self.assertAlmostEqual(cells[0]["x"], 0.0)
+        self.assertAlmostEqual(cells[0]["y"], 1.0)
+        self.assertAlmostEqual(cells[0]["z"], 2.0)
+        # Sixth cell (i=5): x=50, y=51, z=52
+        self.assertAlmostEqual(cells[5]["x"], 50.0)
+        self.assertAlmostEqual(cells[5]["y"], 51.0)
+        self.assertAlmostEqual(cells[5]["z"], 52.0)
+        # Radius derived from total_volume 2494: ~8.41
+        expected_radius = (3.0 * 2494.0 / (4.0 * math.pi)) ** (1.0 / 3.0)
+        for cell in cells:
+            self.assertAlmostEqual(cell["radius"], expected_radius, places=5)
+            self.assertIn(cell["cell_type"], {"0", "1"})  # stringified ints
+            self.assertIn("id", cell)
+            self.assertIn("volume", cell)
+
+    def test_mat_loading_with_xml_remaps_cell_type(self):
+        """When XML is supplied, cell_type IDs become human-readable names."""
+        from scipy.io import savemat
+
+        reader = PhysiCellReader()
+        type_ids = [0, 1, 0, 1]
+        matrix = _make_physicell_cells_matrix(4, type_ids)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            mat_path = os.path.join(tmp, "out_cells.mat")
+            xml_path = os.path.join(tmp, "out.xml")
+            savemat(mat_path, {"cells": matrix})
+            _write_cell_definitions_xml(xml_path,
+                                        {0: "tumor", 1: "immune"})
+            cells = reader.load_snapshot_mat(mat_path, xml_path=xml_path)
+
+        self.assertEqual(len(cells), 4)
+        types = [c["cell_type"] for c in cells]
+        self.assertEqual(types, ["tumor", "immune", "tumor", "immune"])
+
+    def test_mat_loading_rejects_non_standard_shape(self):
+        """A matrix with fewer than 6 rows is rejected, not silently transposed.
+
+        Pair B's earlier transpose-flip heuristic could mis-decode a
+        (5, 1000) matrix as (1000 signals, 5 cells); the safer behavior is
+        to raise so users notice the format mismatch.
+        """
+        from scipy.io import savemat
+
+        reader = PhysiCellReader()
+        # 4 rows × 10 cols — neither a real PhysiCell shape nor a
+        # transposable one. Must reject with a clear error.
+        bad = np.zeros((4, 10), dtype=float)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            mat_path = os.path.join(tmp, "out_cells.mat")
+            savemat(mat_path, {"cells": bad})
+            with self.assertRaises(ValueError) as ctx:
+                reader.load_snapshot_mat(mat_path)
+        self.assertIn("axis 0", str(ctx.exception))
+
+    def test_mat_loading_no_pymcds_no_xml_warns(self):
+        """Without XML, parser still works but warns about ID stringification."""
+        from scipy.io import savemat
+
+        reader = PhysiCellReader()
+        matrix = _make_physicell_cells_matrix(3, [0, 1, 0])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            mat_path = os.path.join(tmp, "out_cells.mat")
+            savemat(mat_path, {"cells": matrix})
+            with self.assertWarns(UserWarning):
+                cells = reader.load_snapshot_mat(mat_path)
+
+        self.assertEqual(len(cells), 3)
+        # Cell types are stringified integer IDs.
+        self.assertEqual([c["cell_type"] for c in cells], ["0", "1", "0"])
 
 
 class TestStatsToTargetStatistics(unittest.TestCase):

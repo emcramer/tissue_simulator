@@ -118,75 +118,116 @@ class ReplicateGenerator:
         self.network_mode = network_mode
         self.network_radius = network_radius
         self.seed = seed
-        
-        if seed is not None:
-            np.random.seed(seed)
-        
-        # Extract cell types from target stats
-        self.cell_types = set()
+
+        # NOTE: we deliberately do NOT seed the global ``np.random`` module
+        # RNG here. Doing so leaks state into the rest of the process and
+        # makes reproducibility "best-effort" rather than guaranteed. Instead,
+        # each replicate gets a deterministic per-replicate seed derived from
+        # ``self.seed`` in ``generate_single_replicate``, and that seed is
+        # threaded explicitly through ``TissueSection`` / ``SpherePacker``.
+
+        # Extract cell types from target stats. Stored as a sorted tuple
+        # rather than a set so iteration order is bit-stable across Python
+        # processes (a plain set's order depends on PYTHONHASHSEED, and
+        # downstream code feeds this iteration order into rng.choice via
+        # dict construction — non-determinism there silently breaks the
+        # reproducibility guarantee that ``seed`` is meant to provide).
+        types_seen = set()
         for stat in target_stats.interaction_stats:
-            self.cell_types.add(stat.type_a)
-            self.cell_types.add(stat.type_b)
-        
+            types_seen.add(stat.type_a)
+            types_seen.add(stat.type_b)
+        self.cell_types = tuple(sorted(types_seen))
+
         # Set default proportions if not provided
         if target_stats.cell_type_proportions is None:
             n_types = len(self.cell_types)
             self.target_stats.cell_type_proportions = {
                 ct: 1.0 / n_types for ct in self.cell_types
             }
-        
+
         # Validate cell types match
         config_types = set(base_cell_radii.keys())
-        if not self.cell_types.issubset(config_types):
-            missing = self.cell_types - config_types
+        missing = set(self.cell_types) - config_types
+        if missing:
             raise ValueError(f"Cell types in target stats not in radii config: {missing}")
     
-    def _compute_interaction_divergence(self, 
+    def _compute_interaction_divergence(self,
                                        measured: List[InteractionStatistics],
                                        target: List[InteractionStatistics]) -> float:
         """
         Compute divergence between measured and target interaction statistics.
-        
+
         Uses relative difference in normalized interactions as the metric.
-        
+
+        Per-pair semantics:
+            - If both the target and measured value are zero, the pair has no
+              signal in either direction; its contribution is ``nan`` rather
+              than 0.0, so that "no signal" is not mistaken for a perfect
+              match.
+            - If the target value is > 0, the contribution is the relative
+              difference ``|measured - target| / target``, capped at 2.0.
+            - If the target value is 0 but the measured value is > 0, the
+              contribution is the absolute difference (still capped at 2.0).
+            - A pair present in ``target`` but missing from ``measured`` is
+              treated as a 1.0 penalty (same as before).
+
+        The aggregate score is the ``nanmean`` of the per-pair contributions,
+        so pairs that were all-zero on both sides are ignored. If every pair
+        is nan (the target has no signal at all), this returns ``nan``.
+
         Args:
             measured: Measured interaction statistics
             target: Target interaction statistics
-        
+
         Returns:
-            Average relative divergence (0 = perfect match)
+            Average relative divergence (0 = perfect match, nan = no signal
+            in any pair).
         """
         # Create lookup for measured stats
         measured_dict = {}
         for stat in measured:
             key = tuple(sorted([stat.type_a, stat.type_b]))
             measured_dict[key] = stat
-        
+
         # Compute divergences
         divergences = []
         for target_stat in target:
             key = tuple(sorted([target_stat.type_a, target_stat.type_b]))
-            
+
             if key not in measured_dict:
                 # Missing interaction type - large penalty
                 divergences.append(1.0)
                 continue
-            
+
             measured_stat = measured_dict[key]
-            
+
             # Use normalized interactions as primary metric
             target_val = target_stat.normalized_interactions
             measured_val = measured_stat.normalized_interactions
-            
+
+            # All-zero pair: no signal anywhere, mark as nan so this pair
+            # does NOT count as a perfect match in the aggregate.
+            if target_val == 0 and measured_val == 0:
+                divergences.append(np.nan)
+                continue
+
             # Relative difference
             if target_val > 0:
                 rel_diff = abs(measured_val - target_val) / target_val
             else:
                 rel_diff = abs(measured_val - target_val)
-            
+
             divergences.append(min(rel_diff, 2.0))  # Cap at 2.0
-        
-        return np.mean(divergences)
+
+        if len(divergences) == 0:
+            return float('nan')
+
+        # nanmean ignores all-zero pairs; if every pair is nan (target has
+        # no signal anywhere) numpy returns nan and emits a RuntimeWarning,
+        # which we suppress because nan is the documented return value.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            return float(np.nanmean(divergences))
     
     def _adjust_cell_type_proportions(self, 
                                      tissue: TissueSection,
@@ -260,54 +301,80 @@ class ReplicateGenerator:
         best_tissue = None
         best_divergence = float('inf')
         best_stats = None
-        
+
         current_radii = self.base_cell_radii.copy()
-        
+
+        # Derive a deterministic per-replicate seed from (self.seed, replicate_id)
+        # using SeedSequence, which mixes the entropy in a stable, well-defined
+        # way. When self.seed is None we fall through to None and tissue
+        # generation remains unseeded (backward-compatible).
+        if self.seed is not None:
+            replicate_seed = int(
+                np.random.SeedSequence([self.seed, replicate_id]).generate_state(1)[0]
+            )
+        else:
+            replicate_seed = None
+
         for iteration in range(max_iterations):
+            # Each iteration within a replicate gets its own derived seed so
+            # the parameter-adjustment loop is also deterministic.
+            if replicate_seed is not None:
+                iter_seed = int(
+                    np.random.SeedSequence([replicate_seed, iteration]).generate_state(1)[0]
+                )
+            else:
+                iter_seed = None
+
             # Generate tissue
             tissue = TissueSection(
                 height=self.tissue_dimensions[0],
                 width=self.tissue_dimensions[1],
                 thickness=self.tissue_dimensions[2],
-                cell_radii=current_radii
+                cell_radii=current_radii,
+                seed=iter_seed,
             )
-            
+
             num_cells = tissue.generate_cells(
                 max_attempts=max_attempts,
                 min_spacing=min_spacing,
-                allow_boundary_cells=allow_boundary
+                allow_boundary_cells=allow_boundary,
             )
-            
+
             if num_cells == 0:
                 warnings.warn(f"Replicate {replicate_id}, iteration {iteration}: No cells generated")
                 continue
-            
+
             # Analyze spatial interactions
             analyzer = SpatialNetworkAnalyzer()
             analyzer.build_network_from_tissue(
-                tissue, 
+                tissue,
                 mode=self.network_mode,
                 radius=self.network_radius
             )
-            
+
             measured_interactions = analyzer.compute_interaction_statistics()
-            
+
             # Compute divergence
             divergence = self._compute_interaction_divergence(
                 measured_interactions,
                 self.target_stats.interaction_stats
             )
-            
-            # Track best result
-            if divergence < best_divergence:
+
+            # Track best result. nan divergence (no signal anywhere) is not
+            # comparable; we still record it as the best if we have nothing.
+            if best_tissue is None:
                 best_divergence = divergence
                 best_tissue = tissue
                 best_stats = measured_interactions
-            
-            # Check if we've met tolerance
-            if divergence <= tolerance:
+            elif not np.isnan(divergence) and (np.isnan(best_divergence) or divergence < best_divergence):
+                best_divergence = divergence
+                best_tissue = tissue
+                best_stats = measured_interactions
+
+            # Check if we've met tolerance (nan never satisfies <= tolerance)
+            if not np.isnan(divergence) and divergence <= tolerance:
                 break
-            
+
             # Adjust parameters for next iteration
             if iteration < max_iterations - 1:
                 current_radii = self._adjust_cell_type_proportions(tissue, iteration)

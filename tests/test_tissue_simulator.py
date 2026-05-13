@@ -198,6 +198,85 @@ class TestSpherePacker(unittest.TestCase):
             self.assertTrue(cell.is_within_bounds(packer2.bounds))
 
 
+class TestSeedReproducibility(unittest.TestCase):
+    """Test that explicit seeding yields bit-for-bit reproducible output."""
+
+    def test_sphere_packer_seed_reproducibility(self):
+        """Two SpherePackers with the same seed produce identical packings."""
+        bounds = (100, 100, 50)
+        config = {'type_a': (5, 8), 'type_b': (6, 10)}
+
+        packer1 = SpherePacker(
+            bounds=bounds, cell_radii_config=config,
+            min_spacing=0.5, allow_boundary_cells=True, seed=12345,
+        )
+        cells1 = packer1.pack(max_attempts=200)
+
+        packer2 = SpherePacker(
+            bounds=bounds, cell_radii_config=config,
+            min_spacing=0.5, allow_boundary_cells=True, seed=12345,
+        )
+        cells2 = packer2.pack(max_attempts=200)
+
+        # Identical count
+        self.assertEqual(len(cells1), len(cells2))
+        self.assertGreater(len(cells1), 0)
+
+        # Identical centers, radii, and types in order
+        for c1, c2 in zip(cells1, cells2):
+            np.testing.assert_array_equal(c1.center, c2.center)
+            self.assertEqual(c1.radius, c2.radius)
+            self.assertEqual(c1.cell_type, c2.cell_type)
+            self.assertEqual(c1.is_boundary, c2.is_boundary)
+
+    def test_tissue_section_seed_reproducibility(self):
+        """Two TissueSection(seed=42) instances produce identical cells."""
+        radii = {'type_a': (5, 8), 'type_b': (7, 10)}
+
+        t1 = TissueSection(100, 100, 50, cell_radii=radii, seed=42)
+        n1 = t1.generate_cells(max_attempts=200, min_spacing=0.5)
+
+        t2 = TissueSection(100, 100, 50, cell_radii=radii, seed=42)
+        n2 = t2.generate_cells(max_attempts=200, min_spacing=0.5)
+
+        self.assertEqual(n1, n2)
+        self.assertGreater(n1, 0)
+
+        for c1, c2 in zip(t1.cells, t2.cells):
+            np.testing.assert_array_equal(c1.center, c2.center)
+            self.assertEqual(c1.radius, c2.radius)
+            self.assertEqual(c1.cell_type, c2.cell_type)
+
+    def test_tissue_section_no_seed_still_works(self):
+        """Backwards-compat: TissueSection without seed behaves as before."""
+        # Constructing and generating without a seed must succeed and
+        # produce at least one cell. Two such tissues will almost certainly
+        # differ (probabilistic), but we only assert the unseeded path
+        # functions correctly.
+        tissue = TissueSection(100, 100, 50, (5, 10))
+        n = tissue.generate_cells(max_attempts=200)
+        self.assertGreater(n, 0)
+        # No seed attribute should crash; it just defaults to None.
+        self.assertIsNone(tissue.seed)
+
+    def test_generate_cells_seed_override(self):
+        """Passing seed= to generate_cells overrides the constructor seed."""
+        radii = {'type_a': (5, 8)}
+
+        # Using override seed=99 vs constructing with seed=99 should match.
+        t_override = TissueSection(100, 100, 50, cell_radii=radii, seed=1)
+        t_override.generate_cells(max_attempts=200, seed=99)
+
+        t_ctor = TissueSection(100, 100, 50, cell_radii=radii, seed=99)
+        t_ctor.generate_cells(max_attempts=200)
+
+        self.assertEqual(len(t_override.cells), len(t_ctor.cells))
+        for c1, c2 in zip(t_override.cells, t_ctor.cells):
+            np.testing.assert_array_equal(c1.center, c2.center)
+            self.assertEqual(c1.radius, c2.radius)
+            self.assertEqual(c1.cell_type, c2.cell_type)
+
+
 class TestIntegration(unittest.TestCase):
     """Integration tests for complete workflows."""
     

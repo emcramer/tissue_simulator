@@ -3,7 +3,7 @@ Sphere packing algorithm for cell placement.
 """
 
 import numpy as np
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 from .tissue import Cell
 
 
@@ -11,25 +11,30 @@ class SpherePacker:
     """
     Random sphere packing algorithm for placing cells in tissue.
     """
-    
+
     def __init__(self, bounds: Tuple[float, float, float],
                  cell_radii_config: Dict[str, Tuple[float, float]],
                  min_spacing: float = 0.5,
-                 allow_boundary_cells: bool = True):
+                 allow_boundary_cells: bool = True,
+                 seed: Optional[int] = None):
         """
         Initialize sphere packer.
-        
+
         Args:
             bounds: (height, width, thickness) of tissue
             cell_radii_config: Dict mapping cell types to (min, max) radii
             min_spacing: Minimum spacing between cell surfaces
             allow_boundary_cells: Allow cells extending beyond bounds
+            seed: Optional integer seed for the instance RNG. When provided,
+                the packing process is deterministic; when None the RNG is
+                seeded from system entropy (previous default behavior).
         """
         self.bounds = bounds
         self.cell_radii_config = cell_radii_config
         self.min_spacing = min_spacing
         self.allow_boundary_cells = allow_boundary_cells
-        self._rng = np.random.default_rng()
+        self.seed = seed
+        self._rng = np.random.default_rng(seed)
         
     def _select_cell_type_and_radius(self) -> Tuple[str, float]:
         """Randomly select a cell type and radius."""

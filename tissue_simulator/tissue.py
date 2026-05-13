@@ -81,30 +81,36 @@ class TissueSection:
     """
     
     def __init__(self, height: float, width: float, thickness: float,
-                 cell_radii: Union[Tuple[float, float], 
-                                  Dict[str, Tuple[float, float]]]):
+                 cell_radii: Union[Tuple[float, float],
+                                  Dict[str, Tuple[float, float]]],
+                 seed: Optional[int] = None):
         """
         Initialize a tissue section.
-        
+
         Args:
             height: Y-dimension in micrometers
             width: X-dimension in micrometers
             thickness: Z-dimension in micrometers
             cell_radii: Either a tuple (min, max) for uniform cells,
                        or dict mapping cell types to (min, max) radii
+            seed: Optional integer seed controlling randomness for this
+                tissue (both the internal sampler and the SpherePacker
+                created by ``generate_cells``). When None (default), the
+                RNG is seeded from system entropy as before.
         """
         self.height = height
         self.width = width
         self.thickness = thickness
-        
+
         # Convert single tuple to dictionary format
         if isinstance(cell_radii, tuple):
             self.cell_radii = {"default": cell_radii}
         else:
             self.cell_radii = cell_radii
-            
+
         self.cells: List[Cell] = []
-        self._rng = np.random.default_rng()
+        self.seed = seed
+        self._rng = np.random.default_rng(seed)
         
     def get_bounds(self) -> Tuple[float, float, float]:
         """Return tissue dimensions as (height, width, thickness)."""
@@ -121,31 +127,47 @@ class TissueSection:
         
         return cell_type, radius
     
-    def generate_cells(self, max_attempts: int = 1000, 
+    def generate_cells(self, max_attempts: int = 1000,
                       min_spacing: float = 0.5,
-                      allow_boundary_cells: bool = True) -> int:
+                      allow_boundary_cells: bool = True,
+                      seed: Optional[int] = None) -> int:
         """
         Generate cells using random sphere packing.
-        
+
         Args:
             max_attempts: Maximum placement attempts before stopping
             min_spacing: Minimum spacing between cell surfaces
             allow_boundary_cells: If True, allow cells that extend beyond bounds
-            
+            seed: Optional integer seed that overrides ``self.seed`` for this
+                call. When provided, the TissueSection's internal RNG is
+                re-constructed with this seed and the seed is propagated into
+                the internal SpherePacker, making generation bit-reproducible.
+                When None (default), ``self.seed`` is used (which itself may
+                be None for unseeded behavior).
+
         Returns:
             Number of cells successfully placed
         """
         from .packing import SpherePacker
-        
+
+        # Resolve the effective seed for this generation run. An explicit
+        # ``seed=`` argument overrides ``self.seed``; otherwise we reuse the
+        # seed supplied at construction.
+        if seed is not None:
+            self.seed = seed
+            self._rng = np.random.default_rng(seed)
+        effective_seed = self.seed
+
         packer = SpherePacker(
             bounds=self.get_bounds(),
             cell_radii_config=self.cell_radii,
             min_spacing=min_spacing,
-            allow_boundary_cells=allow_boundary_cells
+            allow_boundary_cells=allow_boundary_cells,
+            seed=effective_seed,
         )
-        
+
         self.cells = packer.pack(max_attempts=max_attempts)
-        
+
         return len(self.cells)
     
     def get_cell_statistics(self) -> Dict:
