@@ -117,12 +117,12 @@ slicer.export_slice_csv('slice_data.csv')  # Export slice data
 
 ## 📚 Documentation
 
-- **[Quick Start Guide](docs/QUICKSTART.md)**: Get up and running in minutes
-- **[Comprehensive Guide](docs/GUIDE.md)**: Detailed documentation with examples
-- **[Package Structure](docs/STRUCTURE.md)**: Architecture and module descriptions
-- **[Spatial Analysis](docs/SPATIAL_ANALYSIS.md)**: Network-based spatial analysis guide
-- **[Replicate Generation](docs/REPLICATE_GENERATION.md)**: Generate tissues matching spatial statistics
-- **[API Reference](docs/GUIDE.md#api-reference)**: Complete function and class documentation
+- **[Quick Start Guide](docs/quickstart.md)**: Get up and running in minutes
+- **[Core API](docs/api/core.md)**: TissueSection, Cell, SpherePacker reference
+- **[Spatial Analysis](docs/api/spatial-analysis.md)**: Network-based spatial analysis guide
+- **[Replicate Generation](docs/api/replicate-generation.md)**: Generate tissues matching spatial statistics
+- **[Complete Workflow](docs/guides/complete-workflow.md)**: End-to-end tutorial
+- **[CHANGELOG](CHANGELOG.md)**: Release history and migration notes
 
 ## 💡 Examples
 
@@ -274,8 +274,8 @@ print(f"Cosine Similarity: {evaluation['cosine_similarity']:.4f}")  # Higher is 
 - **Full workflow integration**: Seamless integration with tissue generation and analysis
 
 **Documentation:**
-- **[Complete Workflow Guide](docs/COMPLETE_WORKFLOW_GUIDE.md)** - Step-by-step tutorial with examples
-- **[Graph Coloring Guide](docs/GRAPH_COLORING_GUIDE.md)** - Detailed API documentation
+- **[Complete Workflow Guide](docs/guides/complete-workflow.md)** - Step-by-step tutorial with examples
+- **[Graph Coloring Guide](docs/api/graph-coloring.md)** - Detailed API documentation
 - **[Example Script](examples/complete_graph_coloring_workflow.py)** - Comprehensive working example
 
 ### Network-Based Spatial Analysis
@@ -447,8 +447,8 @@ Claude: [Uses create_tissue, generate_cells, create_serial_slices tools]
 
 ### Documentation
 
-- **[MCP Quick Start](docs/MCP_README.md)** - Get started in 5 minutes
-- **[MCP Complete Guide](docs/MCP_GUIDE.md)** - Full API reference
+- **[MCP Quick Start](docs/guides/mcp.md)** - Get started in 5 minutes
+- **[MCP Complete Guide](docs/api/mcp.md)** - Full API reference
 - **[Example Conversations](examples/mcp_examples/)** - Usage examples
 
 ## 🔬 Scientific Background
@@ -556,7 +556,7 @@ This package implements concepts from:
 
 For issues and questions:
 
-1. Check the [Comprehensive Guide](docs/GUIDE.md)
+1. Check the [Core API reference](docs/api/core.md)
 2. Review the [examples](examples/) directory
 3. Run `verify_installation.py` to check setup
 4. File an issue on the project repository

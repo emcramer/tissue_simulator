@@ -263,14 +263,18 @@ Network Statistics (3 files):
 ## Documentation Structure
 
 - `README.md`: Main project documentation with examples
-- `docs/GUIDE.md`: Comprehensive API reference
-- `docs/QUICKSTART.md`: Installation and basic usage
-- `docs/STRUCTURE.md`: Package organization (outdated, see this file)
-- `docs/SPATIAL_ANALYSIS.md`: Network analysis guide
-- `docs/REPLICATE_GENERATION.md`: Replicate generator guide
-- `docs/GRAPH_COLORING_GUIDE.md`: Cell type assignment API
-- `docs/COMPLETE_WORKFLOW_GUIDE.md`: End-to-end workflow tutorial
-- `docs/MCP_GUIDE.md` & `docs/MCP_README.md`: LLM integration docs
+- `CHANGELOG.md`: Release history (v0.1.0+)
+- `docs/quickstart.md`: Installation and basic usage
+- `docs/api/core.md`: Core tissue/cell/packer API reference
+- `docs/api/slicing.md`: 2D slicing API
+- `docs/api/spatial-analysis.md`: Network analysis API
+- `docs/api/graph-coloring.md`: Cell-type-assignment API
+- `docs/api/replicate-generation.md`: Replicate generator API
+- `docs/api/mcp.md`: MCP server API (LLM integration)
+- `docs/guides/complete-workflow.md`: End-to-end tutorial
+- `docs/guides/mcp.md`: MCP 5-minute quickstart
+- `docs/notes/`: Maintainer notes (e.g., known-issue regressions)
+- `docs/design/`: Research / paper-track artifacts
 
 ## Special Considerations
 

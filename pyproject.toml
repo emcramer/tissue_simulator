@@ -1,0 +1,76 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tissue_simulator"
+version = "0.1.4"
+description = "3D simulated biological tissue section generator with network-based spatial analysis and ABM-initialization workflows"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "Eric Cramer", email = "ericscrum@gmail.com" },
+]
+maintainers = [
+    { name = "Eric Cramer", email = "ericscrum@gmail.com" },
+]
+keywords = [
+    "tissue simulation",
+    "sphere packing",
+    "spatial analysis",
+    "histology",
+    "agent-based modeling",
+    "physicell",
+    "bioinformatics",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Visualization",
+]
+dependencies = [
+    "numpy>=1.20.0",
+    "matplotlib>=3.3.0",
+    "PyQt5>=5.15.0",
+    "scipy>=1.7.0",
+    "networkx>=2.6.0",
+    "pandas>=1.3.0",
+    "statsmodels>=0.13.0",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=0.1.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "build>=1.0",
+    "twine>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/emcramer/tissue_simulator"
+Source = "https://github.com/emcramer/tissue_simulator"
+Issues = "https://github.com/emcramer/tissue_simulator/issues"
+Changelog = "https://github.com/emcramer/tissue_simulator/blob/main/CHANGELOG.md"
+DOI = "https://doi.org/10.5281/zenodo.17465675"
+
+[project.scripts]
+tissue-simulator = "tissue_simulator.gui:main"
+
+[tool.setuptools.packages.find]
+include = ["tissue_simulator*"]
+exclude = ["tests*", "examples*", "docs*", "research_design*", "scripts*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

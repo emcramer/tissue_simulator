@@ -221,7 +221,7 @@ def main():
         print("\nYou can now:")
         print("  1. Run the GUI: python -m tissue_simulator.gui")
         print("  2. Try examples: python examples/simple_example.py")
-        print("  3. Read the guide: cat GUIDE.md")
+        print("  3. Read the quick start: cat docs/quickstart.md")
         return 0
     else:
         print("\n✗ Some tests failed. Please check the errors above.")

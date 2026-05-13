@@ -39,6 +39,8 @@ coverage.xml
 *.cover
 .hypothesis/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -66,22 +68,23 @@ venv.bak/
 .DS_Store
 Thumbs.db
 
-# Project specific
+# Generated tissue data and figures
 *.csv
 *.png
 tissue_section_*.csv
 batch_analysis.png
-
-# Generated tissue data
 output/
 results/
 tmp/
+examples/output/
 
-# Future plans - don't want this public yet
+# Internal-only docs (not yet public)
 TODO.md
-
-# Handoff instructions for using LLM coding assistants
 REPO_SUMMARY.md
 
-# Hidden AI Files
-.gemini/*
+# AI assistant local state
+.gemini/
+.claude/
+.cursor/
+.continue/
+.aider*
