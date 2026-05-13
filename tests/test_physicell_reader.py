@@ -423,6 +423,82 @@ class TestMatLoading(unittest.TestCase):
         # Cell types are stringified integer IDs.
         self.assertEqual([c["cell_type"] for c in cells], ["0", "1", "0"])
 
+    def test_select_cells_matrix_prefers_named_over_heuristic(self):
+        """Named 'cells' wins even when a larger sibling matrix is present."""
+        reader = PhysiCellReader()
+        cells_mat = _make_physicell_cells_matrix(10, [0, 1] * 5)
+        # A much larger near-square sibling — would dominate any size-only
+        # tiebreaker, but must not be selected because 'cells' is present.
+        microenv = np.ones((60, 5000), dtype=float)
+        data = {"cells": cells_mat, "microenv": microenv}
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = reader._select_cells_matrix(data, "/tmp/named.mat")
+
+        # The named 'cells' matrix is returned verbatim.
+        self.assertIs(result, cells_mat)
+        # No heuristic warning was emitted by _select_cells_matrix.
+        heuristic_warnings = [
+            w for w in caught
+            if "shape-aware heuristic" in str(w.message)
+        ]
+        self.assertEqual(heuristic_warnings, [])
+
+    def test_select_cells_matrix_picks_elongated_under_custom_name(self):
+        """Without a standard name, the elongated candidate wins with a warning."""
+        reader = PhysiCellReader()
+        # Cells-like: 6 signals x 1000 cells (elongation 1000/6 ~= 166).
+        cells_like = _make_physicell_cells_matrix(1000, [0] * 1000)
+        # Microenv-like: nearly square (elongation 60/50 = 1.2), minor axis
+        # 50 still in the plausibility window but with much lower score.
+        microenv_like = np.ones((60, 50), dtype=float)
+
+        data = {"my_cells": cells_like, "substrate_grid": microenv_like}
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = reader._select_cells_matrix(data, "/tmp/custom.mat")
+
+        self.assertIs(result, cells_like)
+        heuristic_warnings = [
+            w for w in caught
+            if issubclass(w.category, UserWarning)
+            and "shape-aware heuristic" in str(w.message)
+        ]
+        self.assertEqual(len(heuristic_warnings), 1)
+        self.assertIn("my_cells", str(heuristic_warnings[0].message))
+
+    def test_select_cells_matrix_raises_on_ambiguous_heuristic(self):
+        """Two custom-named candidates with nearly-equal scores raise ValueError."""
+        reader = PhysiCellReader()
+        # Same shape -> identical scores; both plausible-window minor axes.
+        cand_a = np.ones((6, 1000), dtype=float)
+        cand_b = np.ones((6, 1000), dtype=float)
+        data = {"weird_a": cand_a, "weird_b": cand_b}
+
+        with self.assertRaises(ValueError) as ctx:
+            reader._select_cells_matrix(data, "/tmp/ambiguous.mat")
+
+        msg = str(ctx.exception)
+        self.assertIn("weird_a", msg)
+        self.assertIn("weird_b", msg)
+
+    def test_select_cells_matrix_no_2d_candidates_raises(self):
+        """Files with no 2-D numeric ndarray of sufficient minor axis raise."""
+        reader = PhysiCellReader()
+        data = {
+            "vector": np.arange(10, dtype=float),         # 1-D, rejected
+            "tensor": np.zeros((3, 3, 3), dtype=float),   # 3-D, rejected
+            "strings": np.array([["a", "b"], ["c", "d"]]),  # non-numeric
+            "tiny": np.zeros((2, 100), dtype=float),       # minor axis < 6
+        }
+
+        with self.assertRaises(ValueError) as ctx:
+            reader._select_cells_matrix(data, "/tmp/empty.mat")
+
+        self.assertIn("No cells matrix", str(ctx.exception))
+
 
 class TestStatsToTargetStatistics(unittest.TestCase):
     """Adapter from reader stats dict to ReplicateGenerator's TargetStatistics."""

@@ -110,23 +110,11 @@ class TissueSection:
 
         self.cells: List[Cell] = []
         self.seed = seed
-        self._rng = np.random.default_rng(seed)
-        
+
     def get_bounds(self) -> Tuple[float, float, float]:
         """Return tissue dimensions as (height, width, thickness)."""
         return (self.height, self.width, self.thickness)
-    
-    def _select_cell_type_and_radius(self) -> Tuple[str, float]:
-        """Randomly select a cell type and radius based on configuration."""
-        # Randomly select a cell type
-        cell_type = self._rng.choice(list(self.cell_radii.keys()))
-        min_radius, max_radius = self.cell_radii[cell_type]
-        
-        # Generate random radius within range
-        radius = self._rng.uniform(min_radius, max_radius)
-        
-        return cell_type, radius
-    
+
     def generate_cells(self, max_attempts: int = 1000,
                       min_spacing: float = 0.5,
                       allow_boundary_cells: bool = True,
@@ -155,7 +143,6 @@ class TissueSection:
         # seed supplied at construction.
         if seed is not None:
             self.seed = seed
-            self._rng = np.random.default_rng(seed)
         effective_seed = self.seed
 
         packer = SpherePacker(

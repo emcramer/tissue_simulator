@@ -514,16 +514,37 @@ class PhysiCellReader:
         """
         Pick the cells matrix out of a loaded ``scipy.io.loadmat`` dict.
 
-        Tries common variable names in order (``cells``, ``cell``,
-        ``Cells``); failing that, selects the largest 2-D ndarray with
-        a clear size majority.
+        The selection runs in two stages:
+
+        1. **Named lookup.** Standard PhysiCell exports store the cells
+           matrix under one of ``cells``, ``cell``, or ``Cells``. If
+           exactly one of these names resolves to a 2-D ndarray, it is
+           returned without further inspection and without warning.
+
+        2. **Shape-aware heuristic.** For unusual exports that use a
+           custom variable name, every 2-D numeric ndarray with a minor
+           axis of at least six (the documented PhysiCell signal count)
+           is scored by
+
+           ``score = (max_axis / min_axis) * plausibility_boost``
+
+           where ``plausibility_boost`` is ``1.5`` when the minor axis is
+           in ``[6, 250]`` (a plausible PhysiCell signal count) and
+           ``0.5`` otherwise. The candidate with the highest score is
+           selected and a :class:`UserWarning` is emitted naming the
+           chosen variable. PhysiCell cells matrices are strongly
+           elongated (``n_signals`` is typically 6-200 while ``n_cells``
+           can reach millions), which the elongation ratio captures.
+           Microenvironment matrices share the same shape family, so the
+           heuristic cannot be perfect; the warning makes mis-selection
+           visible.
 
         Parameters
         ----------
         data : dict
             The dict returned by ``scipy.io.loadmat``.
         mat_path : str
-            Source file path, used only in error messages.
+            Source file path, used only in warnings and error messages.
 
         Returns
         -------
@@ -533,43 +554,74 @@ class PhysiCellReader:
         Raises
         ------
         ValueError
-            If no candidate ndarray can be found, or several candidates
-            are similarly sized (heuristic failure).
+            If no 2-D numeric ndarray candidate can be found, or if the
+            top two heuristic candidates score within 10% of each other
+            and neither was selected via the named-lookup path.
         """
+        import warnings
+
         preferred_names = ("cells", "cell", "Cells")
         for name in preferred_names:
-            if name in data and isinstance(data[name], np.ndarray):
-                return data[name]
+            value = data.get(name)
+            if isinstance(value, np.ndarray) and value.ndim == 2:
+                return value
 
-        # Fall back to picking the largest 2-D ndarray.
-        candidates = [
+        # Collect 2-D numeric candidates with a plausible signal count.
+        raw_candidates = [
             (name, value) for name, value in data.items()
             if not name.startswith("__")
             and isinstance(value, np.ndarray)
             and value.ndim == 2
             and value.size > 0
+            and np.issubdtype(value.dtype, np.number)
+        ]
+        candidates = [
+            (name, value) for name, value in raw_candidates
+            if min(value.shape) >= 6
         ]
         if not candidates:
             raise ValueError(
                 f"No cells matrix found in PhysiCell .mat file {mat_path!r}. "
-                f"Looked for variables {preferred_names} and any 2-D ndarray."
+                f"Looked for variables {preferred_names} and any 2-D numeric "
+                "ndarray with both axes >= 6 (the documented PhysiCell "
+                "signal count)."
             )
 
-        candidates.sort(key=lambda kv: kv[1].size, reverse=True)
-        largest_name, largest = candidates[0]
-        if len(candidates) > 1:
-            second_size = candidates[1][1].size
-            # Heuristic: if two candidates are within 10% in size, we
-            # cannot disambiguate safely.
-            if second_size > 0 and largest.size / second_size < 1.1:
+        def _score(arr: np.ndarray) -> float:
+            shape_min = min(arr.shape)
+            shape_max = max(arr.shape)
+            elongation = float(shape_max) / float(shape_min)
+            boost = 1.5 if 6 <= shape_min <= 250 else 0.5
+            return elongation * boost
+
+        scored = sorted(
+            ((name, value, _score(value)) for name, value in candidates),
+            key=lambda item: item[2],
+            reverse=True,
+        )
+        top_name, top_value, top_score = scored[0]
+
+        if len(scored) > 1:
+            second_name, second_value, second_score = scored[1]
+            if second_score > 0 and top_score / second_score < 1.1:
                 raise ValueError(
-                    f"Ambiguous cells matrix in {mat_path!r}: multiple "
-                    f"similarly-sized 2-D variables found "
-                    f"({largest_name!r} and {candidates[1][0]!r}). "
-                    "Rename the cells variable to 'cells' or load via "
-                    "pyMCDS."
+                    f"Ambiguous cells matrix in {mat_path!r}: candidates "
+                    f"{top_name!r} (shape {top_value.shape}) and "
+                    f"{second_name!r} (shape {second_value.shape}) score "
+                    "within 10% of each other under the shape-aware "
+                    "heuristic. Rename the cells variable to 'cells' or "
+                    "load via pyMCDS to disambiguate."
                 )
-        return largest
+
+        warnings.warn(
+            f"PhysiCell .mat file {mat_path!r} has no standard cells "
+            f"variable ({preferred_names}); falling back to shape-aware "
+            f"heuristic and selecting {top_name!r} with shape "
+            f"{top_value.shape}.",
+            UserWarning,
+            stacklevel=3,
+        )
+        return top_value
 
     @staticmethod
     def _parse_cell_definitions_xml(xml_path: str) -> Dict[int, str]:

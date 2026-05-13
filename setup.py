@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="tissue_simulator",
-    version="0.1.2",
+    version="0.1.3",
     description="3D simulated biological tissue section generator",
     author="Your Name",
     author_email="your.email@example.com",
