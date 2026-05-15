@@ -418,6 +418,6 @@ For tissues with > 1000 cells:
 
 ## See Also
 
-- [Tissue Simulator Guide](GUIDE.md)
-- [Slicing Documentation](SLICING.md)
+- [Tissue Simulator Core API](core.md)
+- [Slicing Documentation](slicing.md)
 - [NetworkX Documentation](https://networkx.org/)

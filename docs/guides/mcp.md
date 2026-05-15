@@ -271,7 +271,7 @@ The LLM can interpret the results:
 
 ## Learn More
 
-- Full documentation: [MCP_GUIDE.md](MCP_GUIDE.md)
+- Full documentation: [MCP API reference](../api/mcp.md)
 - MCP Protocol: https://modelcontextprotocol.io/
 - Tissue Simulator: [README.md](README.md)
 

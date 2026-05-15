@@ -5,6 +5,24 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-05-14
+
+### Changed
+- **`docs/quickstart.md` fully rewritten** for the v0.1.x feature surface.
+  Adds a runnable five-minute tour covering tissue generation, slicing,
+  spatial-network construction, and CSV export; a "Headline workflows"
+  section pointing at replicate generation, graph coloring, the PhysiCell
+  bridge, convergence and power analysis, MCP, and the GUI; and a
+  reproducibility note covering the `seed=` plumbing and the `nan`
+  divergence semantics from v0.1.2. Snippet verified end-to-end on the
+  real package: 495 cells, 2424 edges, runs in ~5 s.
+- **`mcp_config_claude_desktop.example.json`** now uses the placeholder
+  path `/ABSOLUTE/PATH/TO/...` rather than a hard-coded developer path.
+
+### Removed
+- **`PAPER_PLAN_REPORT.md` is no longer tracked.** It remains as a local
+  internal-only doc (now properly listed in `.gitignore`).
+
 ## [0.1.4] - 2026-05-13
 
 ### Changed

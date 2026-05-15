@@ -86,7 +86,7 @@ python run_mcp_server.py
 
 ### For Other MCP Clients
 
-Use the configuration template in `mcp_config_claude_desktop.json` and adapt for your client.
+Use the configuration template in `mcp_config_claude_desktop.example.json` and adapt for your client.
 
 ## Usage Examples
 
@@ -513,5 +513,5 @@ For issues with MCP integration:
 ## See Also
 
 - [MCP Documentation](https://modelcontextprotocol.io/)
-- [Tissue Simulator Guide](../GUIDE.md)
-- [Slicing Documentation](../SLICING.md)
+- [Tissue Simulator Core API](core.md)
+- [Slicing Documentation](slicing.md)

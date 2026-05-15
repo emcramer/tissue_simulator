@@ -409,6 +409,5 @@ for i in range(20):
 
 ## See Also
 
-- [Main Guide](GUIDE.md) - Complete package documentation
-- [Examples](examples/) - Working code samples
-- [API Reference](GUIDE.md#api-reference) - Full API documentation
+- [Core API](core.md) - tissue/cell/packer reference
+- [Examples](../../examples/) - Working code samples

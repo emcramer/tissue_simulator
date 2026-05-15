@@ -487,7 +487,7 @@ Compare normalized interactions:
 
 ## See Also
 
-- [Spatial Analysis Documentation](SPATIAL_ANALYSIS.md)
-- [Tissue Simulator Guide](GUIDE.md)
-- [MCP Integration Guide](MCP_GUIDE.md)
+- [Spatial Analysis Documentation](spatial-analysis.md)
+- [Tissue Simulator Core API](core.md)
+- [MCP Integration Guide](mcp.md)
 - Example scripts in `examples/` directory

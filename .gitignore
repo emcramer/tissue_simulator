@@ -81,6 +81,7 @@ examples/output/
 # Internal-only docs (not yet public)
 TODO.md
 REPO_SUMMARY.md
+PAPER_PLAN_REPORT.md
 
 # AI assistant local state
 .gemini/

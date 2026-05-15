@@ -772,7 +772,7 @@ See also:
 - `tissue_simulator/tissue_workflow.py`: Workflow implementation
 - `tissue_simulator/graph_coloring.py`: Simulated annealing algorithm
 - `tissue_simulator/evaluation.py`: Evaluation metrics
-- `docs/GRAPH_COLORING_GUIDE.md`: Additional documentation
+- `docs/api/graph-coloring.md`: Additional documentation
 
 ---
 

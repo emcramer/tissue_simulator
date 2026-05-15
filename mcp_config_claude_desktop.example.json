@@ -3,7 +3,7 @@
     "tissue-simulator": {
       "command": "python",
       "args": [
-        "/Users/cramere/tissue_simulator/run_mcp_server.py"
+        "/ABSOLUTE/PATH/TO/tissue_simulator/run_mcp_server.py"
       ],
       "env": {},
       "description": "3D tissue generation and 2D slicing simulator"
