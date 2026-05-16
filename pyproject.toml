@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tissue_simulator"
-version = "0.1.5"
+version = "0.1.6"
 description = "3D simulated biological tissue section generator with network-based spatial analysis and ABM-initialization workflows"
 readme = "README.md"
 requires-python = ">=3.8"

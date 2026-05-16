@@ -5,6 +5,53 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-05-15
+
+### Added
+- **`docs/api/convergence.md`** — full per-symbol reference for
+  `adf_test`, `mann_kendall_test`, `rolling_cv`, `find_convergence_time`,
+  and `MultiMetricConvergence`. Worked example verified end-to-end
+  (synthetic transient + AR(1) trajectory, converges at t=99 / 280).
+- **`docs/api/power-analysis.md`** — per-symbol reference for
+  `cohens_d`, `coefficient_of_variation`, `required_replicates`,
+  `power_curve`, `compare_initialization_variance`, and
+  `summarize_power_analysis`. Worked example produces a three-method
+  variance / effect-size report.
+- **`docs/api/physicell.md`** — dedicated PhysiCell bridge page covering
+  `PhysiCellExporter`, `export_to_physicell`, `PhysiCellReader`,
+  `read_physicell_output`, and `stats_to_target_statistics`, plus the
+  round-trip from tissue -> CSV -> reader -> `ReplicateGenerator`.
+  Includes pyMCDS attribution.
+
+### Changed
+- **`docs/api/core.md`** trimmed and retitled from a top-level user guide
+  (491 lines) to a focused per-module API reference (296 lines) for
+  `TissueSection`, `Cell`, and `SpherePacker`. Installation / quickstart
+  prose now lives in `docs/quickstart.md` only.
+- **Decorative checkmark / cross emoji removed** from `docs/api/slicing.md`,
+  `docs/api/spatial-analysis.md`, `docs/api/replicate-generation.md`, and
+  `docs/guides/mcp.md`. Markdown style now matches the plain convention
+  set in `CLAUDE.md`.
+
+### Fixed
+- The non-runnable return-type pseudo-code block in
+  `docs/api/power-analysis.md` is now fenced as `text`, not `python`, so
+  automated snippet extraction picks up only the runnable example.
+
+### Removed
+- **`PAPER_PLAN_REPORT.md` is no longer tracked on `main`.** (The v0.1.5
+  attempt didn't make it into the commit; this release actually drops
+  it.) The file remains as a local working-copy artifact and is listed
+  in `.gitignore`.
+
+  Historical note: the file is still present in tag history v0.1.1
+  through v0.1.5. Purging it from history requires a force-rewrite
+  (`git filter-repo`) plus re-pushing tags and recreating releases —
+  see the project notes for that one-off operation.
+
+### Tests
+- 120 / 120 tests pass.
+
 ## [0.1.5] - 2026-05-14
 
 ### Changed

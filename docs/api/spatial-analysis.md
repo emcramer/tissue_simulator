@@ -6,13 +6,13 @@ The spatial analysis module provides network-based analysis of cell-cell interac
 
 ## Key Features
 
-- ✅ **Contact-based networks**: Connect cells that are touching
-- ✅ **Radius-based networks**: Connect cells within a distance threshold
-- ✅ **3D tissue analysis**: Analyze spatial relationships in 3D tissues
-- ✅ **2D slice analysis**: Analyze spatial relationships in tissue slices
-- ✅ **Comprehensive statistics**: Global, cell-type-specific, and interaction metrics
-- ✅ **Network visualization**: Visualize cell interaction networks
-- ✅ **Export capabilities**: Save networks and statistics to files
+- **Contact-based networks**: Connect cells that are touching
+- **Radius-based networks**: Connect cells within a distance threshold
+- **3D tissue analysis**: Analyze spatial relationships in 3D tissues
+- **2D slice analysis**: Analyze spatial relationships in tissue slices
+- **Comprehensive statistics**: Global, cell-type-specific, and interaction metrics
+- **Network visualization**: Visualize cell interaction networks
+- **Export capabilities**: Save networks and statistics to files
 
 ## Installation
 

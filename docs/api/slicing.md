@@ -6,13 +6,13 @@ The slicing module enables extraction of 2D planar sections through 3D tissue at
 
 ## Key Features
 
-- ✅ **Flexible slicing angles**: Horizontal, vertical, or any arbitrary angle
-- ✅ **Accurate geometry**: Calculates circular intersections of spheres with planes
-- ✅ **2D visualization**: View cell cross-sections in the slice plane
-- ✅ **3D context**: Visualize slice plane within the 3D tissue
-- ✅ **CSV export**: Export slice data with metadata
-- ✅ **Serial sections**: Create multiple parallel slices
-- ✅ **Statistics**: Analyze cell distributions in slices
+- **Flexible slicing angles**: Horizontal, vertical, or any arbitrary angle
+- **Accurate geometry**: Calculates circular intersections of spheres with planes
+- **2D visualization**: View cell cross-sections in the slice plane
+- **3D context**: Visualize slice plane within the 3D tissue
+- **CSV export**: Export slice data with metadata
+- **Serial sections**: Create multiple parallel slices
+- **Statistics**: Analyze cell distributions in slices
 
 ## Quick Start
 

@@ -209,8 +209,9 @@ The LLM will:
 
 ### Be Specific
 
-❌ "Make a tissue"
-✅ "Create a 500x500x100 μm tissue with epithelial cells (7-11 μm) and stromal cells (9-15 μm)"
+Avoid vague prompts like "Make a tissue".
+
+Prefer concrete prompts like "Create a 500x500x100 μm tissue with epithelial cells (7-11 μm) and stromal cells (9-15 μm)".
 
 ### Sequential Requests
 

@@ -11,13 +11,13 @@ The replicate generation module allows you to generate multiple tissue samples t
 
 ## Key Features
 
-✅ **Target-based generation**: Generate tissues matching specified spatial statistics  
-✅ **Multiple sources**: Load targets from CSV files or existing tissues  
-✅ **Iterative optimization**: Automatically tunes parameters to match targets  
-✅ **Flexible constraints**: Control cell types, proportions, and packing  
-✅ **Batch processing**: Generate multiple replicates efficiently  
-✅ **Comprehensive export**: Save tissues and statistics in multiple formats  
-✅ **MCP integration**: Fully accessible via LLM coding assistant
+- **Target-based generation**: Generate tissues matching specified spatial statistics
+- **Multiple sources**: Load targets from CSV files or existing tissues
+- **Iterative optimization**: Automatically tunes parameters to match targets
+- **Flexible constraints**: Control cell types, proportions, and packing
+- **Batch processing**: Generate multiple replicates efficiently
+- **Comprehensive export**: Save tissues and statistics in multiple formats
+- **MCP integration**: Fully accessible via LLM coding assistant
 
 ## Installation
 
