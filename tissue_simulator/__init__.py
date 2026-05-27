@@ -6,7 +6,7 @@ A package for creating 3D simulated biological tissue sections using
 random sphere packing algorithms, with network-based cell type assignment.
 """
 
-from .tissue import TissueSection, Cell
+from .tissue import TissueSection, Cell, load_tissue_from_csv
 from .packing import SpherePacker
 from .slicing import TissueSlicer, SliceCell, create_standard_slices
 from .spatial_analysis import (
@@ -22,7 +22,8 @@ from .replicate_generator import (
     TargetStatistics,
     ReplicateStatistics,
     load_target_statistics_from_csv as load_replicate_stats_csv,
-    load_target_statistics_from_tissue
+    load_target_statistics_from_tissue,
+    load_target_statistics_from_coordinates
 )
 from .graph_coloring import (
     GraphColorizer,
@@ -69,10 +70,10 @@ from .power_analysis import (
     summarize_power_analysis,
 )
 
-__version__ = "0.1.6"
+__version__ = "0.1.7"
 __all__ = [
     # Core tissue simulation
-    "TissueSection", "Cell", "SpherePacker",
+    "TissueSection", "Cell", "SpherePacker", "load_tissue_from_csv",
     # Slicing
     "TissueSlicer", "SliceCell", "create_standard_slices",
     # Spatial analysis
@@ -81,6 +82,7 @@ __all__ = [
     # Replicate generation
     "ReplicateGenerator", "TargetStatistics", "ReplicateStatistics",
     "load_replicate_stats_csv", "load_target_statistics_from_tissue",
+    "load_target_statistics_from_coordinates",
     # Graph coloring and cell type assignment
     "GraphColorizer", "calculate_graph_statistics", "compare_graph_statistics",
     "load_graph_stats_csv", "export_colored_graph_statistics",

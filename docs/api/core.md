@@ -142,6 +142,31 @@ Write every cell to a CSV with the columns:
 x, y, z, radius, cell_type, is_boundary
 ```
 
+#### `from_cells(cells, height=None, width=None, thickness=None, cell_radii=None)` (classmethod)
+
+Build a `TissueSection` from already-positioned `Cell` objects instead of
+packing new ones — the inverse of `export_to_csv`. This lets externally
+sourced tissue (a measured sample, or a layout exported from another tool)
+flow into the analysis and replicate APIs (`get_cell_statistics`,
+`SpatialNetworkAnalyzer`, `load_target_statistics_from_tissue`).
+Added in v0.1.7.
+
+**Parameters:**
+
+- `cells` (list of `Cell`): pre-positioned cells. Must be non-empty.
+- `height`, `width`, `thickness` (float, optional): tissue dimensions in
+  micrometers. Any omitted dimension is inferred from the cell-center
+  bounding box (`max - min`) on its axis. When every coordinate on an axis
+  is equal (e.g. a 2D slice with constant z), that dimension falls back to
+  the largest cell diameter so it stays positive and `packing_fraction`
+  remains in `(0, 1)`.
+- `cell_radii` (dict, optional): `{cell_type: (min, max)}`. When `None`,
+  derived per type from the observed radii in `cells`.
+
+**Returns:** a `TissueSection` with `cells` populated and `seed=None`.
+
+**Raises:** `ValueError` if `cells` is empty.
+
 #### `visualize(show_boundary=True, elevation=20, azimuth=45)`
 
 Render the tissue as a 3D matplotlib figure. Boundary cells are drawn
@@ -221,6 +246,38 @@ exits after `max_attempts` *consecutive* failed placements.
 
 Identical to `pack` but invokes `callback(cells_placed, total_attempts)`
 every ten successful placements. Used by the GUI for progress bars.
+
+### `load_tissue_from_csv`
+
+```python
+from tissue_simulator import load_tissue_from_csv
+
+tissue = load_tissue_from_csv("cells.csv")
+```
+
+Module-level function that loads a `TissueSection` from a CSV written by
+`TissueSection.export_to_csv` — the exact inverse of that method, built on
+`TissueSection.from_cells`. Added in v0.1.7.
+
+**Parameters:**
+
+- `filepath` (str): path to the CSV.
+- `height`, `width`, `thickness` (float, optional): tissue dimensions;
+  inferred from the coordinate bounds when omitted (see `from_cells`).
+- `default_radius` (float): radius used for rows whose `radius` column is
+  missing or blank. Defaults to `10.0`.
+
+**Expected columns:** `x, y, z, radius, cell_type, is_boundary`. Only the
+coordinate columns are required: a missing `radius` uses `default_radius`,
+a missing `cell_type` becomes `"default"`, and a missing or unparseable
+`is_boundary` defaults to `False` (the `"True"`/`"False"` strings written
+by `export_to_csv` round-trip exactly).
+
+**Returns:** a populated `TissueSection`.
+
+For full target statistics (interactions plus proportions and density)
+straight from a coordinate CSV, see `load_target_statistics_from_coordinates`
+in [`replicate-generation.md`](replicate-generation.md).
 
 ## Examples
 

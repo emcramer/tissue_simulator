@@ -214,7 +214,79 @@ class TissueSection:
                     cell.is_boundary
                 ])
     
-    def visualize(self, show_boundary: bool = True, 
+    @classmethod
+    def from_cells(cls, cells: List["Cell"], height: Optional[float] = None,
+                   width: Optional[float] = None, thickness: Optional[float] = None,
+                   cell_radii: Optional[Dict[str, Tuple[float, float]]] = None) -> "TissueSection":
+        """
+        Wrap a collection of pre-positioned cells in a TissueSection.
+
+        This is the inverse complement to cell generation: instead of packing
+        new cells into an empty tissue, it adopts cells that already have
+        positions (e.g. imported from an external source or a CSV file) so the
+        spatial-analysis and replicate-generation API can run on externally
+        sourced tissue.
+
+        Dimension inference:
+            Any dimension left as None is inferred from the bounding box of the
+            cell CENTERS along its axis (span = max - min): width from axis 0
+            (x), height from axis 1 (y), thickness from axis 2 (z). If a span is
+            0 -- as happens for a 2D slice where every z is equal -- the
+            dimension falls back to the largest cell diameter
+            ``2 * max(c.radius for c in cells)`` so it stays strictly positive
+            (this keeps ``get_cell_statistics()["packing_fraction"]`` within
+            (0, 1)). A dimension passed in explicitly is used as-is.
+
+        Args:
+            cells: Non-empty list of Cell objects with positions already set.
+            height: Optional Y-dimension; inferred from cell centers if None.
+            width: Optional X-dimension; inferred from cell centers if None.
+            thickness: Optional Z-dimension; inferred from cell centers if None.
+            cell_radii: Optional mapping of cell type to (min, max) radius. When
+                None, it is derived by grouping the cells on cell_type and
+                mapping each type to its observed (min_radius, max_radius).
+
+        Returns:
+            A TissueSection whose ``cells`` are the provided cells.
+
+        Raises:
+            ValueError: If ``cells`` is empty.
+        """
+        if not cells:
+            raise ValueError("Cannot create a TissueSection from an empty cell list.")
+
+        # Derive cell_radii from observed radii per cell type when not provided.
+        if cell_radii is None:
+            type_radii: Dict[str, List[float]] = {}
+            for cell in cells:
+                type_radii.setdefault(cell.cell_type, []).append(cell.radius)
+            cell_radii = {
+                cell_type: (min(radii), max(radii))
+                for cell_type, radii in type_radii.items()
+            }
+
+        # Fall-back dimension for zero-span axes keeps the tissue volume
+        # strictly positive (largest cell diameter).
+        fallback = 2 * max(c.radius for c in cells)
+
+        def _infer(axis: int) -> float:
+            coords = [c.center[axis] for c in cells]
+            span = max(coords) - min(coords)
+            return span if span > 0 else fallback
+
+        if width is None:
+            width = _infer(0)
+        if height is None:
+            height = _infer(1)
+        if thickness is None:
+            thickness = _infer(2)
+
+        tissue = cls(height=height, width=width, thickness=thickness,
+                     cell_radii=cell_radii, seed=None)
+        tissue.cells = list(cells)
+        return tissue
+
+    def visualize(self, show_boundary: bool = True,
                  elevation: float = 20, azimuth: float = 45):
         """
         Create a 3D visualization of the tissue section.
@@ -298,3 +370,55 @@ class TissueSection:
     def clear_cells(self):
         """Remove all cells from the tissue section."""
         self.cells = []
+
+
+def load_tissue_from_csv(filepath: str, height: Optional[float] = None,
+                         width: Optional[float] = None, thickness: Optional[float] = None,
+                         default_radius: float = 10.0) -> TissueSection:
+    """
+    Load a tissue section from a CSV file.
+
+    This is the exact inverse of ``TissueSection.export_to_csv``: it reads the
+    rows that ``export_to_csv`` writes back into Cell objects and wraps them in
+    a TissueSection (via ``TissueSection.from_cells``), inferring any omitted
+    dimensions from the cell positions.
+
+    The CSV is read with ``csv.DictReader``. The expected columns are
+    ``x``, ``y``, ``z``, ``radius``, ``cell_type`` and ``is_boundary``. Only the
+    coordinate columns are required: ``radius``, ``cell_type`` and
+    ``is_boundary`` are optional. When ``radius`` is missing or blank for a row,
+    ``default_radius`` is used; a missing ``cell_type`` defaults to "default";
+    and ``is_boundary`` is treated as True only when its value is the string
+    "true" (case-insensitive), otherwise False.
+
+    Args:
+        filepath: Path to the CSV file to read.
+        height: Optional Y-dimension; inferred from cell centers if None.
+        width: Optional X-dimension; inferred from cell centers if None.
+        thickness: Optional Z-dimension; inferred from cell centers if None.
+        default_radius: Radius assigned to rows whose ``radius`` column is
+            missing or empty.
+
+    Returns:
+        A TissueSection containing the loaded cells.
+    """
+    cells: List[Cell] = []
+    with open(filepath, 'r', newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            center = (float(row['x']), float(row['y']), float(row['z']))
+
+            radius_str = row.get('radius')
+            if radius_str is not None and str(radius_str).strip() != '':
+                radius = float(radius_str)
+            else:
+                radius = default_radius
+
+            cell_type = row.get('cell_type') or 'default'
+            is_boundary = str(row.get('is_boundary')).strip().lower() == 'true'
+
+            cells.append(Cell(center=center, radius=radius,
+                              cell_type=cell_type, is_boundary=is_boundary))
+
+    return TissueSection.from_cells(cells, height=height, width=width,
+                                    thickness=thickness)
