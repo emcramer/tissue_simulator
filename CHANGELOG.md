@@ -5,6 +5,32 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2026-05-27
+
+### Added
+- **`load_tissue_from_csv`** (MCP tool, `mcp/server.py`) — load a
+  `TissueSection` from a coordinate CSV (`x, y, z, radius, cell_type,
+  is_boundary`) and set it as the current tissue, so slicing, analysis, and
+  statistics tools can run on externally sourced tissue. Dimensions are
+  inferred from the coordinate bounds when omitted. The inverse of
+  `export_tissue_csv`.
+- **`load_target_statistics_from_coordinates`** (MCP tool, `mcp/server.py`) —
+  compute full target statistics (interactions **plus**
+  `cell_type_proportions` and `target_density`) straight from a coordinate
+  CSV. Distinct from `load_target_statistics`'s `csv_filepath`, which reads a
+  precomputed interaction table and leaves proportions/density unset.
+- Together these expose the v0.1.7 external-cell ingest functions
+  (`load_tissue_from_csv`, `load_target_statistics_from_coordinates`) through
+  the MCP server, so an LLM can turn an externally measured or generated
+  (e.g. PhysiCell) tissue into a `TargetStatistics` for `ReplicateGenerator`
+  without going through the random packer.
+- **`tests/test_mcp_server.py`** covering the two new MCP tools.
+
+### Changed
+- **`docs/api/mcp.md`** documents the two new tools (a new "Data Loading"
+  category, per-tool reference entries, and an external-tissue workflow
+  example).
+
 ## [0.1.7] - 2026-05-26
 
 ### Added
