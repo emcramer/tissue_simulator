@@ -15,7 +15,7 @@ Model Context Protocol (MCP) is a standardized protocol that enables LLMs to int
 
 ## Features
 
-The MCP server exposes 11 tools for tissue simulation:
+The MCP server exposes the following tools for tissue simulation:
 
 ### Tissue Generation
 - `create_tissue`: Define tissue dimensions and cell types
@@ -31,6 +31,10 @@ The MCP server exposes 11 tools for tissue simulation:
 ### Data Export
 - `export_tissue_csv`: Export 3D tissue data
 - `export_slice_csv`: Export 2D slice data
+
+### Data Loading
+- `load_tissue_from_csv`: Load a tissue from a coordinate CSV and set it as the current tissue
+- `load_target_statistics_from_coordinates`: Compute full target statistics (interactions plus proportions and density) from a coordinate CSV
 
 ### Visualization
 - `visualize_tissue`: Generate 3D tissue visualization
@@ -363,6 +367,52 @@ Visualization saved to: /tmp/tissue_sim_xyz/tissue_view.png
 }
 ```
 
+### load_tissue_from_csv
+
+**Description**: Load a TissueSection from a coordinate CSV file (the inverse of `export_tissue_csv`). The file must have columns `x,y,z,radius,cell_type,is_boundary`. The loaded tissue is set as the current tissue, so slicing, analysis, and statistics tools can run on externally sourced tissue. This is distinct from `load_target_statistics`'s `csv_filepath`, which loads a precomputed interaction table rather than per-cell coordinates.
+
+**Parameters**:
+- `filepath` (string, required): Path to the coordinate CSV file (columns `x,y,z,radius,cell_type,is_boundary`)
+- `height` (number, optional): Tissue height (Y) in micrometers; inferred from coordinate bounds if omitted
+- `width` (number, optional): Tissue width (X) in micrometers; inferred from coordinate bounds if omitted
+- `thickness` (number, optional): Tissue thickness (Z) in micrometers; inferred from coordinate bounds if omitted
+- `default_radius` (number, optional): Radius to use for cells missing a radius value (default: 10.0)
+
+**Returns**:
+```json
+{
+  "status": "success",
+  "filepath": "/tmp/external/measured_tissue.csv",
+  "num_cells": 312,
+  "cell_types": {"cancer": 140, "immune": 103, "stroma": 69},
+  "dimensions": {"height": 500.0, "width": 500.0, "thickness": 100.0},
+  "packing_fraction": 0.287
+}
+```
+
+### load_target_statistics_from_coordinates
+
+**Description**: Compute full target statistics directly from a coordinate CSV (columns `x,y,z,radius,cell_type,is_boundary`). Unlike `load_target_statistics` with `csv_filepath` — which reads a precomputed interaction table and does not populate `cell_type_proportions` or `target_density` — this builds the spatial network from the coordinates and produces interactions plus `cell_type_proportions` and `target_density`. The resulting statistics can drive `setup_replicate_generator` and `generate_replicates`.
+
+**Parameters**:
+- `filepath` (string, required): Path to the coordinate CSV file (columns `x,y,z,radius,cell_type,is_boundary`)
+- `network_mode` (string, optional): Network analysis mode, `"contact"` or `"radius"` (default: "contact")
+- `network_radius` (number, optional): Distance threshold for `"radius"` mode (micrometers)
+
+**Returns**:
+```json
+{
+  "status": "success",
+  "source": "coordinate_csv",
+  "filepath": "/tmp/external/measured_tissue.csv",
+  "network_mode": "contact",
+  "num_interaction_types": 6,
+  "cell_type_proportions": {"cancer": 0.45, "immune": 0.33, "stroma": 0.22},
+  "target_cell_count": 312,
+  "target_density": 0.287
+}
+```
+
 ### visualize_tissue
 
 **Description**: Create 3D visualization and save as PNG.
@@ -437,6 +487,18 @@ Visualization saved to: /tmp/tissue_sim_xyz/tissue_view.png
 2. Generate cells multiple times with different `max_attempts`
 3. Compare packing fractions
 4. Reset and try different cell type configurations
+
+### External Tissue Workflow
+
+Bring an externally measured or generated (e.g. PhysiCell) tissue into the
+simulator without using the random packer:
+
+1. Load coordinates as the current tissue: `load_tissue_from_csv`
+2. Slice and analyze it: `create_slice`, `get_slice_statistics`
+3. Derive full target statistics from the same coordinates:
+   `load_target_statistics_from_coordinates`
+4. Configure the replicate generator: `setup_replicate_generator`
+5. Generate matching replicates: `generate_replicates`
 
 ## Error Handling
 

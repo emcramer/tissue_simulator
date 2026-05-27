@@ -22,11 +22,12 @@ except ImportError:
     MCP_AVAILABLE = False
     print("Warning: MCP library not installed. Install with: pip install mcp")
 
-from ..tissue import TissueSection
+from ..tissue import TissueSection, load_tissue_from_csv
 from ..slicing import TissueSlicer, create_standard_slices
-from ..replicate_generator import (ReplicateGenerator, TargetStatistics, 
+from ..replicate_generator import (ReplicateGenerator, TargetStatistics,
                                      load_target_statistics_from_csv,
-                                     load_target_statistics_from_tissue)
+                                     load_target_statistics_from_tissue,
+                                     load_target_statistics_from_coordinates)
 
 
 class TissueSimulatorMCPServer:
@@ -241,6 +242,78 @@ class TissueSimulatorMCPServer:
                     }
                 ),
                 
+                Tool(
+                    name="load_tissue_from_csv",
+                    description=(
+                        "Load a TissueSection from a coordinate CSV file. "
+                        "This is the inverse of export_tissue_csv: the file must have "
+                        "columns x,y,z,radius,cell_type,is_boundary. The loaded tissue is "
+                        "set as the current tissue so slicing, analysis, and statistics tools "
+                        "can run on externally sourced tissue. Note this is DISTINCT from "
+                        "load_target_statistics's csv_filepath, which loads a precomputed "
+                        "interaction table rather than per-cell coordinates."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filepath": {
+                                "type": "string",
+                                "description": "Path to the coordinate CSV file (columns x,y,z,radius,cell_type,is_boundary)"
+                            },
+                            "height": {
+                                "type": "number",
+                                "description": "Tissue height (Y) in micrometers; if omitted it is inferred from the coordinate bounds"
+                            },
+                            "width": {
+                                "type": "number",
+                                "description": "Tissue width (X) in micrometers; if omitted it is inferred from the coordinate bounds"
+                            },
+                            "thickness": {
+                                "type": "number",
+                                "description": "Tissue thickness (Z) in micrometers; if omitted it is inferred from the coordinate bounds"
+                            },
+                            "default_radius": {
+                                "type": "number",
+                                "description": "Radius to use for cells missing a radius value",
+                                "default": 10.0
+                            }
+                        },
+                        "required": ["filepath"]
+                    }
+                ),
+
+                Tool(
+                    name="load_target_statistics_from_coordinates",
+                    description=(
+                        "Compute FULL target statistics directly from a coordinate CSV "
+                        "(columns x,y,z,radius,cell_type,is_boundary). Unlike "
+                        "load_target_statistics with csv_filepath -- which reads a precomputed "
+                        "interaction table and does NOT populate cell_type_proportions or "
+                        "target_density -- this builds the spatial network from the coordinates "
+                        "and produces interactions PLUS cell_type_proportions and target_density. "
+                        "These statistics will be used to generate replicate tissues."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filepath": {
+                                "type": "string",
+                                "description": "Path to the coordinate CSV file (columns x,y,z,radius,cell_type,is_boundary)"
+                            },
+                            "network_mode": {
+                                "type": "string",
+                                "description": "Network analysis mode: 'contact' or 'radius'",
+                                "default": "contact"
+                            },
+                            "network_radius": {
+                                "type": "number",
+                                "description": "Distance threshold for 'radius' mode (micrometers)"
+                            }
+                        },
+                        "required": ["filepath"]
+                    }
+                ),
+
                 Tool(
                     name="export_slice_csv",
                     description=(
@@ -524,6 +597,10 @@ class TissueSimulatorMCPServer:
                     return await self._handle_reset_tissue(arguments)
                 elif name == "load_target_statistics":
                     return await self._handle_load_target_statistics(arguments)
+                elif name == "load_tissue_from_csv":
+                    return await self._handle_load_tissue_from_csv(arguments)
+                elif name == "load_target_statistics_from_coordinates":
+                    return await self._handle_load_target_statistics_from_coordinates(arguments)
                 elif name == "setup_replicate_generator":
                     return await self._handle_setup_replicate_generator(arguments)
                 elif name == "generate_replicates":
@@ -766,6 +843,100 @@ class TissueSimulatorMCPServer:
             text=json.dumps(result, indent=2)
         )]
     
+    async def _handle_load_tissue_from_csv(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle load_tissue_from_csv tool call."""
+        filepath = args.get("filepath")
+        if not filepath:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "filepath is required"})
+            )]
+
+        height = args.get("height")
+        width = args.get("width")
+        thickness = args.get("thickness")
+        default_radius = args.get("default_radius", 10.0)
+
+        try:
+            self.current_tissue = load_tissue_from_csv(
+                filepath,
+                height=height,
+                width=width,
+                thickness=thickness,
+                default_radius=default_radius
+            )
+
+            stats = self.current_tissue.get_cell_statistics()
+
+            result = {
+                "status": "success",
+                "filepath": filepath,
+                "num_cells": stats['total_cells'],
+                "cell_types": stats.get('cell_types', {}),
+                "dimensions": {
+                    "height": self.current_tissue.height,
+                    "width": self.current_tissue.width,
+                    "thickness": self.current_tissue.thickness
+                },
+                "packing_fraction": round(stats['packing_fraction'], 4) if stats.get('packing_fraction') is not None else None
+            }
+
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to load tissue: {str(e)}"})
+            )]
+
+    async def _handle_load_target_statistics_from_coordinates(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle load_target_statistics_from_coordinates tool call."""
+        filepath = args.get("filepath")
+        if not filepath:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "filepath is required"})
+            )]
+
+        network_mode = args.get("network_mode", "contact")
+        network_radius = args.get("network_radius")
+
+        try:
+            self.target_stats = load_target_statistics_from_coordinates(
+                filepath,
+                network_mode=network_mode,
+                network_radius=network_radius
+            )
+
+            # Store network mode for replicate generator
+            self.network_mode = network_mode
+            self.network_radius = network_radius
+
+            result = {
+                "status": "success",
+                "source": "coordinate_csv",
+                "filepath": filepath,
+                "network_mode": network_mode,
+                "num_interaction_types": len(self.target_stats.interaction_stats),
+                "cell_type_proportions": self.target_stats.cell_type_proportions,
+                "target_cell_count": self.target_stats.target_cell_count,
+                "target_density": round(self.target_stats.target_density, 4) if self.target_stats.target_density else None
+            }
+
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to load statistics: {str(e)}"})
+            )]
+
     async def _handle_export_slice_csv(self, args: Dict[str, Any]) -> List[TextContent]:
         """Handle export_slice_csv tool call."""
         if self.current_slicer is None:
