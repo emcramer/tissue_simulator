@@ -2,6 +2,9 @@
 Integration tests for the replicate generator.
 """
 
+import os
+import tempfile
+
 import pytest
 import numpy as np
 from tissue_simulator import (
@@ -10,6 +13,8 @@ from tissue_simulator import (
     ReplicateStatistics,
     load_replicate_stats_csv,
     load_target_statistics_from_tissue,
+    load_target_statistics_from_coordinates,
+    load_tissue_from_csv,
     TissueSection,
     SpatialNetworkAnalyzer,
     InteractionStatistics
@@ -184,6 +189,130 @@ def test_cell_types_ordering_is_deterministic():
     )
     assert isinstance(gen.cell_types, tuple)
     assert gen.cell_types == ("alpha", "middle", "zebra")
+
+
+def test_full_target_stats_from_loaded_tissue():
+    """Acceptance #2: round-trip a packed tissue through a coordinate CSV and
+    derive fully-populated target statistics from the reloaded tissue."""
+    tissue = TissueSection(
+        height=200, width=200, thickness=50,
+        cell_radii={'type_a': (5, 8), 'type_b': (6, 10)},
+    )
+    n = tissue.generate_cells(max_attempts=500, seed=42)
+    assert n > 0
+
+    fd, path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        tissue.export_to_csv(path)
+
+        tissue2 = load_tissue_from_csv(path)
+        assert len(tissue2.cells) == len(tissue.cells)
+
+        # Use radius mode: packed tissues rarely have surface-touching
+        # contacts (min_spacing), so contact mode can yield empty
+        # interactions. Mirrors the existing tests in this module.
+        ts = load_target_statistics_from_tissue(
+            tissue2, network_mode="radius", network_radius=20.0
+        )
+
+        assert ts.cell_type_proportions is not None
+        assert abs(sum(ts.cell_type_proportions.values()) - 1.0) < 1e-6
+        assert 0 < ts.target_density < 1
+        # validate() returns None on success and raises on inconsistency.
+        assert ts.validate() is None
+        assert len(ts.interaction_stats) > 0
+    finally:
+        os.remove(path)
+
+
+def test_convenience_equivalence_from_coordinates():
+    """Acceptance #2: load_target_statistics_from_coordinates yields fully
+    populated stats equivalent to the explicit composition."""
+    tissue = TissueSection(
+        height=200, width=200, thickness=50,
+        cell_radii={'type_a': (5, 8), 'type_b': (6, 10)},
+    )
+    n = tissue.generate_cells(max_attempts=500, seed=42)
+    assert n > 0
+
+    fd, path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        tissue.export_to_csv(path)
+
+        ts = load_target_statistics_from_tissue(
+            load_tissue_from_csv(path),
+            network_mode="radius", network_radius=20.0,
+        )
+        ts2 = load_target_statistics_from_coordinates(
+            path, network_mode="radius", network_radius=20.0
+        )
+
+        # Fully populated.
+        assert ts2.cell_type_proportions is not None
+        assert abs(sum(ts2.cell_type_proportions.values()) - 1.0) < 1e-6
+        assert 0 < ts2.target_density < 1
+        assert ts2.validate() is None
+        assert ts2.target_cell_count == len(tissue.cells)
+
+        # Equivalent to the explicit composition.
+        assert ts2.cell_type_proportions == ts.cell_type_proportions
+        assert ts2.target_cell_count == ts.target_cell_count
+        assert ts2.target_density == ts.target_density
+        assert len(ts2.interaction_stats) == len(ts.interaction_stats)
+    finally:
+        os.remove(path)
+
+
+def test_coordinate_loader_vs_interaction_table_loader():
+    """Acceptance #3: the coordinate loader populates proportions/density,
+    whereas the precomputed interaction-table loader leaves them None."""
+    # Coordinate CSV -> fully populated.
+    tissue = TissueSection(
+        height=200, width=200, thickness=50,
+        cell_radii={'type_a': (5, 8), 'type_b': (6, 10)},
+    )
+    assert tissue.generate_cells(max_attempts=500, seed=42) > 0
+
+    fd_coord, coord_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd_coord)
+    fd_table, table_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd_table)
+    try:
+        tissue.export_to_csv(coord_path)
+
+        from_coords = load_target_statistics_from_coordinates(
+            coord_path, network_mode="radius", network_radius=20.0
+        )
+        assert from_coords.cell_type_proportions is not None
+        assert from_coords.target_density is not None
+
+        # Interaction-table CSV -> proportions/density left None.
+        with open(table_path, "w", newline="") as f:
+            f.write("type_a,type_b,normalized_interactions\n")
+            f.write("type_a,type_b,0.5\n")
+
+        from_table = load_replicate_stats_csv(table_path)
+        assert len(from_table.interaction_stats) == 1
+        assert from_table.cell_type_proportions is None
+        assert from_table.target_density is None
+    finally:
+        os.remove(coord_path)
+        os.remove(table_path)
+
+
+def test_new_exports_available():
+    """Acceptance #4: the new convenience names are importable and exported."""
+    import tissue_simulator
+    from tissue_simulator import (
+        load_tissue_from_csv as _lt,
+        load_target_statistics_from_coordinates as _lc,
+    )
+    assert _lt is not None
+    assert _lc is not None
+    assert "load_tissue_from_csv" in tissue_simulator.__all__
+    assert "load_target_statistics_from_coordinates" in tissue_simulator.__all__
 
 
 def test_mcp_server_integration():

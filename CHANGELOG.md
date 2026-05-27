@@ -5,6 +5,39 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-05-26
+
+### Added
+- **`TissueSection.from_cells(...)`** (classmethod, `tissue.py`) — build a
+  tissue from already-positioned `Cell` objects instead of the random
+  packer. Infers any omitted dimension from the cell-center bounding box
+  (with a largest-diameter fallback for constant-axis 2D inputs) and derives
+  per-type `(min, max)` radii when not given. The inverse of `export_to_csv`.
+- **`load_tissue_from_csv(...)`** (module-level, `tissue.py`) — load a
+  `TissueSection` from a coordinate CSV (`x, y, z, radius, cell_type,
+  is_boundary`) written by `export_to_csv`; `radius` and `is_boundary` are
+  optional. Round-trips a packed tissue's cells exactly.
+- **`load_target_statistics_from_coordinates(...)`** (module-level,
+  `replicate_generator.py`) — full `TargetStatistics` (interactions **plus**
+  `cell_type_proportions` and `target_density`) straight from a coordinate
+  CSV. Distinct from `load_target_statistics_from_csv`, which reads a
+  precomputed interaction table and leaves proportions/density unset.
+- Together these unblock turning an externally measured or externally
+  generated (e.g. PhysiCell) tissue into a `TargetStatistics` for
+  `ReplicateGenerator` without going through the random packer.
+- Tests for round-trip fidelity, derived radii, 2D dimension inference, full
+  target-stats validation, and the new public exports
+  (`tests/test_tissue_simulator.py`, `tests/test_replicate_generator.py`).
+
+### Changed
+- **`tissue_simulator/__init__.py`** now exports `load_tissue_from_csv` and
+  `load_target_statistics_from_coordinates`.
+- **`docs/api/core.md`** documents `TissueSection.from_cells` and
+  `load_tissue_from_csv`.
+- **`docs/api/replicate-generation.md`** documents
+  `load_target_statistics_from_coordinates` and clarifies the two CSV shapes
+  (coordinate CSV vs. precomputed interaction table).
+
 ## [0.1.6] - 2026-05-15
 
 ### Added

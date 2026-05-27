@@ -83,6 +83,44 @@ generator = ReplicateGenerator(
 replicates = generator.generate_replicates(num_replicates=10)
 ```
 
+### Generate from a Coordinate CSV
+
+`load_target_statistics_from_csv` (above) expects a *precomputed interaction
+table* and leaves `cell_type_proportions` and `target_density` unset. When you
+instead have **raw cell coordinates** — a measured sample, or a layout exported
+from another tool to the `export_to_csv` schema (`x, y, z, radius, cell_type,
+is_boundary`) — use `load_target_statistics_from_coordinates`, which returns a
+*fully populated* `TargetStatistics` (interactions **plus** proportions and
+density). Added in v0.1.7.
+
+```python
+from tissue_simulator import (
+    load_target_statistics_from_coordinates,
+    ReplicateGenerator,
+)
+
+# Full statistics straight from a coordinate CSV.
+target_stats = load_target_statistics_from_coordinates(
+    "cells.csv",
+    network_mode="radius",
+    network_radius=20.0,
+)
+
+generator = ReplicateGenerator(
+    target_stats=target_stats,
+    tissue_dimensions=(400, 400, 100),
+    base_cell_radii={'type_a': (8, 12), 'type_b': (5, 8)},
+    network_mode="radius",
+    network_radius=20.0,
+)
+replicates = generator.generate_replicates(num_replicates=10)
+```
+
+It is exactly equivalent to
+`load_target_statistics_from_tissue(load_tissue_from_csv(path), ...)`; reach for
+it when your source is coordinates rather than an interaction table. See
+[`core.md`](core.md) for `load_tissue_from_csv` and `TissueSection.from_cells`.
+
 ## CSV Format for Target Statistics
 
 The CSV file should contain interaction statistics with these columns:
@@ -106,6 +144,12 @@ fibroblast,fibroblast,30,0.11,0.0,0.0
 - `num_interactions`: Raw interaction count
 - `avg_distance`: Average interaction distance
 - `median_distance`: Median interaction distance
+
+> **Two CSV shapes.** This interaction-table format is what
+> `load_target_statistics_from_csv` reads. A *coordinate* CSV
+> (`x, y, z, radius, cell_type, is_boundary`, written by
+> `TissueSection.export_to_csv`) is a different shape — load it with
+> `load_target_statistics_from_coordinates` instead.
 
 ## Core Classes
 

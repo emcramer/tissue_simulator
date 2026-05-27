@@ -3,8 +3,11 @@ Unit tests for tissue simulator package.
 """
 
 import unittest
+import os
+import tempfile
 import numpy as np
 from tissue_simulator import TissueSection, Cell, SpherePacker
+from tissue_simulator.tissue import load_tissue_from_csv
 
 
 class TestCell(unittest.TestCase):
@@ -333,6 +336,174 @@ class TestIntegration(unittest.TestCase):
                 lines = f.readlines()
                 self.assertGreater(len(lines), 1)  # Header + data
                 self.assertIn('x', lines[0])  # Check header
+        finally:
+            os.unlink(temp_path)
+
+
+class TestFromCells(unittest.TestCase):
+    """Test TissueSection.from_cells classmethod."""
+
+    def test_empty_cells_raises(self):
+        """An empty cell list must raise ValueError."""
+        with self.assertRaises(ValueError):
+            TissueSection.from_cells([])
+
+    def test_derived_radii_per_type(self):
+        """cell_radii=None derives per-type observed (min, max) radii (#3)."""
+        cells = [
+            Cell(center=(10, 10, 5), radius=4.0, cell_type='a'),
+            Cell(center=(20, 10, 5), radius=7.0, cell_type='a'),
+            Cell(center=(30, 10, 5), radius=5.5, cell_type='b'),
+        ]
+        tissue = TissueSection.from_cells(cells, cell_radii=None)
+
+        self.assertEqual(tissue.cell_radii['a'], (4.0, 7.0))
+        self.assertEqual(tissue.cell_radii['b'], (5.5, 5.5))
+
+    def test_explicit_cell_radii_preserved(self):
+        """Explicitly supplied cell_radii is used as-is, not re-derived."""
+        cells = [
+            Cell(center=(10, 10, 5), radius=4.0, cell_type='a'),
+            Cell(center=(20, 10, 5), radius=7.0, cell_type='a'),
+        ]
+        given = {'a': (1.0, 99.0)}
+        tissue = TissueSection.from_cells(cells, cell_radii=given)
+
+        self.assertEqual(tissue.cell_radii['a'], (1.0, 99.0))
+
+    def test_dimension_inference_constant_z(self):
+        """Zero-span (constant z) axis falls back to positive thickness (#4)."""
+        # All cells share the same z -> z span is 0.
+        cells = [
+            Cell(center=(10.0, 20.0, 5.0), radius=3.0, cell_type='a'),
+            Cell(center=(40.0, 60.0, 5.0), radius=4.0, cell_type='a'),
+            Cell(center=(25.0, 30.0, 5.0), radius=2.0, cell_type='a'),
+        ]
+        tissue = TissueSection.from_cells(cells)
+
+        # Width/height equal the center-span on x/y axes.
+        self.assertEqual(tissue.width, 40.0 - 10.0)   # x span
+        self.assertEqual(tissue.height, 60.0 - 20.0)  # y span
+
+        # Thickness must be strictly positive despite the zero z-span.
+        self.assertGreater(tissue.thickness, 0)
+
+        # Packing fraction stays within (0, 1).
+        pf = tissue.get_cell_statistics()['packing_fraction']
+        self.assertGreater(pf, 0)
+        self.assertLess(pf, 1)
+
+    def test_explicit_dimensions_used(self):
+        """Explicitly passed dimensions override inference."""
+        cells = [
+            Cell(center=(10.0, 20.0, 5.0), radius=3.0, cell_type='a'),
+            Cell(center=(40.0, 60.0, 9.0), radius=4.0, cell_type='a'),
+        ]
+        tissue = TissueSection.from_cells(
+            cells, height=500.0, width=600.0, thickness=700.0
+        )
+        self.assertEqual(tissue.height, 500.0)
+        self.assertEqual(tissue.width, 600.0)
+        self.assertEqual(tissue.thickness, 700.0)
+        self.assertEqual(len(tissue.cells), 2)
+
+
+class TestLoadTissueFromCsv(unittest.TestCase):
+    """Test load_tissue_from_csv and CSV round-trip with export_to_csv."""
+
+    def _assert_cells_equal(self, c1, c2):
+        np.testing.assert_array_equal(c1.center, c2.center)
+        self.assertEqual(c1.radius, c2.radius)
+        self.assertEqual(c1.cell_type, c2.cell_type)
+        self.assertEqual(c1.is_boundary, c2.is_boundary)
+
+    def test_packed_tissue_roundtrip(self):
+        """Generated tissue survives export -> load round-trip exactly (#1)."""
+        t = TissueSection(100, 100, 50, (5, 10))
+        # Boundary cells allowed (default) so we likely get at least one.
+        t.generate_cells(max_attempts=200, seed=12345)
+        self.assertGreater(len(t.cells), 0)
+
+        with tempfile.NamedTemporaryFile(
+            mode='w', delete=False, suffix='.csv'
+        ) as f:
+            temp_path = f.name
+        try:
+            t.export_to_csv(temp_path)
+            t2 = load_tissue_from_csv(temp_path)
+
+            self.assertEqual(len(t2.cells), len(t.cells))
+            for c1, c2 in zip(t.cells, t2.cells):
+                self._assert_cells_equal(c1, c2)
+        finally:
+            os.unlink(temp_path)
+
+    def test_boundary_flag_roundtrip(self):
+        """Explicit is_boundary True/False values round-trip correctly."""
+        cells = [
+            Cell(center=(10.0, 10.0, 5.0), radius=3.0, cell_type='a',
+                 is_boundary=True),
+            Cell(center=(20.0, 15.0, 6.0), radius=4.5, cell_type='b',
+                 is_boundary=False),
+            Cell(center=(30.0, 25.0, 7.0), radius=2.25, cell_type='a',
+                 is_boundary=True),
+        ]
+        tissue = TissueSection.from_cells(cells)
+
+        with tempfile.NamedTemporaryFile(
+            mode='w', delete=False, suffix='.csv'
+        ) as f:
+            temp_path = f.name
+        try:
+            tissue.export_to_csv(temp_path)
+            loaded = load_tissue_from_csv(temp_path)
+
+            self.assertEqual(len(loaded.cells), 3)
+            for c1, c2 in zip(cells, loaded.cells):
+                self._assert_cells_equal(c1, c2)
+            # Spot-check boundary booleans explicitly.
+            self.assertEqual(
+                [c.is_boundary for c in loaded.cells], [True, False, True]
+            )
+        finally:
+            os.unlink(temp_path)
+
+    def test_float_roundtrip_exact(self):
+        """Coordinates and radius survive CSV round-trip with exact equality."""
+        cells = [
+            Cell(center=(123.456789012345, 0.1 + 0.2, 1e-10),
+                 radius=7.7777777777, cell_type='a'),
+        ]
+        tissue = TissueSection.from_cells(cells)
+
+        with tempfile.NamedTemporaryFile(
+            mode='w', delete=False, suffix='.csv'
+        ) as f:
+            temp_path = f.name
+        try:
+            tissue.export_to_csv(temp_path)
+            loaded = load_tissue_from_csv(temp_path)
+            self._assert_cells_equal(cells[0], loaded.cells[0])
+        finally:
+            os.unlink(temp_path)
+
+    def test_missing_optional_columns(self):
+        """CSV without radius/is_boundary uses defaults (radius, False)."""
+        with tempfile.NamedTemporaryFile(
+            mode='w', delete=False, suffix='.csv'
+        ) as f:
+            temp_path = f.name
+            f.write("x,y,z,cell_type\n")
+            f.write("10.0,20.0,5.0,a\n")
+            f.write("40.0,60.0,5.0,b\n")
+        try:
+            loaded = load_tissue_from_csv(temp_path, default_radius=12.5)
+            self.assertEqual(len(loaded.cells), 2)
+            for c in loaded.cells:
+                self.assertEqual(c.radius, 12.5)
+                self.assertFalse(c.is_boundary)
+            self.assertEqual(loaded.cells[0].cell_type, 'a')
+            self.assertEqual(loaded.cells[1].cell_type, 'b')
         finally:
             os.unlink(temp_path)
 

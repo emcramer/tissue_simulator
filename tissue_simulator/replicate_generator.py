@@ -14,7 +14,7 @@ from dataclasses import dataclass, asdict
 import warnings
 from pathlib import Path
 
-from .tissue import TissueSection, Cell
+from .tissue import TissueSection, Cell, load_tissue_from_csv
 from .packing import SpherePacker
 from .spatial_analysis import SpatialNetworkAnalyzer, InteractionStatistics
 
@@ -581,4 +581,52 @@ def load_target_statistics_from_tissue(tissue: TissueSection,
         cell_type_proportions=cell_type_proportions,
         target_cell_count=total_cells,
         target_density=tissue_stats['packing_fraction']
+    )
+
+
+def load_target_statistics_from_coordinates(filepath: str,
+                                            network_mode: str = "contact",
+                                            network_radius: Optional[float] = None) -> TargetStatistics:
+    """
+    Load FULL target statistics from a coordinate CSV file.
+
+    This is a convenience composition: it reads a tissue from a coordinate
+    CSV (one row per cell, with positions/radii/types) via
+    ``load_tissue_from_csv`` and then derives target statistics from that
+    reconstructed tissue via ``load_target_statistics_from_tissue``. It is
+    exactly equivalent to::
+
+        load_target_statistics_from_tissue(
+            load_tissue_from_csv(filepath),
+            network_mode=network_mode,
+            network_radius=network_radius,
+        )
+
+    Because the statistics are computed from a real tissue, the returned
+    ``TargetStatistics`` is fully populated: it includes the measured
+    interaction statistics AND the ``cell_type_proportions`` and
+    ``target_density`` (packing fraction) inferred from the cell coordinates.
+
+    This is DISTINCT from ``load_target_statistics_from_csv``, which reads a
+    precomputed interaction table (``type_a``, ``type_b``,
+    ``normalized_interactions``, ...) and therefore does NOT populate
+    ``cell_type_proportions`` or ``target_density``. Use this function when
+    you have raw cell coordinates; use ``load_target_statistics_from_csv``
+    when you already have an interaction-statistics table.
+
+    Args:
+        network_mode: "contact" (edges between touching cells) or "radius"
+            (edges between cells within ``network_radius``), passed through
+            to ``load_target_statistics_from_tissue``.
+        network_radius: Distance threshold used when ``network_mode`` is
+            "radius"; ignored otherwise.
+
+    Returns:
+        TargetStatistics object with interactions, cell type proportions,
+        target cell count, and target density populated.
+    """
+    return load_target_statistics_from_tissue(
+        load_tissue_from_csv(filepath),
+        network_mode=network_mode,
+        network_radius=network_radius,
     )
