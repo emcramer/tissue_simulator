@@ -36,6 +36,9 @@ The MCP server exposes the following tools for tissue simulation:
 - `load_tissue_from_csv`: Load a tissue from a coordinate CSV and set it as the current tissue
 - `load_target_statistics_from_coordinates`: Compute full target statistics (interactions plus proportions and density) from a coordinate CSV
 
+### Cell Type Assignment
+- `assign_cell_types`: Slice the current tissue, build a radius-mode spatial network, and assign cell types via simulated annealing against a graph-coloring-format target CSV (with optional seed for bit-reproducibility)
+
 ### Visualization
 - `visualize_tissue`: Generate 3D tissue visualization
 - `visualize_slice_2d`: Generate 2D slice visualization
@@ -410,6 +413,46 @@ Visualization saved to: /tmp/tissue_sim_xyz/tissue_view.png
   "cell_type_proportions": {"cancer": 0.45, "immune": 0.33, "stroma": 0.22},
   "target_cell_count": 312,
   "target_density": 0.287
+}
+```
+
+### assign_cell_types
+
+**Description**: Assign cell types to the cells of the current tissue by simulated annealing against a target adjacency structure. Slices the current tissue at `z_position`, builds a radius-mode spatial network, loads target statistics from a graph-coloring-format CSV (with `node_counts`, `edge_counts`, `neighbor_dist` rows — the same shape that `tissue_simulator.graph_coloring.load_target_statistics_from_csv` reads), and runs `GraphColorizer.colorize()` with the given `seed`. The per-node coloring is stored on the server.
+
+**Parameters**:
+- `target_statistics_csv` (string, required): Path to a graph-coloring-format CSV
+- `colors` (array of strings, required, minItems: 1): List of cell-type names (e.g. `["cancer", "immune", "stroma"]`)
+- `z_position` (number, optional): Z-plane for the horizontal slice; defaults to `tissue.thickness / 2`
+- `network_radius` (number, optional): Distance threshold for the spatial network (micrometers); defaults to the server's stored `network_radius` if set, otherwise `50.0`
+- `seed` (integer, optional): RNG seed for simulated annealing; makes `colorize` bit-reproducible
+- `initial_temp` (number, optional): Starting temperature (default: 100.0)
+- `final_temp` (number, optional): Stopping temperature (default: 0.1)
+- `cooling_rate` (number, optional): Temperature decrease rate per step (default: 0.995)
+- `max_iterations` (integer, optional): Maximum number of simulated-annealing iterations (default: 5000)
+- `verbose` (boolean, optional): Print per-iteration progress (default: false)
+
+**Example**:
+```json
+{
+  "target_statistics_csv": "/tmp/target_stats.csv",
+  "colors": ["cancer", "immune", "stroma"],
+  "z_position": 40.0,
+  "network_radius": 50.0,
+  "seed": 42,
+  "max_iterations": 5000
+}
+```
+
+**Returns**:
+```json
+{
+  "status": "success",
+  "num_nodes_colored": 89,
+  "color_counts": {"cancer": 40, "immune": 30, "stroma": 19},
+  "seed": 42,
+  "used_z_position": 40.0,
+  "used_network_radius": 50.0
 }
 ```
 

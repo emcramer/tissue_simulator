@@ -24,6 +24,9 @@ except ImportError:
 
 from ..tissue import TissueSection, load_tissue_from_csv
 from ..slicing import TissueSlicer, create_standard_slices
+from ..spatial_analysis import SpatialNetworkAnalyzer
+from ..graph_coloring import (GraphColorizer,
+                               load_target_statistics_from_csv as load_graph_coloring_stats_from_csv)
 from ..replicate_generator import (ReplicateGenerator, TargetStatistics,
                                      load_target_statistics_from_csv,
                                      load_target_statistics_from_tissue,
@@ -315,6 +318,89 @@ class TissueSimulatorMCPServer:
                 ),
 
                 Tool(
+                    name="assign_cell_types",
+                    description=(
+                        "Assign cell types to the cells of the current tissue by simulated "
+                        "annealing against a target adjacency structure. Slices the current "
+                        "tissue at z_position, builds a contact/radius network, loads target "
+                        "statistics from a graph-coloring-format CSV, and runs "
+                        "GraphColorizer.colorize() with the given seed. Stores the per-node "
+                        "coloring on the server (also accessible via subsequent tools)."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "target_statistics_csv": {
+                                "type": "string",
+                                "description": (
+                                    "Path to a graph-coloring-format CSV (with node_counts, "
+                                    "edge_counts, neighbor_dist rows — the same shape that "
+                                    "tissue_simulator.graph_coloring.load_target_statistics_from_csv "
+                                    "reads)."
+                                )
+                            },
+                            "colors": {
+                                "type": "array",
+                                "description": (
+                                    "List of cell-type names (e.g. [\"cancer\", \"immune\", "
+                                    "\"stroma\"])."
+                                ),
+                                "items": {"type": "string"},
+                                "minItems": 1
+                            },
+                            "z_position": {
+                                "type": "number",
+                                "description": (
+                                    "Z-plane for the horizontal slice; defaults to "
+                                    "tissue.thickness / 2 if omitted."
+                                )
+                            },
+                            "network_radius": {
+                                "type": "number",
+                                "description": (
+                                    "Distance threshold for the spatial network (micrometers). "
+                                    "Defaults to the server's stored network_radius if set, "
+                                    "otherwise 50.0."
+                                )
+                            },
+                            "seed": {
+                                "type": "integer",
+                                "description": (
+                                    "RNG seed for the simulated annealing; makes colorize "
+                                    "bit-reproducible."
+                                )
+                            },
+                            "initial_temp": {
+                                "type": "number",
+                                "description": "Starting temperature for simulated annealing",
+                                "default": 100.0
+                            },
+                            "final_temp": {
+                                "type": "number",
+                                "description": "Stopping temperature for simulated annealing",
+                                "default": 0.1
+                            },
+                            "cooling_rate": {
+                                "type": "number",
+                                "description": "Temperature decrease rate per step",
+                                "default": 0.995
+                            },
+                            "max_iterations": {
+                                "type": "integer",
+                                "description": "Maximum number of simulated-annealing iterations",
+                                "default": 5000
+                            },
+                            "verbose": {
+                                "type": "boolean",
+                                "description": "Print per-iteration progress",
+                                "default": False
+                            }
+                        },
+                        "required": ["target_statistics_csv", "colors"]
+                    }
+                ),
+
+                Tool(
                     name="export_slice_csv",
                     description=(
                         "Export the current 2D slice data to a CSV file. "
@@ -601,6 +687,8 @@ class TissueSimulatorMCPServer:
                     return await self._handle_load_tissue_from_csv(arguments)
                 elif name == "load_target_statistics_from_coordinates":
                     return await self._handle_load_target_statistics_from_coordinates(arguments)
+                elif name == "assign_cell_types":
+                    return await self._handle_assign_cell_types(arguments)
                 elif name == "setup_replicate_generator":
                     return await self._handle_setup_replicate_generator(arguments)
                 elif name == "generate_replicates":
@@ -935,6 +1023,97 @@ class TissueSimulatorMCPServer:
             return [TextContent(
                 type="text",
                 text=json.dumps({"error": f"Failed to load statistics: {str(e)}"})
+            )]
+
+    async def _handle_assign_cell_types(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle assign_cell_types tool call."""
+        if self.current_tissue is None or not self.current_tissue.cells:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "No tissue with cells available. Call create_tissue/generate_cells or load_tissue_from_csv first."})
+            )]
+
+        target_csv = args.get("target_statistics_csv")
+        colors = args.get("colors")
+        if not target_csv:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "target_statistics_csv is required"})
+            )]
+        if not colors:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "colors is required (non-empty list of cell-type names)"})
+            )]
+
+        z_pos = args.get("z_position")
+        if z_pos is None:
+            z_pos = self.current_tissue.thickness / 2
+
+        net_radius = args.get("network_radius")
+        if net_radius is None:
+            net_radius = getattr(self, "network_radius", None) or 50.0
+
+        seed = args.get("seed")
+        initial_temp = args.get("initial_temp", 100.0)
+        final_temp = args.get("final_temp", 0.1)
+        cooling_rate = args.get("cooling_rate", 0.995)
+        max_iterations = args.get("max_iterations", 5000)
+        verbose = args.get("verbose", False)
+
+        try:
+            # 1. Slice the current tissue at z_pos.
+            slicer = TissueSlicer(self.current_tissue)
+            slicer.slice_plane(z_position=z_pos)
+
+            # 2. Build a radius-mode spatial network from the slice.
+            analyzer = SpatialNetworkAnalyzer()
+            graph = analyzer.build_network_from_slice(slicer, mode="radius", radius=net_radius)
+
+            # 3. Load target statistics from the graph-coloring-format CSV.
+            target_stats = load_graph_coloring_stats_from_csv(target_csv, colors)
+
+            # 4. Run simulated annealing.
+            colorizer = GraphColorizer(
+                target_graph=graph,
+                colors=colors,
+                target_statistics=target_stats,
+                seed=seed
+            )
+            assignment = colorizer.colorize(
+                initial_temp=initial_temp,
+                final_temp=final_temp,
+                cooling_rate=cooling_rate,
+                max_iterations=max_iterations,
+                verbose=verbose
+            )
+
+            # Store on server for downstream tools.
+            self.cell_type_assignment = assignment
+            self.current_slicer = slicer
+
+            # 5. Build result summary.
+            from collections import Counter
+            color_counts = dict(Counter(assignment.values()))
+
+            result = {
+                "status": "success",
+                "num_nodes_colored": len(assignment),
+                "color_counts": color_counts,
+                "seed": seed,
+                "used_z_position": z_pos,
+                "used_network_radius": net_radius
+            }
+
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2)
+            )]
+
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to assign cell types: {str(e)}"})
             )]
 
     async def _handle_export_slice_csv(self, args: Dict[str, Any]) -> List[TextContent]:

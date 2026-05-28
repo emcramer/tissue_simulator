@@ -9,6 +9,15 @@ The replicate generation module allows you to generate multiple tissue samples t
 - **Hypothesis testing**: Generate tissues matching theoretical interaction patterns
 - **Simulation studies**: Create ensembles of tissues for computational experiments
 
+> **When to reach for `GraphColorizer` instead.** `ReplicateGenerator` matches
+> contact statistics and proportions through repacking; it does NOT perform
+> simulated-annealing label assignment, and it will not converge on strongly
+> structured multi-type targets (e.g. a tumor disc with a fibroblast ring or
+> a CD8 annulus). For those, use the two-stage `TissueWorkflow` path —
+> `generate_cells` for positions, then `assign_cell_types` for labels via
+> `GraphColorizer`. See the "When to use what" section of
+> [`graph-coloring.md`](graph-coloring.md#when-to-use-what).
+
 ## Key Features
 
 - **Target-based generation**: Generate tissues matching specified spatial statistics

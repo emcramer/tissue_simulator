@@ -147,22 +147,26 @@ class TissueNetworkWorkflow:
         else:
             raise ValueError("Either filepath or statistics must be provided")
     
-    def assign_cell_types(self, 
+    def assign_cell_types(self,
                          initial_temp: float = 100.0,
                          final_temp: float = 0.1,
                          cooling_rate: float = 0.995,
                          max_iterations: int = 100000,
-                         verbose: bool = True) -> Dict:
+                         verbose: bool = True,
+                         seed: Optional[int] = None) -> Dict:
         """
         Assign cell types to network nodes using simulated annealing.
-        
+
         Args:
             initial_temp: Starting temperature for annealing
             final_temp: Final temperature for annealing
             cooling_rate: Rate of temperature decrease
             max_iterations: Maximum iterations
             verbose: Whether to print progress
-            
+            seed: Optional integer seed forwarded to GraphColorizer for
+                bit-reproducible simulated annealing. When None (default),
+                behavior is unchanged.
+
         Returns:
             Dictionary mapping node IDs to cell types
         """
@@ -170,12 +174,13 @@ class TissueNetworkWorkflow:
             raise ValueError("Network not built. Call build_network() first.")
         if self.target_statistics is None:
             raise ValueError("Target statistics not loaded. Call load_target_statistics() first.")
-        
+
         print("\nInitializing GraphColorizer...")
         colorizer = GraphColorizer(
             target_graph=self.graph,
             colors=self.color_names,
-            target_statistics=self.target_statistics
+            target_statistics=self.target_statistics,
+            seed=seed
         )
         
         print("Running simulated annealing to assign cell types...")
@@ -461,10 +466,11 @@ class TissueNetworkWorkflow:
                             cell_types: List[str] = None,
                             annealing_params: Dict = None,
                             export_dir: str = "results",
-                            visualize: bool = True) -> Dict:
+                            visualize: bool = True,
+                            seed: Optional[int] = None) -> Dict:
         """
         Run the complete workflow from tissue to cell type assignment.
-        
+
         Args:
             tissue: TissueSection object
             z_position: Z-position for slice (default: middle of tissue)
@@ -475,7 +481,10 @@ class TissueNetworkWorkflow:
             annealing_params: Parameters for simulated annealing (optional)
             export_dir: Directory for exports
             visualize: Whether to create visualizations
-            
+            seed: Optional integer seed forwarded to ``assign_cell_types`` so
+                the graph-coloring step is bit-reproducible. When None
+                (default), behavior is unchanged.
+
         Returns:
             Dictionary with evaluation metrics
         """
@@ -514,7 +523,7 @@ class TissueNetworkWorkflow:
                 'cooling_rate': 0.995,
                 'max_iterations': 10000
             }
-        self.assign_cell_types(**annealing_params)
+        self.assign_cell_types(**annealing_params, seed=seed)
         self.apply_cell_types_to_slice()
         
         # Step 6: Visualize
@@ -546,10 +555,11 @@ def quick_workflow(tissue: TissueSection,
                   target_stats_file: str = None,
                   network_radius: float = 50.0,
                   z_position: float = None,
-                  output_dir: str = "results") -> TissueNetworkWorkflow:
+                  output_dir: str = "results",
+                  seed: Optional[int] = None) -> TissueNetworkWorkflow:
     """
     Convenience function to run the complete workflow with minimal configuration.
-    
+
     Args:
         tissue: TissueSection object
         cell_types: List of cell type names
@@ -557,12 +567,15 @@ def quick_workflow(tissue: TissueSection,
         network_radius: Radius for network building
         z_position: Z-position for slice (default: middle)
         output_dir: Directory for outputs
-        
+        seed: Optional integer seed forwarded to ``run_complete_workflow`` so
+            the graph-coloring step is bit-reproducible. When None (default),
+            behavior is unchanged.
+
     Returns:
         TissueNetworkWorkflow object with completed workflow
     """
     workflow = TissueNetworkWorkflow()
-    
+
     workflow.run_complete_workflow(
         tissue=tissue,
         z_position=z_position,
@@ -570,7 +583,8 @@ def quick_workflow(tissue: TissueSection,
         target_stats_file=target_stats_file,
         cell_types=cell_types,
         export_dir=output_dir,
-        visualize=True
+        visualize=True,
+        seed=seed,
     )
-    
+
     return workflow

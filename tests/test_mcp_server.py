@@ -136,6 +136,94 @@ def test_load_target_statistics_from_coordinates_full():
         os.remove(path)
 
 
+def test_assign_cell_types_handler_with_seed():
+    """
+    End-to-end MCP handler test for ``assign_cell_types``:
+
+    1. Build a small packed tissue and set it as ``server.current_tissue``.
+    2. Write a graph-coloring-format CSV (the exact shape that
+       ``tissue_simulator.graph_coloring.load_target_statistics_from_csv``
+       reads — ``nodes_<color>`` + ``edges_<c1>-<c2>`` columns).
+    3. Call ``_handle_assign_cell_types`` with an explicit ``seed`` and
+       custom annealing/network args.
+    4. Assert the result JSON shape (``status``, ``num_nodes_colored``,
+       ``color_counts``, ``seed``, ``used_z_position``,
+       ``used_network_radius``) matches the handler / docs.
+    5. Assert the side-effect: ``server.cell_type_assignment`` is populated
+       as a dict of the same length.
+    """
+    server = TissueSimulatorMCPServer()
+
+    # 1. Build a small packed tissue with three cell types so the slice
+    #    yields >5 nodes for the coloring step.
+    tissue = TissueSection(
+        120, 120, 40,
+        {'cancer': (5, 8), 'immune': (6, 9), 'stroma': (5, 7)},
+        seed=7,
+    )
+    tissue.generate_cells(max_attempts=400, seed=7)
+    assert len(tissue.cells) > 5
+    server.current_tissue = tissue
+
+    # 2. Write a target-statistics CSV in the graph-coloring format.
+    colors = ['cancer', 'immune', 'stroma']
+    fd, csv_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        # load_target_statistics_from_csv reads the first row and pulls:
+        #   nodes_<color> for each color
+        #   edges_<c1>-<c2> for each i<=j pair (in the given color order)
+        header_cols = [f"nodes_{c}" for c in colors]
+        for i in range(len(colors)):
+            for j in range(i, len(colors)):
+                header_cols.append(f"edges_{colors[i]}-{colors[j]}")
+        row_values = [
+            # node_counts
+            "5", "4", "3",
+            # edge_counts (cancer-cancer, cancer-immune, cancer-stroma,
+            #              immune-immune, immune-stroma, stroma-stroma)
+            "3", "2", "1", "1", "1", "1",
+        ]
+        with open(csv_path, "w") as f:
+            f.write(",".join(header_cols) + "\n")
+            f.write(",".join(row_values) + "\n")
+
+        # 3. Call the handler.
+        result = _result_json(
+            _call(server._handle_assign_cell_types({
+                "target_statistics_csv": csv_path,
+                "colors": colors,
+                "z_position": 20.0,
+                "network_radius": 25.0,
+                "seed": 42,
+                "initial_temp": 10.0,
+                "final_temp": 0.5,
+                "cooling_rate": 0.95,
+                "max_iterations": 200,
+                "verbose": False,
+            }))
+        )
+
+        # 4. Validate the result shape.
+        assert result.get("status") == "success", result
+        assert result["num_nodes_colored"] > 0
+        color_counts = result["color_counts"]
+        assert isinstance(color_counts, dict)
+        assert sum(color_counts.values()) == result["num_nodes_colored"]
+        # Every color in color_counts must be one of the requested colors.
+        assert set(color_counts.keys()).issubset(set(colors))
+        assert result["seed"] == 42
+        assert result["used_z_position"] == 20.0
+        assert result["used_network_radius"] == 25.0
+
+        # 5. Side effects on the server.
+        assert server.cell_type_assignment is not None
+        assert isinstance(server.cell_type_assignment, dict)
+        assert len(server.cell_type_assignment) == result["num_nodes_colored"]
+    finally:
+        os.remove(csv_path)
+
+
 def test_coordinates_vs_interaction_table_distinct():
     """
     Coordinate path populates proportions/density; the interaction-table path
