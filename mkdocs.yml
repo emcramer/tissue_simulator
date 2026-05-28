@@ -1,0 +1,131 @@
+site_name: Tissue Simulator
+site_description: 3D simulated biological tissue section generator with network-based spatial analysis and ABM-initialization workflows
+site_url: https://emcramer.github.io/tissue_simulator/
+repo_url: https://github.com/emcramer/tissue_simulator
+repo_name: emcramer/tissue_simulator
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+    - content.action.view
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - include-markdown
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            show_source: true
+            show_root_heading: true
+            show_signature_annotations: true
+            separate_signature: true
+            docstring_style: google
+            merge_init_into_class: true
+            members_order: source
+            filters:
+              - "!^_"
+
+# In --strict mode mkdocs fails on any WARNING-level log. Broken outbound
+# links inside docs/api/*.md and docs/guides/*.md have been fixed, so
+# links.not_found and links.unrecognized_links are back at `warn` to
+# surface any future regressions. `nav.omitted_files` stays at `info`
+# because docs/notes/plot-surface-bug.md is intentionally not in the nav.
+validation:
+  nav:
+    omitted_files: info
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+not_in_nav: |
+  notes/plot-surface-bug.md
+
+hooks:
+  - docs_hooks.py
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - toc:
+      permalink: true
+  - tables
+  - attr_list
+  - md_in_html
+
+extra:
+  version:
+    provider: mike
+    default: latest
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/emcramer/tissue_simulator
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Guides:
+      - Complete Workflow: guides/complete-workflow.md
+      - MCP Quickstart: guides/mcp.md
+  - API Guide:
+      - Core (TissueSection / Cell / SpherePacker): api/core.md
+      - Slicing: api/slicing.md
+      - Spatial Analysis: api/spatial-analysis.md
+      - Graph Coloring: api/graph-coloring.md
+      - Replicate Generation: api/replicate-generation.md
+      - Convergence: api/convergence.md
+      - Power Analysis: api/power-analysis.md
+      - PhysiCell Bridge: api/physicell.md
+      - MCP Server: api/mcp.md
+  - API Reference:
+      - tissue: reference/tissue.md
+      - packing: reference/packing.md
+      - slicing: reference/slicing.md
+      - spatial_analysis: reference/spatial_analysis.md
+      - graph_coloring: reference/graph_coloring.md
+      - replicate_generator: reference/replicate_generator.md
+      - tissue_workflow: reference/tissue_workflow.md
+      - evaluation: reference/evaluation.md
+      - convergence: reference/convergence.md
+      - power_analysis: reference/power_analysis.md
+      - physicell_export: reference/physicell_export.md
+      - physicell_reader: reference/physicell_reader.md
+      - mcp.server: reference/mcp_server.md
+  - Changelog: changelog.md

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tissue_simulator"
-version = "0.1.9"
+version = "0.1.10"
 description = "3D simulated biological tissue section generator with network-based spatial analysis and ABM-initialization workflows"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -56,9 +56,16 @@ dev = [
     "build>=1.0",
     "twine>=4.0",
 ]
+docs = [
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.24",
+    "mkdocs-include-markdown-plugin>=6",
+    "mike>=2",
+]
 
 [project.urls]
 Homepage = "https://github.com/emcramer/tissue_simulator"
+Documentation = "https://emcramer.github.io/tissue_simulator/"
 Source = "https://github.com/emcramer/tissue_simulator"
 Issues = "https://github.com/emcramer/tissue_simulator/issues"
 Changelog = "https://github.com/emcramer/tissue_simulator/blob/main/CHANGELOG.md"

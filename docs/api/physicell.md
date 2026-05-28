@@ -266,10 +266,10 @@ with tempfile.TemporaryDirectory() as tmp:
 - [`spatial-analysis.md`](spatial-analysis.md) -
   `InteractionStatistics` and contact / radius edge semantics shared
   with the reader.
-- [`../../tissue_simulator/physicell_export.py`](../../tissue_simulator/physicell_export.py)
+- [`tissue_simulator/physicell_export.py`](https://github.com/emcramer/tissue_simulator/blob/main/tissue_simulator/physicell_export.py)
   and
-  [`../../tissue_simulator/physicell_reader.py`](../../tissue_simulator/physicell_reader.py)
+  [`tissue_simulator/physicell_reader.py`](https://github.com/emcramer/tissue_simulator/blob/main/tissue_simulator/physicell_reader.py)
   for the implementations.
-- [`../../CHANGELOG.md`](../../CHANGELOG.md) - v0.1.1 (bridge),
+- [Changelog](../changelog.md) - v0.1.1 (bridge),
   v0.1.2 (pyMCDS attribution + non-standard-shape rejection),
   v0.1.3 (shape-aware `.mat` selection).

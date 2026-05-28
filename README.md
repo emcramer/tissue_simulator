@@ -4,6 +4,7 @@ A comprehensive Python package for generating 3D simulated biological tissue sec
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Docs](https://img.shields.io/badge/docs-emcramer.github.io%2Ftissue__simulator-blue)](https://emcramer.github.io/tissue_simulator/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17465675.svg)](https://doi.org/10.5281/zenodo.17465675)
 
 <!-- get github_id at https://api.github.com/repos/emcramer/tissue_simulator}, but need to wait to make the repo public. use to replace doi button above. -->
@@ -116,6 +117,10 @@ slicer.export_slice_csv('slice_data.csv')  # Export slice data
 ```
 
 ## 📚 Documentation
+
+**Documentation site:** <https://emcramer.github.io/tissue_simulator/> (auto-deployed; per-version archives via the navbar switcher).
+
+**Community wiki:** <https://github.com/emcramer/tissue_simulator/wiki> — FAQ, troubleshooting, roadmap (community-editable).
 
 - **[Quick Start Guide](docs/quickstart.md)**: Get up and running in minutes
 - **[Core API](docs/api/core.md)**: TissueSection, Cell, SpherePacker reference

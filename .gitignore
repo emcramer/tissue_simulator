@@ -83,9 +83,15 @@ TODO.md
 REPO_SUMMARY.md
 PAPER_PLAN_REPORT.md
 
+# Wiki seed staging area (drafts; Navigator pushes to GitHub wiki)
+_wiki_seed/
+
 # AI assistant local state
 .gemini/
 .claude/
 .cursor/
 .continue/
 .aider*
+
+# MkDocs build output (deployed via CI, never committed)
+site/

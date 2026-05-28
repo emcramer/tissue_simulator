@@ -349,5 +349,5 @@ your own loop.
   replicates, power curves
   (`tissue_simulator.power_analysis`; module-level docstrings until a
   dedicated page lands).
-- [`../../CHANGELOG.md`](../../CHANGELOG.md) - release notes, including
+- [Changelog](../changelog.md) - release notes, including
   the v0.1.2 `seed=` introduction.
