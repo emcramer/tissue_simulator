@@ -9,7 +9,7 @@ ships a replicate generator that matches target spatial statistics, a graph
 coloring routine that assigns cell types via simulated annealing, convergence
 and power-analysis utilities for ABM trajectories, a bridge to PhysiCell,
 and an MCP server so an LLM can drive the whole pipeline. For the full
-project pitch see [`../README.md`](../README.md).
+project pitch see [Home](index.md).
 
 ## Install
 
@@ -107,7 +107,7 @@ Wrote: tissue.csv, slice.csv, network_stats_{global,cell_types,interactions}.csv
 - **Generate replicates matching target spatial statistics** -> see
   [`api/replicate-generation.md`](api/replicate-generation.md) and the
   end-to-end demo in
-  [`../examples/result1_replicate_demonstration.py`](../examples/result1_replicate_demonstration.py).
+  [examples/result1_replicate_demonstration.py](https://github.com/emcramer/tissue_simulator/blob/main/examples/result1_replicate_demonstration.py).
 - **Assign cell types via simulated annealing on a graph** -> see
   [`api/graph-coloring.md`](api/graph-coloring.md). The `GraphColorizer` and
   evaluation helpers (`js_divergence`, `evaluate_graph_coloring`) are the
@@ -117,9 +117,9 @@ Wrote: tissue.csv, slice.csv, network_stats_{global,cell_types,interactions}.csv
   `PhysiCellReader` / `read_physicell_output` and `stats_to_target_statistics`
   to feed snapshots back into the `ReplicateGenerator`. The reference
   implementations live in
-  [`../tissue_simulator/physicell_export.py`](../tissue_simulator/physicell_export.py)
+  [tissue_simulator/physicell_export.py](https://github.com/emcramer/tissue_simulator/blob/main/tissue_simulator/physicell_export.py)
   and
-  [`../tissue_simulator/physicell_reader.py`](../tissue_simulator/physicell_reader.py).
+  [tissue_simulator/physicell_reader.py](https://github.com/emcramer/tissue_simulator/blob/main/tissue_simulator/physicell_reader.py).
 - **Run convergence and power analysis on ABM trajectories** ->
   `tissue_simulator.convergence` (`adf_test`, `mann_kendall_test`,
   `rolling_cv`, `find_convergence_time`, `MultiMetricConvergence`) and
@@ -147,7 +147,7 @@ Note on divergence semantics: as of v0.1.2, `ReplicateStatistics.divergence_scor
 is `nan` (not `0`) when both the target and the measured value are zero for
 a given cell-type pair; the aggregate uses `np.nanmean`, so empty-signal
 pairs no longer masquerade as perfect matches. See
-[`../CHANGELOG.md`](../CHANGELOG.md) for the v0.1.2 entry.
+[Changelog](changelog.md) for the v0.1.2 entry.
 
 ## Troubleshooting
 
@@ -189,5 +189,5 @@ installed without the requirements file.
 - [`api/replicate-generation.md`](api/replicate-generation.md) - target-matched replicate batches
 - [`api/mcp.md`](api/mcp.md) - MCP tool reference; pair with [`guides/mcp.md`](guides/mcp.md)
 - [`guides/complete-workflow.md`](guides/complete-workflow.md) - end-to-end tutorial
-- [`../CHANGELOG.md`](../CHANGELOG.md) - release history and migration notes
-- [`../examples/`](../examples/) - runnable scripts for every major feature
+- [Changelog](changelog.md) - release history and migration notes
+- [examples/](https://github.com/emcramer/tissue_simulator/tree/main/examples) - runnable scripts for every major feature

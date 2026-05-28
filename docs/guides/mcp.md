@@ -274,11 +274,11 @@ The LLM can interpret the results:
 
 - Full documentation: [MCP API reference](../api/mcp.md)
 - MCP Protocol: https://modelcontextprotocol.io/
-- Tissue Simulator: [README.md](README.md)
+- Tissue Simulator: [README](https://github.com/emcramer/tissue_simulator/blob/main/README.md)
 
 ## Examples Repository
 
-More example conversations and workflows: [examples/mcp_examples/](examples/mcp_examples/)
+More example conversations and workflows: [examples/mcp_examples/](https://github.com/emcramer/tissue_simulator/tree/main/examples/mcp_examples)
 
 ---
 

@@ -5,6 +5,24 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2026-05-28
+
+### Added
+- **MkDocs Material documentation site** at <https://emcramer.github.io/tissue_simulator/> (config: `mkdocs.yml`). Reuses the existing `docs/api/*.md` hand-written guides and adds:
+  - `docs/index.md` site landing page,
+  - `docs/changelog.md` (embeds `CHANGELOG.md` via include-markdown),
+  - `docs/reference/*.md` (13 mkdocstrings stubs — per-symbol API reference auto-generated from the package's docstrings).
+- **Versioned docs via `mike`** with a navbar version switcher; `latest` alias tracks `main`, tagged releases (`v*.*.*`) replace `latest`.
+- **First GitHub Actions workflow** `.github/workflows/docs.yml` — auto-deploys on push to `main` and on release tags.
+- **`docs` optional-dependency group** in `pyproject.toml`: `mkdocs-material`, `mkdocstrings[python]`, `mkdocs-include-markdown-plugin`, `mike`. Install with `pip install -e ".[docs]"`.
+- **`Documentation` URL** in `pyproject.toml`'s `[project.urls]`.
+- **GitHub repo wiki seeded** with Home / FAQ / Troubleshooting / Roadmap pages (community-editable, separate from the canonical Pages site).
+- **`tests/test_docs_build.py`** — runs `mkdocs build --strict` in CI so broken-link / missing-page regressions fail tests.
+
+### Changed
+- `README.md` adds a Docs badge and links to the site + wiki at the top of the Documentation section.
+- `docs/quickstart.md` outbound `../README.md` / `../CHANGELOG.md` / `../examples/` / `../tissue_simulator/` links rewritten to in-site pages or absolute GitHub blob URLs so the built site has no broken links.
+
 ## [0.1.9] - 2026-05-28
 
 ### Added
