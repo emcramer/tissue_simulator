@@ -2,6 +2,8 @@
 Integration tests for graph coloring and tissue network workflow.
 """
 
+import random
+
 import pytest
 import numpy as np
 from tissue_simulator import (
@@ -132,3 +134,210 @@ def test_workflow_manager(base_tissue):
     evaluation = workflow.evaluate(print_report=False)
     assert 'js_divergence' in evaluation
     assert 'cosine_similarity' in evaluation
+
+
+# ---------------------------------------------------------------------------
+# Seed-reproducibility tests for GraphColorizer and workflow forwarding.
+# ---------------------------------------------------------------------------
+
+
+def _small_target_stats(num_nodes, num_edges):
+    """Build a small, consistent target-statistics dict for three cell types."""
+    return {
+        'node_counts': {
+            'cancer': max(1, num_nodes // 3),
+            'immune': max(1, num_nodes // 3),
+            'stroma': max(1, num_nodes - 2 * (num_nodes // 3)),
+        },
+        'edge_counts': {
+            'cancer-cancer': max(1, num_edges // 6),
+            'cancer-immune': max(1, num_edges // 6),
+            'cancer-stroma': max(1, num_edges // 6),
+            'immune-immune': max(1, num_edges // 6),
+            'immune-stroma': max(1, num_edges // 6),
+            'stroma-stroma': max(1, num_edges // 6),
+        },
+        'neighbor_dist': {
+            'cancer': {'cancer': 2.0, 'immune': 1.5, 'stroma': 1.0},
+            'immune': {'cancer': 1.5, 'immune': 1.5, 'stroma': 1.0},
+            'stroma': {'cancer': 1.0, 'immune': 1.0, 'stroma': 1.5},
+        },
+    }
+
+
+def test_graph_colorizer_seed_reproducibility(spatial_graph):
+    """Two GraphColorizers with the same seed produce identical colorings."""
+    num_nodes = spatial_graph.number_of_nodes()
+    num_edges = spatial_graph.number_of_edges()
+    assert num_nodes > 0
+
+    target_stats = _small_target_stats(num_nodes, num_edges)
+    colors = ['cancer', 'immune', 'stroma']
+
+    colorizer1 = GraphColorizer(
+        target_graph=spatial_graph,
+        colors=colors,
+        target_statistics=target_stats,
+        seed=12345,
+    )
+    coloring1 = colorizer1.colorize(
+        initial_temp=10.0,
+        final_temp=0.5,
+        cooling_rate=0.95,
+        max_iterations=200,
+        verbose=False,
+    )
+
+    colorizer2 = GraphColorizer(
+        target_graph=spatial_graph,
+        colors=colors,
+        target_statistics=target_stats,
+        seed=12345,
+    )
+    coloring2 = colorizer2.colorize(
+        initial_temp=10.0,
+        final_temp=0.5,
+        cooling_rate=0.95,
+        max_iterations=200,
+        verbose=False,
+    )
+
+    # Identical node set and bit-for-bit identical assignment.
+    assert set(coloring1.keys()) == set(coloring2.keys())
+    assert len(coloring1) == num_nodes
+    for node in coloring1:
+        assert coloring1[node] == coloring2[node], (
+            f"Mismatch at node {node}: {coloring1[node]!r} vs {coloring2[node]!r}"
+        )
+
+
+def test_graph_colorizer_seed_none_uses_global_random(spatial_graph):
+    """seed=None must store the literal stdlib random module (backwards compat).
+
+    seed=N must store a fresh random.Random instance that is *not* the module.
+    """
+    num_nodes = spatial_graph.number_of_nodes()
+    num_edges = spatial_graph.number_of_edges()
+    target_stats = _small_target_stats(num_nodes, num_edges)
+    colors = ['cancer', 'immune', 'stroma']
+
+    unseeded = GraphColorizer(
+        target_graph=spatial_graph,
+        colors=colors,
+        target_statistics=target_stats,
+    )
+    # Byte-identity guarantee: the module itself, not a wrapper.
+    assert unseeded._rng is random
+    assert unseeded.seed is None
+
+    seeded = GraphColorizer(
+        target_graph=spatial_graph,
+        colors=colors,
+        target_statistics=target_stats,
+        seed=42,
+    )
+    assert isinstance(seeded._rng, random.Random)
+    assert seeded._rng is not random
+    assert seeded.seed == 42
+
+
+def test_graph_colorizer_different_seeds_diverge(spatial_graph):
+    """Different seeds with the same inputs should produce different colorings."""
+    num_nodes = spatial_graph.number_of_nodes()
+    num_edges = spatial_graph.number_of_edges()
+    # Skip cleanly if the graph happens to be trivially small.
+    if num_nodes < 3:
+        pytest.skip("Spatial graph too small to meaningfully diverge.")
+
+    target_stats = _small_target_stats(num_nodes, num_edges)
+    colors = ['cancer', 'immune', 'stroma']
+
+    coloring_a = GraphColorizer(
+        target_graph=spatial_graph,
+        colors=colors,
+        target_statistics=target_stats,
+        seed=1,
+    ).colorize(
+        initial_temp=10.0,
+        final_temp=0.5,
+        cooling_rate=0.95,
+        max_iterations=200,
+        verbose=False,
+    )
+
+    coloring_b = GraphColorizer(
+        target_graph=spatial_graph,
+        colors=colors,
+        target_statistics=target_stats,
+        seed=2,
+    ).colorize(
+        initial_temp=10.0,
+        final_temp=0.5,
+        cooling_rate=0.95,
+        max_iterations=200,
+        verbose=False,
+    )
+
+    assert coloring_a != coloring_b, (
+        "Different seeds produced identical colorings; the seed is not "
+        "actually steering the simulated annealing."
+    )
+
+
+def test_assign_cell_types_seed_reproducibility(base_tissue):
+    """TissueNetworkWorkflow.assign_cell_types(seed=N) must be reproducible."""
+    # Set up two parallel workflows on the same tissue.
+    def _build_workflow():
+        wf = TissueNetworkWorkflow()
+        wf.set_tissue(base_tissue)
+        num_slice_cells = wf.create_slice(z_position=base_tissue.thickness / 2)
+        wf.build_network(mode="radius", radius=50.0)
+
+        target_stats = {
+            'node_counts': {
+                'cancer': num_slice_cells // 2,
+                'immune': num_slice_cells - (num_slice_cells // 2),
+            },
+            'edge_counts': {
+                'cancer-cancer': 10,
+                'cancer-immune': 10,
+                'immune-immune': 10,
+            },
+            'neighbor_dist': {
+                'cancer': {'cancer': 1.0, 'immune': 1.0},
+                'immune': {'cancer': 1.0, 'immune': 1.0},
+            },
+        }
+        wf.load_target_statistics(
+            statistics=target_stats,
+            cell_types=['cancer', 'immune'],
+        )
+        return wf, num_slice_cells
+
+    wf1, n1 = _build_workflow()
+    assignment1 = wf1.assign_cell_types(
+        initial_temp=10.0,
+        final_temp=0.5,
+        cooling_rate=0.95,
+        max_iterations=200,
+        verbose=False,
+        seed=2024,
+    )
+
+    wf2, n2 = _build_workflow()
+    assignment2 = wf2.assign_cell_types(
+        initial_temp=10.0,
+        final_temp=0.5,
+        cooling_rate=0.95,
+        max_iterations=200,
+        verbose=False,
+        seed=2024,
+    )
+
+    assert n1 == n2 > 0
+    assert set(assignment1.keys()) == set(assignment2.keys())
+    for node in assignment1:
+        assert assignment1[node] == assignment2[node], (
+            f"assign_cell_types not reproducible at node {node}: "
+            f"{assignment1[node]!r} vs {assignment2[node]!r}"
+        )

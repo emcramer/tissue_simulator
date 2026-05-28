@@ -5,6 +5,53 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-05-28
+
+### Added
+- **`seed: Optional[int] = None`** on `GraphColorizer.__init__`
+  (`graph_coloring.py`) — when provided, the colorizer routes every
+  stochastic decision (initial coloring shuffle, per-step pair sampling,
+  metropolis acceptance draw) through an instance-bound
+  `random.Random(seed)`, making `colorize(...)` bit-reproducible across
+  Python processes independent of `PYTHONHASHSEED`. When `seed=None`
+  (default) behavior is unchanged.
+- **`seed=` plumbed through the workflow entry points**
+  (`tissue_workflow.py`): `TissueNetworkWorkflow.assign_cell_types`,
+  `TissueNetworkWorkflow.run_complete_workflow`, and the top-level
+  `quick_workflow` all forward a `seed` to the underlying
+  `GraphColorizer`. Matches the v0.1.2 reproducibility plumbing already
+  in `TissueSection`, `SpherePacker`, and `ReplicateGenerator`.
+- **`assign_cell_types`** (MCP tool, `mcp/server.py`) — slice the current
+  tissue at `z_position`, build a radius-mode spatial network, load
+  target statistics from a graph-coloring-format CSV (`node_counts`,
+  `edge_counts`, `neighbor_dist`), and run `GraphColorizer.colorize()`
+  with the given `seed`. The per-node coloring is stored on the server.
+  Exposes the two-stage `generate_cells` -> `assign_cell_types`
+  workflow through MCP so an LLM can drive structured multi-type
+  cell-type assignment end-to-end.
+- New reproducibility tests for graph coloring (same seed +
+  same inputs => identical assignment dict; different seeds =>
+  different assignments; `seed=None` preserves legacy behavior).
+
+### Changed
+- **`docs/api/graph-coloring.md`** documents the new `seed` parameter
+  with a short reproducibility example, and adds a "When to use what"
+  section clarifying the design intent: `GraphColorizer` is for
+  label-only assignment on a fixed graph; `ReplicateGenerator` is for
+  unstructured replicate generation by repacking and does NOT compose
+  `GraphColorizer` today; for structured multi-type targets, use the
+  two-stage `TissueWorkflow` (`generate_cells` -> `assign_cell_types`).
+- **`docs/api/replicate-generation.md`** gains a cross-link callout
+  pointing readers with structured multi-type targets at the
+  "When to use what" section of `graph-coloring.md`.
+- **`docs/guides/complete-workflow.md`** adds `seed=42` to the
+  `quick_workflow(...)` and `TissueNetworkWorkflow.run_complete_workflow(...)`
+  examples, with a brief note that the colorize step is then
+  bit-reproducible.
+- **`docs/api/mcp.md`** documents the new `assign_cell_types` MCP tool
+  (a new "Cell Type Assignment" category and a per-tool reference entry
+  matching the v0.1.8 format).
+
 ## [0.1.8] - 2026-05-27
 
 ### Added

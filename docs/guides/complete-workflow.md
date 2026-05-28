@@ -26,15 +26,22 @@ tissue = TissueSection(height=300, width=300, thickness=80)
 packer = SpherePacker(tissue)
 packer.pack_cells(cell_types={'placeholder': [8, 12]}, max_attempts=1500)
 
-# 2. Run complete workflow
+# 2. Run complete workflow (seed=42 makes the colorize step bit-reproducible)
 workflow = quick_workflow(
     tissue=tissue,
     cell_types=['cancer', 'immune', 'stroma'],
     target_stats_file="target_statistics.csv",
     network_radius=50.0,
-    output_dir="results"
+    output_dir="results",
+    seed=42
 )
 ```
+
+Passing `seed=42` (or any integer) routes every stochastic decision in the
+graph-coloring step through an instance-bound `random.Random(seed)`, so the
+resulting cell-type assignment is bit-identical across runs. See the
+"Reproducibility (seed)" section of
+[`../api/graph-coloring.md`](../api/graph-coloring.md) for details.
 
 ---
 
@@ -548,7 +555,7 @@ target_stats = {
     }
 }
 
-# Run workflow
+# Run workflow (seed=42 makes the colorize step bit-reproducible)
 workflow = TissueNetworkWorkflow()
 evaluation = workflow.run_complete_workflow(
     tissue=tissue,
@@ -562,6 +569,7 @@ evaluation = workflow.run_complete_workflow(
         'cooling_rate': 0.998,
         'max_iterations': 10000
     },
+    seed=42,
     export_dir="results",
     visualize=True
 )

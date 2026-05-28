@@ -10,6 +10,40 @@ The tissue simulator now includes powerful graph-based cell type assignment capa
 4. Assign cell types based on target network statistics
 5. Visualize and evaluate results
 
+## When to use what
+
+`GraphColorizer` and `ReplicateGenerator` solve different problems. Pick the
+right entry point first, then tune.
+
+- **`GraphColorizer` — label-only assignment on a fixed graph.** Given a
+  graph (positions already fixed) and a target adjacency structure
+  (`node_counts`, `edge_counts`, `neighbor_dist`), it assigns cell-type
+  labels to existing nodes via simulated annealing to match the target.
+  It does not move or repack cells. Use it when you already have a packed
+  tissue (or any spatial network) and only need to decide which node gets
+  which cell-type label.
+
+- **`ReplicateGenerator` — unstructured replicate generation by repacking.**
+  Given a `TargetStatistics` (contact statistics + proportions + optional
+  density), it generates new tissues by repacking positions and biasing
+  cell-type sampling toward the target proportions. It does NOT run
+  simulated annealing and does NOT internally compose `GraphColorizer`
+  today. For strongly structured multi-type targets (e.g. a tumor disc
+  with a fibroblast ring and a CD8 annulus), its single-stage
+  `rng.choice + radius adjust` strategy will not converge — there is no
+  optimizer that pushes labels into a particular spatial arrangement.
+
+- **Canonical path for structured multi-type targets: two-stage workflow.**
+  Use `TissueWorkflow` to compose the two stages — `generate_cells` for
+  positions, then `assign_cell_types` (which wraps `GraphColorizer`) for
+  labels. The convenience entry points `TissueNetworkWorkflow.run_complete_workflow`
+  and `quick_workflow` both forward a `seed=` to the colorize step.
+
+Note: folding `GraphColorizer` into `ReplicateGenerator` so that the
+replicate generator itself can converge on structured targets is
+intentionally out of scope here; the present answer is to document and
+use the two-stage `TissueWorkflow` path.
+
 ## Quick Start
 
 ```python
@@ -103,7 +137,7 @@ from tissue_simulator import load_graph_stats_csv
 
 target_stats = load_graph_stats_csv(
     "target_statistics.csv",
-    cell_types=['cancer', 'immune', 'stroma']
+    color_names=['cancer', 'immune', 'stroma']
 )
 ```
 
@@ -228,6 +262,50 @@ The cell type assignment uses simulated annealing optimization. Key parameters:
 - **max_iterations**: Maximum iterations (default: 100000)
   - More = better results but slower
   - Typical range: 5000-50000
+
+## Reproducibility (seed)
+
+`GraphColorizer.__init__` accepts an optional `seed: Optional[int] = None`.
+When provided, the colorizer routes every stochastic decision (the initial
+coloring shuffle, the per-step pair sampling, and the metropolis
+acceptance draw) through an instance-bound `random.Random(seed)`, making
+`colorize(...)` bit-reproducible across Python processes — independent
+of `PYTHONHASHSEED`. When `seed=None` (default), behavior is unchanged
+and the unseeded stdlib `random` module is used. This matches the v0.1.2
+reproducibility plumbing already documented for `TissueSection` and
+`ReplicateGenerator` in [`../quickstart.md`](../quickstart.md).
+
+The seed is also threaded through the workflow entry points:
+`TissueNetworkWorkflow.assign_cell_types(..., seed=N)`,
+`TissueNetworkWorkflow.run_complete_workflow(..., seed=N)`, and the
+top-level `quick_workflow(..., seed=N)` all forward it to the underlying
+`GraphColorizer`.
+
+```python
+from tissue_simulator import GraphColorizer
+
+# Two colorizers with the same seed and identical inputs produce
+# bit-identical assignments.
+c1 = GraphColorizer(
+    target_graph=graph,
+    colors=['cancer', 'immune', 'stroma'],
+    target_statistics=target_stats,
+    seed=42,
+)
+a1 = c1.colorize(initial_temp=500.0, final_temp=0.01,
+                 cooling_rate=0.998, max_iterations=5000, verbose=False)
+
+c2 = GraphColorizer(
+    target_graph=graph,
+    colors=['cancer', 'immune', 'stroma'],
+    target_statistics=target_stats,
+    seed=42,
+)
+a2 = c2.colorize(initial_temp=500.0, final_temp=0.01,
+                 cooling_rate=0.998, max_iterations=5000, verbose=False)
+
+assert a1 == a2  # identical dicts
+```
 
 ### Tuning Tips
 

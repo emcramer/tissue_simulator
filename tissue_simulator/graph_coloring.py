@@ -32,10 +32,11 @@ class GraphColorizer:
     3.  Neighbor color distribution (average number of neighbors of color X for a node of color Y).
     """
 
-    def __init__(self, source_graph: nx.Graph = None, 
-                 target_graph: nx.Graph = None, 
+    def __init__(self, source_graph: nx.Graph = None,
+                 target_graph: nx.Graph = None,
                  colors: list = None,
-                 target_statistics: Dict = None):
+                 target_statistics: Dict = None,
+                 seed: Optional[int] = None):
         """
         Initializes the GraphColorizer.
 
@@ -44,9 +45,19 @@ class GraphColorizer:
             target_graph: Graph to be colored
             colors: List of possible color strings (e.g., ['cancer', 'immune', 'stroma'])
             target_statistics: Pre-calculated target statistics (optional)
+            seed: Optional integer seed for the simulated-annealing RNG. When
+                provided, the colorizer uses an instance-bound
+                ``random.Random(seed)`` for all stochastic choices
+                (initial-coloring shuffle, swap proposals, acceptance draws),
+                making :meth:`colorize` bit-reproducible. When ``None``
+                (default), behavior is unchanged: the unseeded stdlib
+                ``random`` module is used.
         """
         if not NETWORKX_AVAILABLE:
             raise ImportError("NetworkX is required. Install with: pip install networkx")
+
+        self.seed = seed
+        self._rng = random.Random(seed) if seed is not None else random
         
         if target_graph is None:
             raise ValueError("Target graph must be provided.")
@@ -256,7 +267,7 @@ class GraphColorizer:
                                      key=self.target_stats['node_counts'].get)
             color_list.extend([most_frequent_color] * (len(self.nodes) - len(color_list)))
         
-        random.shuffle(color_list)
+        self._rng.shuffle(color_list)
         current_coloring = {node: color for node, color in zip(self.nodes, color_list[:len(self.nodes)])}
         
         best_coloring = current_coloring.copy()
@@ -274,7 +285,7 @@ class GraphColorizer:
                 break
 
             # Propose a new state by swapping colors of two random nodes
-            node1, node2 = random.sample(self.nodes, 2)
+            node1, node2 = self._rng.sample(self.nodes, 2)
             
             # Incremental update instead of full recalculation
             new_stats, new_neighbor_counts = self._update_statistics_incremental(
@@ -285,7 +296,7 @@ class GraphColorizer:
             delta_cost = new_cost - current_cost
             
             # Acceptance criteria
-            if delta_cost < 0 or random.random() < math.exp(-delta_cost / temperature):
+            if delta_cost < 0 or self._rng.random() < math.exp(-delta_cost / temperature):
                 # Update state
                 c1, c2 = current_coloring[node1], current_coloring[node2]
                 current_coloring[node1], current_coloring[node2] = c2, c1
