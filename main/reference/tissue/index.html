@@ -3465,6 +3465,10 @@ coordinate columns are required: <code>radius</code>, <code>cell_type</code> and
 <code>default_radius</code> is used; a missing <code>cell_type</code> defaults to "default";
 and <code>is_boundary</code> is treated as True only when its value is the string
 "true" (case-insensitive), otherwise False.</p>
+<p><code>cell_type</code> is the canonical column name.  As a convenience, the column
+<code>type</code> (a common alias used by tools such as PhysiCell) is also accepted
+when <code>cell_type</code> is absent or blank.  When both columns are present,
+<code>cell_type</code> takes precedence.</p>
 
 
 <p><span class="doc-section-title">Parameters:</span></p>
@@ -3637,7 +3641,12 @@ missing or empty.</p>
 <span class="normal"><a href="#__codelineno-0-421">421</a></span>
 <span class="normal"><a href="#__codelineno-0-422">422</a></span>
 <span class="normal"><a href="#__codelineno-0-423">423</a></span>
-<span class="normal"><a href="#__codelineno-0-424">424</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-375" name="__codelineno-0-375"></a><span class="k">def</span><span class="w"> </span><span class="nf">load_tissue_from_csv</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="normal"><a href="#__codelineno-0-424">424</a></span>
+<span class="normal"><a href="#__codelineno-0-425">425</a></span>
+<span class="normal"><a href="#__codelineno-0-426">426</a></span>
+<span class="normal"><a href="#__codelineno-0-427">427</a></span>
+<span class="normal"><a href="#__codelineno-0-428">428</a></span>
+<span class="normal"><a href="#__codelineno-0-429">429</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-375" name="__codelineno-0-375"></a><span class="k">def</span><span class="w"> </span><span class="nf">load_tissue_from_csv</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-376" name="__codelineno-0-376"></a>                         <span class="n">width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">thickness</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-377" name="__codelineno-0-377"></a>                         <span class="n">default_radius</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TissueSection</span><span class="p">:</span>
 <a id="__codelineno-0-378" name="__codelineno-0-378"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -3656,37 +3665,42 @@ missing or empty.</p>
 <a id="__codelineno-0-391" name="__codelineno-0-391"></a><span class="sd">    and ``is_boundary`` is treated as True only when its value is the string</span>
 <a id="__codelineno-0-392" name="__codelineno-0-392"></a><span class="sd">    &quot;true&quot; (case-insensitive), otherwise False.</span>
 <a id="__codelineno-0-393" name="__codelineno-0-393"></a>
-<a id="__codelineno-0-394" name="__codelineno-0-394"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-395" name="__codelineno-0-395"></a><span class="sd">        filepath: Path to the CSV file to read.</span>
-<a id="__codelineno-0-396" name="__codelineno-0-396"></a><span class="sd">        height: Optional Y-dimension; inferred from cell centers if None.</span>
-<a id="__codelineno-0-397" name="__codelineno-0-397"></a><span class="sd">        width: Optional X-dimension; inferred from cell centers if None.</span>
-<a id="__codelineno-0-398" name="__codelineno-0-398"></a><span class="sd">        thickness: Optional Z-dimension; inferred from cell centers if None.</span>
-<a id="__codelineno-0-399" name="__codelineno-0-399"></a><span class="sd">        default_radius: Radius assigned to rows whose ``radius`` column is</span>
-<a id="__codelineno-0-400" name="__codelineno-0-400"></a><span class="sd">            missing or empty.</span>
-<a id="__codelineno-0-401" name="__codelineno-0-401"></a>
-<a id="__codelineno-0-402" name="__codelineno-0-402"></a><span class="sd">    Returns:</span>
-<a id="__codelineno-0-403" name="__codelineno-0-403"></a><span class="sd">        A TissueSection containing the loaded cells.</span>
-<a id="__codelineno-0-404" name="__codelineno-0-404"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-405" name="__codelineno-0-405"></a>    <span class="n">cells</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Cell</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-<a id="__codelineno-0-406" name="__codelineno-0-406"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-<a id="__codelineno-0-407" name="__codelineno-0-407"></a>        <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictReader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
-<a id="__codelineno-0-408" name="__codelineno-0-408"></a>        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
-<a id="__codelineno-0-409" name="__codelineno-0-409"></a>            <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]))</span>
-<a id="__codelineno-0-410" name="__codelineno-0-410"></a>
-<a id="__codelineno-0-411" name="__codelineno-0-411"></a>            <span class="n">radius_str</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">)</span>
-<a id="__codelineno-0-412" name="__codelineno-0-412"></a>            <span class="k">if</span> <span class="n">radius_str</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">radius_str</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
-<a id="__codelineno-0-413" name="__codelineno-0-413"></a>                <span class="n">radius</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">radius_str</span><span class="p">)</span>
-<a id="__codelineno-0-414" name="__codelineno-0-414"></a>            <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-415" name="__codelineno-0-415"></a>                <span class="n">radius</span> <span class="o">=</span> <span class="n">default_radius</span>
-<a id="__codelineno-0-416" name="__codelineno-0-416"></a>
-<a id="__codelineno-0-417" name="__codelineno-0-417"></a>            <span class="n">cell_type</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cell_type&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;default&#39;</span>
-<a id="__codelineno-0-418" name="__codelineno-0-418"></a>            <span class="n">is_boundary</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;is_boundary&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;true&#39;</span>
-<a id="__codelineno-0-419" name="__codelineno-0-419"></a>
-<a id="__codelineno-0-420" name="__codelineno-0-420"></a>            <span class="n">cells</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Cell</span><span class="p">(</span><span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">radius</span><span class="p">,</span>
-<a id="__codelineno-0-421" name="__codelineno-0-421"></a>                              <span class="n">cell_type</span><span class="o">=</span><span class="n">cell_type</span><span class="p">,</span> <span class="n">is_boundary</span><span class="o">=</span><span class="n">is_boundary</span><span class="p">))</span>
-<a id="__codelineno-0-422" name="__codelineno-0-422"></a>
-<a id="__codelineno-0-423" name="__codelineno-0-423"></a>    <span class="k">return</span> <span class="n">TissueSection</span><span class="o">.</span><span class="n">from_cells</span><span class="p">(</span><span class="n">cells</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
-<a id="__codelineno-0-424" name="__codelineno-0-424"></a>                                    <span class="n">thickness</span><span class="o">=</span><span class="n">thickness</span><span class="p">)</span>
+<a id="__codelineno-0-394" name="__codelineno-0-394"></a><span class="sd">    ``cell_type`` is the canonical column name.  As a convenience, the column</span>
+<a id="__codelineno-0-395" name="__codelineno-0-395"></a><span class="sd">    ``type`` (a common alias used by tools such as PhysiCell) is also accepted</span>
+<a id="__codelineno-0-396" name="__codelineno-0-396"></a><span class="sd">    when ``cell_type`` is absent or blank.  When both columns are present,</span>
+<a id="__codelineno-0-397" name="__codelineno-0-397"></a><span class="sd">    ``cell_type`` takes precedence.</span>
+<a id="__codelineno-0-398" name="__codelineno-0-398"></a>
+<a id="__codelineno-0-399" name="__codelineno-0-399"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-400" name="__codelineno-0-400"></a><span class="sd">        filepath: Path to the CSV file to read.</span>
+<a id="__codelineno-0-401" name="__codelineno-0-401"></a><span class="sd">        height: Optional Y-dimension; inferred from cell centers if None.</span>
+<a id="__codelineno-0-402" name="__codelineno-0-402"></a><span class="sd">        width: Optional X-dimension; inferred from cell centers if None.</span>
+<a id="__codelineno-0-403" name="__codelineno-0-403"></a><span class="sd">        thickness: Optional Z-dimension; inferred from cell centers if None.</span>
+<a id="__codelineno-0-404" name="__codelineno-0-404"></a><span class="sd">        default_radius: Radius assigned to rows whose ``radius`` column is</span>
+<a id="__codelineno-0-405" name="__codelineno-0-405"></a><span class="sd">            missing or empty.</span>
+<a id="__codelineno-0-406" name="__codelineno-0-406"></a>
+<a id="__codelineno-0-407" name="__codelineno-0-407"></a><span class="sd">    Returns:</span>
+<a id="__codelineno-0-408" name="__codelineno-0-408"></a><span class="sd">        A TissueSection containing the loaded cells.</span>
+<a id="__codelineno-0-409" name="__codelineno-0-409"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-410" name="__codelineno-0-410"></a>    <span class="n">cells</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Cell</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-0-411" name="__codelineno-0-411"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">,</span> <span class="n">newline</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-0-412" name="__codelineno-0-412"></a>        <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">DictReader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<a id="__codelineno-0-413" name="__codelineno-0-413"></a>        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+<a id="__codelineno-0-414" name="__codelineno-0-414"></a>            <span class="n">center</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;y&#39;</span><span class="p">]),</span> <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s1">&#39;z&#39;</span><span class="p">]))</span>
+<a id="__codelineno-0-415" name="__codelineno-0-415"></a>
+<a id="__codelineno-0-416" name="__codelineno-0-416"></a>            <span class="n">radius_str</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">)</span>
+<a id="__codelineno-0-417" name="__codelineno-0-417"></a>            <span class="k">if</span> <span class="n">radius_str</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">radius_str</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="o">!=</span> <span class="s1">&#39;&#39;</span><span class="p">:</span>
+<a id="__codelineno-0-418" name="__codelineno-0-418"></a>                <span class="n">radius</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">radius_str</span><span class="p">)</span>
+<a id="__codelineno-0-419" name="__codelineno-0-419"></a>            <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-420" name="__codelineno-0-420"></a>                <span class="n">radius</span> <span class="o">=</span> <span class="n">default_radius</span>
+<a id="__codelineno-0-421" name="__codelineno-0-421"></a>
+<a id="__codelineno-0-422" name="__codelineno-0-422"></a>            <span class="n">cell_type</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;cell_type&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;type&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="s1">&#39;default&#39;</span>
+<a id="__codelineno-0-423" name="__codelineno-0-423"></a>            <span class="n">is_boundary</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;is_boundary&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;true&#39;</span>
+<a id="__codelineno-0-424" name="__codelineno-0-424"></a>
+<a id="__codelineno-0-425" name="__codelineno-0-425"></a>            <span class="n">cells</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Cell</span><span class="p">(</span><span class="n">center</span><span class="o">=</span><span class="n">center</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">radius</span><span class="p">,</span>
+<a id="__codelineno-0-426" name="__codelineno-0-426"></a>                              <span class="n">cell_type</span><span class="o">=</span><span class="n">cell_type</span><span class="p">,</span> <span class="n">is_boundary</span><span class="o">=</span><span class="n">is_boundary</span><span class="p">))</span>
+<a id="__codelineno-0-427" name="__codelineno-0-427"></a>
+<a id="__codelineno-0-428" name="__codelineno-0-428"></a>    <span class="k">return</span> <span class="n">TissueSection</span><span class="o">.</span><span class="n">from_cells</span><span class="p">(</span><span class="n">cells</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+<a id="__codelineno-0-429" name="__codelineno-0-429"></a>                                    <span class="n">thickness</span><span class="o">=</span><span class="n">thickness</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
