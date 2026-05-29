@@ -5,6 +5,33 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.12] - 2026-05-29
+
+### Fixed
+
+- **Deterministic matplotlib color assignment in `visualize_*` functions.**
+  `TissueSection.visualize`, `TissueSlicer.visualize_slice_2d` /
+  `visualize_slice_in_3d`, `SpatialNetworkAnalyzer.visualize_network`,
+  `visualize_colored_graph`, and `visualize_graph_comparison` previously built
+  their `{cell_type: color}` map by iterating an unsorted `set(...)`, whose
+  order leaks CPython's per-interpreter `PYTHONHASHSEED`. Two independent
+  Python processes (e.g. two CI runs) could therefore assign different colors
+  to the same cell type, producing pixel-different figures despite every
+  random `seed=` being pinned. The new internal helper
+  `tissue_simulator._viz_utils.make_color_map` sorts cell types
+  alphabetically before assignment, so the same input always yields the
+  same mapping. Cross-function consistency too: "cancer" now always gets
+  the same color in `visualize`, `visualize_slice_2d`, and
+  `visualize_network`.
+
+### Added
+
+- `tissue_simulator/_viz_utils.py` (internal) — single source of truth for
+  the cell-type → color map used across the package's visualizations.
+- `tests/test_viz_utils.py` — covers determinism (same input in different
+  orders yields the same map; same across `PYTHONHASHSEED`), palette
+  passthrough, and empty/duplicate inputs.
+
 ## [0.1.11] - 2026-05-29
 
 ### Added

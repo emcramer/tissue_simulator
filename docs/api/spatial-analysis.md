@@ -244,6 +244,11 @@ analyzer.visualize_network(
 - `kamada_kawai`: Energy-minimizing layout
 - `spatial`: Use actual cell positions (2D only)
 
+Color assignment is deterministic — cell types are sorted alphabetically
+before being mapped to the `tab10` palette, so the same set of types always
+yields the same node colors regardless of input order or the Python
+interpreter's `PYTHONHASHSEED`. Added in v0.1.12.
+
 ## Advanced Usage
 
 ### Compare Contact vs Radius

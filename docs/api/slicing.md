@@ -108,6 +108,12 @@ Visualize the slice plane within 3D tissue context.
 - `plane_alpha`: Transparency of plane (0-1)
 - `plane_size`: Size of plane to display
 
+Both `visualize_slice_2d` and `visualize_slice_in_3d` assign colors
+deterministically: cell types are sorted alphabetically before being mapped
+to the `tab10` palette, so the same set of types always yields the same
+colors regardless of input order or the Python interpreter's
+`PYTHONHASHSEED`. Added in v0.1.12.
+
 ##### export_slice_csv()
 
 ```python
