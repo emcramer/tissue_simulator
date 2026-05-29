@@ -178,6 +178,11 @@ semi-transparent. Requires `matplotlib`.
 - `elevation` (float): viewing elevation in degrees.
 - `azimuth` (float): viewing azimuth in degrees.
 
+Color assignment is deterministic — cell types are sorted alphabetically
+before being mapped to the `tab10` palette, so the same set of types always
+yields the same colors regardless of the order they appear or the Python
+interpreter's `PYTHONHASHSEED`. Added in v0.1.12.
+
 #### `clear_cells()`
 
 Remove all cells from the tissue (does not reset `seed`).

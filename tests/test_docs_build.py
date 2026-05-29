@@ -44,41 +44,56 @@ def test_mkdocs_strict_build(tmp_path: Path) -> None:
     repo_root = _repo_root()
     site_dir = tmp_path / "site"
 
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "mkdocs",
-            "build",
-            "--strict",
-            "--site-dir",
-            str(site_dir),
-        ],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-        timeout=240,
-    )
+    # The slide deck's rendered HTML (docs/slides/tour.slides.html) is built
+    # by CI in `.github/workflows/docs.yml` BEFORE `mkdocs build`. When the
+    # test runs cold it doesn't exist, but `docs/slides/index.md` links to
+    # it, which mkdocs --strict treats as a broken link. Drop a tiny stub so
+    # the link resolves; restore afterward.
+    slides_html = repo_root / "docs" / "slides" / "tour.slides.html"
+    stub_created = False
+    if not slides_html.exists():
+        slides_html.write_text("<!-- stub for mkdocs --strict; CI overwrites -->\n")
+        stub_created = True
 
-    assert result.returncode == 0, (
-        "mkdocs build --strict failed (exit "
-        f"{result.returncode}).\n"
-        f"--- stdout ---\n{result.stdout}\n"
-        f"--- stderr ---\n{result.stderr}\n"
-    )
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "mkdocs",
+                "build",
+                "--strict",
+                "--site-dir",
+                str(site_dir),
+            ],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            timeout=240,
+        )
 
-    # Sanity-check that the rendered site contains the pages we care
-    # about. Any one of these missing means the nav or the autodoc
-    # silently dropped a page.
-    sentinels = [
-        site_dir / "index.html",
-        site_dir / "quickstart" / "index.html",
-        site_dir / "changelog" / "index.html",
-        site_dir / "reference" / "tissue" / "index.html",
-        site_dir / "reference" / "graph_coloring" / "index.html",
-    ]
-    missing = [str(p.relative_to(site_dir)) for p in sentinels if not p.is_file()]
-    assert not missing, (
-        "mkdocs build succeeded but expected pages are missing from the "
-        f"rendered site: {missing}"
-    )
+        assert result.returncode == 0, (
+            "mkdocs build --strict failed (exit "
+            f"{result.returncode}).\n"
+            f"--- stdout ---\n{result.stdout}\n"
+            f"--- stderr ---\n{result.stderr}\n"
+        )
+
+        # Sanity-check that the rendered site contains the pages we care
+        # about. Any one of these missing means the nav or the autodoc
+        # silently dropped a page.
+        sentinels = [
+            site_dir / "index.html",
+            site_dir / "quickstart" / "index.html",
+            site_dir / "changelog" / "index.html",
+            site_dir / "reference" / "tissue" / "index.html",
+            site_dir / "reference" / "graph_coloring" / "index.html",
+        ]
+        missing = [str(p.relative_to(site_dir)) for p in sentinels if not p.is_file()]
+        assert not missing, (
+            "mkdocs build succeeded but expected pages are missing from the "
+            f"rendered site: {missing}"
+        )
+    finally:
+        if stub_created and slides_html.exists():
+            slides_html.unlink()

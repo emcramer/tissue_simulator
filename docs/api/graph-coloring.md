@@ -413,6 +413,14 @@ color_palette = {
 workflow.visualize_network(color_palette=color_palette)
 ```
 
+When `color_palette` is **not** provided, `visualize_colored_graph` and
+`visualize_graph_comparison` build a default palette by sorting cell types
+alphabetically before mapping them to the `tab10` colors, so the same set of
+types always yields the same colors regardless of input order or the Python
+interpreter's `PYTHONHASHSEED`. When you do pass a `color_palette` dict, it
+is honored as-is — color ordering is then under your control. Added in
+v0.1.12.
+
 ## Troubleshooting
 
 ### Issue: Poor convergence (high JS divergence)

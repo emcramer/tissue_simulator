@@ -5,6 +5,68 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.12] - 2026-05-29
+
+### Fixed
+
+- **Deterministic matplotlib color assignment in `visualize_*` functions.**
+  `TissueSection.visualize`, `TissueSlicer.visualize_slice_2d` /
+  `visualize_slice_in_3d`, `SpatialNetworkAnalyzer.visualize_network`,
+  `visualize_colored_graph`, and `visualize_graph_comparison` previously built
+  their `{cell_type: color}` map by iterating an unsorted `set(...)`, whose
+  order leaks CPython's per-interpreter `PYTHONHASHSEED`. Two independent
+  Python processes (e.g. two CI runs) could therefore assign different colors
+  to the same cell type, producing pixel-different figures despite every
+  random `seed=` being pinned. The new internal helper
+  `tissue_simulator._viz_utils.make_color_map` sorts cell types
+  alphabetically before assignment, so the same input always yields the
+  same mapping. Cross-function consistency too: "cancer" now always gets
+  the same color in `visualize`, `visualize_slice_2d`, and
+  `visualize_network`.
+
+### Added
+
+- `tissue_simulator/_viz_utils.py` (internal) — single source of truth for
+  the cell-type → color map used across the package's visualizations.
+- `tests/test_viz_utils.py` — covers determinism (same input in different
+  orders yields the same map; same across `PYTHONHASHSEED`), palette
+  passthrough, and empty/duplicate inputs.
+- **Code-driven slide deck** on the docs site at
+  <https://emcramer.github.io/tissue_simulator/slides/>. Source: a single
+  Jupyter notebook (`docs/slides/tour.ipynb`) walking through the package
+  end-to-end with code AND rendered matplotlib output side by side — tissue
+  generation, slicing, spatial-network analysis, replicate generation,
+  simulated-annealing cell-type assignment, and seed reproducibility. Rendered
+  to reveal.js via `jupyter nbconvert --to slides --execute` and deployed as
+  part of the docs site (runs on every push to `main` and every release tag).
+  Now that the package-level color-assignment is deterministic (above), the
+  slide-deck build helper no longer needs a `PYTHONHASHSEED=0` workaround.
+- `docs/slides/build_slides.py` — small build helper that wraps `nbconvert`;
+  both CI and devs invoke the same entry point.
+- `docs/slides/index.md` — landing page in the docs site nav linking to the
+  rendered `tour.slides.html`.
+- `tests/test_slides_notebook.py` — validates the notebook with `nbformat`
+  (schema + slide_type metadata) so a malformed deck fails the test suite
+  even before CI executes it.
+- Notebook tooling (`jupyter`, `nbconvert>=7`, `ipykernel`, `matplotlib`,
+  `networkx`) added to the `docs` optional-dependency group.
+- CI render step in `.github/workflows/docs.yml` runs the build helper before
+  `mike deploy`.
+
+### Changed
+
+- `mkdocs.yml` adds a `Slides` nav entry between `API Reference` and
+  `Changelog`; the rendered `tour.slides.html` is listed in `not_in_nav` so
+  `--strict` doesn't flag it.
+- `docs/index.md` "Where to next" section adds a pointer to the slide deck.
+- Per-symbol notes on the deterministic color guarantee added to
+  `docs/api/core.md` (`TissueSection.visualize`), `docs/api/slicing.md`
+  (both slice visualizers), `docs/api/spatial-analysis.md`
+  (`visualize_network`), and `docs/api/graph-coloring.md` (the two
+  `visualize_*` helpers, with the user-palette caveat).
+- Wiki FAQ entry "Why do my visualizations have different colors each run?"
+  pushed to the companion wiki.
+
 ## [0.1.11] - 2026-05-29
 
 ### Added

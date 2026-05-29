@@ -298,14 +298,14 @@ class TissueSection:
         """
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
-        
+        from ._viz_utils import make_color_map
+
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111, projection='3d')
-        
-        # Color map for cell types
-        cell_types = list(set(c.cell_type for c in self.cells))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(cell_types)))
-        color_map = dict(zip(cell_types, colors))
+
+        # Color map for cell types (sorted for deterministic assignment)
+        color_map = make_color_map(c.cell_type for c in self.cells)
+        cell_types = list(color_map.keys())
         
         # Plot cells
         for cell in self.cells:

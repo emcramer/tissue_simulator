@@ -486,13 +486,12 @@ def visualize_colored_graph(graph: nx.Graph,
         figsize: Figure size
     """
     import matplotlib.pyplot as plt
-    
-    # Default color palette if not provided
+    from ._viz_utils import make_color_map
+
+    # Default color palette if not provided (sorted for deterministic assignment)
     if color_palette is None:
-        unique_colors = list(set(colors_map.values()))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(unique_colors)))
-        color_palette = dict(zip(unique_colors, colors))
-    
+        color_palette = make_color_map(colors_map.values())
+
     # Compute layout
     if layout == "spring":
         pos = nx.spring_layout(graph, seed=42)
@@ -502,20 +501,20 @@ def visualize_colored_graph(graph: nx.Graph,
         pos = nx.circular_layout(graph)
     else:
         raise ValueError(f"Unknown layout: {layout}")
-    
+
     # Create figure
     plt.figure(figsize=figsize)
-    
+
     # Draw graph
     node_colors = [color_palette.get(colors_map[node], 'gray') for node in graph.nodes()]
-    
-    nx.draw_networkx_nodes(graph, pos, node_color=node_colors, 
+
+    nx.draw_networkx_nodes(graph, pos, node_color=node_colors,
                            node_size=500, alpha=0.8)
     nx.draw_networkx_edges(graph, pos, alpha=0.3, width=1.0)
     nx.draw_networkx_labels(graph, pos, font_size=8, font_color='white')
-    
+
     # Add legend
-    unique_colors = list(set(colors_map.values()))
+    unique_colors = sorted(set(colors_map.values()))
     legend_elements = [
         plt.Line2D([0], [0], marker='o', color='w',
                   markerfacecolor=color_palette.get(ct, 'gray'), 
@@ -555,12 +554,13 @@ def visualize_graph_comparison(source_graph: nx.Graph,
         figsize: Figure size
     """
     import matplotlib.pyplot as plt
-    
-    # Default color palette if not provided
+    from ._viz_utils import make_color_map
+
+    # Default color palette if not provided (sorted for deterministic assignment)
     if color_palette is None:
-        unique_colors = list(set(list(source_colors.values()) + list(target_colors.values())))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(unique_colors)))
-        color_palette = dict(zip(unique_colors, colors))
+        color_palette = make_color_map(
+            list(source_colors.values()) + list(target_colors.values())
+        )
     
     plt.figure(figsize=figsize)
     

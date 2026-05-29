@@ -520,7 +520,8 @@ class SpatialNetworkAnalyzer:
             raise ValueError("Network not built.")
         
         import matplotlib.pyplot as plt
-        
+        from ._viz_utils import make_color_map
+
         fig, ax = plt.subplots(figsize=figsize)
         
         # Compute layout
@@ -534,10 +535,9 @@ class SpatialNetworkAnalyzer:
         else:
             raise ValueError(f"Unknown layout: {layout}")
         
-        # Color nodes by cell type
-        cell_types = list(set(self.cell_types.values()))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(cell_types)))
-        color_map = dict(zip(cell_types, colors))
+        # Color nodes by cell type (sorted for deterministic assignment)
+        color_map = make_color_map(self.cell_types.values())
+        cell_types = list(color_map.keys())
         
         node_colors = [color_map[self.cell_types[node]] for node in self.graph.nodes()]
         

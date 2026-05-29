@@ -271,17 +271,17 @@ class TissueSlicer:
             title: Plot title
         """
         import matplotlib.pyplot as plt
-        
+        from ._viz_utils import make_color_map
+
         if not self.slice_cells:
             print("No cells in slice. Run slice_plane() first.")
             return
-        
+
         fig, ax = plt.subplots(figsize=figsize)
-        
-        # Color map for cell types
-        cell_types = list(set(c.cell_type for c in self.slice_cells))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(cell_types)))
-        color_map = dict(zip(cell_types, colors))
+
+        # Color map for cell types (sorted for deterministic assignment)
+        color_map = make_color_map(c.cell_type for c in self.slice_cells)
+        cell_types = list(color_map.keys())
         
         # Plot cells as circles
         for slice_cell in self.slice_cells:
@@ -352,18 +352,18 @@ class TissueSlicer:
         """
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
-        
+        from ._viz_utils import make_color_map
+
         if self.slice_plane_point is None:
             print("No slice defined. Run slice_plane() first.")
             return
-        
+
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111, projection='3d')
-        
-        # Plot all cells in tissue
-        cell_types = list(set(c.cell_type for c in self.tissue.cells))
-        colors = plt.cm.tab10(np.linspace(0, 1, len(cell_types)))
-        color_map = dict(zip(cell_types, colors))
+
+        # Plot all cells in tissue (sorted for deterministic color assignment)
+        color_map = make_color_map(c.cell_type for c in self.tissue.cells)
+        cell_types = list(color_map.keys())
         
         # Plot cells (reduced resolution for performance)
         slice_cell_centers = {tuple(sc.center_3d) for sc in self.slice_cells}
