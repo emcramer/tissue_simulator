@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   orders yields the same map; same across `PYTHONHASHSEED`), palette
   passthrough, and empty/duplicate inputs.
 - **Code-driven slide deck** on the docs site at
-  <https://emcramer.github.io/tissue_simulator/slides/>. Source: a single
+  <https://emcramer.github.io/tissue_simulator/latest/slides/>. Source: a single
   Jupyter notebook (`docs/slides/tour.ipynb`) walking through the package
   end-to-end with code AND rendered matplotlib output side by side — tissue
   generation, slicing, spatial-network analysis, replicate generation,
