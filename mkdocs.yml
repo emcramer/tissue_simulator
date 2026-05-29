@@ -70,6 +70,7 @@ validation:
 
 not_in_nav: |
   notes/plot-surface-bug.md
+  slides/tour.slides.html
 
 hooks:
   - docs_hooks.py
@@ -128,4 +129,5 @@ nav:
       - physicell_export: reference/physicell_export.md
       - physicell_reader: reference/physicell_reader.md
       - mcp.server: reference/mcp_server.md
+  - Slides: slides/index.md
   - Changelog: changelog.md

@@ -5,6 +5,19 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.11] - 2026-05-29
+
+### Added
+- **Code-driven slide deck** on the docs site at <https://emcramer.github.io/tissue_simulator/slides/>. Source: a single Jupyter notebook (`docs/slides/tour.ipynb`) that walks through the package end-to-end with code AND rendered matplotlib output side by side — tissue generation, slicing, spatial-network analysis, replicate generation, simulated-annealing cell-type assignment, and seed reproducibility. The deck is rendered to reveal.js via `jupyter nbconvert --to slides --execute` and deployed automatically as part of the docs site (executes on every push to `main` and every release tag).
+- **`docs/slides/build_slides.py`** — small build helper that wraps `nbconvert`; both CI and devs invoke the same entry point. Pins `PYTHONHASHSEED=0` for byte-identical figure output between runs.
+- **`tests/test_slides_notebook.py`** — validates the notebook with `nbformat` (schema + slide_type metadata) so a malformed deck fails the test suite even before CI executes it.
+- **Notebook tooling** (`jupyter`, `nbconvert>=7`, `ipykernel`, `matplotlib`, `networkx`) added to the `docs` optional-dependency group.
+- **CI render step** in `.github/workflows/docs.yml` runs the build helper before `mike deploy`.
+
+### Changed
+- `mkdocs.yml` adds a `Slides` nav entry; the deployed site now includes a Slides landing page (`docs/slides/index.md`) linking to the rendered `tour.slides.html`.
+- `docs/index.md` "Where to next" section adds a pointer to the slide deck.
+
 ## [0.1.10] - 2026-05-28
 
 ### Added

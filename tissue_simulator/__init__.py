@@ -70,7 +70,7 @@ from .power_analysis import (
     summarize_power_analysis,
 )
 
-__version__ = "0.1.10"
+__version__ = "0.1.11"
 __all__ = [
     # Core tissue simulation
     "TissueSection", "Cell", "SpherePacker", "load_tissue_from_csv",
