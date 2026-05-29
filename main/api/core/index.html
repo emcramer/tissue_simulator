@@ -331,6 +331,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../../slides/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Slides
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../../changelog/" class="md-tabs__link">
         
   
@@ -1688,6 +1707,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../changelog/" class="md-nav__link">
         
   
@@ -2245,6 +2291,10 @@ semi-transparent. Requires <code>matplotlib</code>.</p>
 <li><code>elevation</code> (float): viewing elevation in degrees.</li>
 <li><code>azimuth</code> (float): viewing azimuth in degrees.</li>
 </ul>
+<p>Color assignment is deterministic — cell types are sorted alphabetically
+before being mapped to the <code>tab10</code> palette, so the same set of types always
+yields the same colors regardless of the order they appear or the Python
+interpreter's <code>PYTHONHASHSEED</code>. Added in v0.1.12.</p>
 <h4 id="clear_cells"><code>clear_cells()</code><a class="headerlink" href="#clear_cells" title="Permanent link">&para;</a></h4>
 <p>Remove all cells from the tissue (does not reset <code>seed</code>).</p>
 <h3 id="cell"><code>Cell</code><a class="headerlink" href="#cell" title="Permanent link">&para;</a></h3>

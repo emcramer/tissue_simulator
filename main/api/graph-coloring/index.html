@@ -331,6 +331,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../../slides/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Slides
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../../changelog/" class="md-tabs__link">
         
   
@@ -1721,6 +1740,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../changelog/" class="md-nav__link">
         
   
@@ -2543,6 +2589,13 @@ top-level <code>quick_workflow(..., seed=N)</code> all forward it to the underly
 <a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>
 <a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="n">workflow</span><span class="o">.</span><span class="n">visualize_network</span><span class="p">(</span><span class="n">color_palette</span><span class="o">=</span><span class="n">color_palette</span><span class="p">)</span>
 </code></pre></div>
+<p>When <code>color_palette</code> is <strong>not</strong> provided, <code>visualize_colored_graph</code> and
+<code>visualize_graph_comparison</code> build a default palette by sorting cell types
+alphabetically before mapping them to the <code>tab10</code> colors, so the same set of
+types always yields the same colors regardless of input order or the Python
+interpreter's <code>PYTHONHASHSEED</code>. When you do pass a <code>color_palette</code> dict, it
+is honored as-is — color ordering is then under your control. Added in
+v0.1.12.</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="issue-poor-convergence-high-js-divergence">Issue: Poor convergence (high JS divergence)<a class="headerlink" href="#issue-poor-convergence-high-js-divergence" title="Permanent link">&para;</a></h3>
 <p><strong>Solutions:</strong>

@@ -331,6 +331,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../../slides/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Slides
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../../changelog/" class="md-tabs__link">
         
   
@@ -1455,6 +1474,33 @@
           </ul>
         </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -3155,8 +3201,7 @@ making :meth:<code>colorize</code> bit-reproducible. When <code>None</code>
 <span class="normal"><a href="#__codelineno-0-531">531</a></span>
 <span class="normal"><a href="#__codelineno-0-532">532</a></span>
 <span class="normal"><a href="#__codelineno-0-533">533</a></span>
-<span class="normal"><a href="#__codelineno-0-534">534</a></span>
-<span class="normal"><a href="#__codelineno-0-535">535</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-469" name="__codelineno-0-469"></a><span class="k">def</span><span class="w"> </span><span class="nf">visualize_colored_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span> 
+<span class="normal"><a href="#__codelineno-0-534">534</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-469" name="__codelineno-0-469"></a><span class="k">def</span><span class="w"> </span><span class="nf">visualize_colored_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">:</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span> 
 <a id="__codelineno-0-470" name="__codelineno-0-470"></a>                           <span class="n">colors_map</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
 <a id="__codelineno-0-471" name="__codelineno-0-471"></a>                           <span class="n">color_palette</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <a id="__codelineno-0-472" name="__codelineno-0-472"></a>                           <span class="n">layout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;spring&quot;</span><span class="p">,</span>
@@ -3176,53 +3221,52 @@ making :meth:<code>colorize</code> bit-reproducible. When <code>None</code>
 <a id="__codelineno-0-486" name="__codelineno-0-486"></a><span class="sd">        figsize: Figure size</span>
 <a id="__codelineno-0-487" name="__codelineno-0-487"></a><span class="sd">    &quot;&quot;&quot;</span>
 <a id="__codelineno-0-488" name="__codelineno-0-488"></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<a id="__codelineno-0-489" name="__codelineno-0-489"></a>
-<a id="__codelineno-0-490" name="__codelineno-0-490"></a>    <span class="c1"># Default color palette if not provided</span>
-<a id="__codelineno-0-491" name="__codelineno-0-491"></a>    <span class="k">if</span> <span class="n">color_palette</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-492" name="__codelineno-0-492"></a>        <span class="n">unique_colors</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">colors_map</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
-<a id="__codelineno-0-493" name="__codelineno-0-493"></a>        <span class="n">colors</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">tab10</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_colors</span><span class="p">)))</span>
-<a id="__codelineno-0-494" name="__codelineno-0-494"></a>        <span class="n">color_palette</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">unique_colors</span><span class="p">,</span> <span class="n">colors</span><span class="p">))</span>
-<a id="__codelineno-0-495" name="__codelineno-0-495"></a>
-<a id="__codelineno-0-496" name="__codelineno-0-496"></a>    <span class="c1"># Compute layout</span>
-<a id="__codelineno-0-497" name="__codelineno-0-497"></a>    <span class="k">if</span> <span class="n">layout</span> <span class="o">==</span> <span class="s2">&quot;spring&quot;</span><span class="p">:</span>
-<a id="__codelineno-0-498" name="__codelineno-0-498"></a>        <span class="n">pos</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">spring_layout</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
-<a id="__codelineno-0-499" name="__codelineno-0-499"></a>    <span class="k">elif</span> <span class="n">layout</span> <span class="o">==</span> <span class="s2">&quot;kamada_kawai&quot;</span><span class="p">:</span>
-<a id="__codelineno-0-500" name="__codelineno-0-500"></a>        <span class="n">pos</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">kamada_kawai_layout</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
-<a id="__codelineno-0-501" name="__codelineno-0-501"></a>    <span class="k">elif</span> <span class="n">layout</span> <span class="o">==</span> <span class="s2">&quot;circular&quot;</span><span class="p">:</span>
-<a id="__codelineno-0-502" name="__codelineno-0-502"></a>        <span class="n">pos</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">circular_layout</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
-<a id="__codelineno-0-503" name="__codelineno-0-503"></a>    <span class="k">else</span><span class="p">:</span>
-<a id="__codelineno-0-504" name="__codelineno-0-504"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown layout: </span><span class="si">{</span><span class="n">layout</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-505" name="__codelineno-0-505"></a>
-<a id="__codelineno-0-506" name="__codelineno-0-506"></a>    <span class="c1"># Create figure</span>
-<a id="__codelineno-0-507" name="__codelineno-0-507"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
-<a id="__codelineno-0-508" name="__codelineno-0-508"></a>
-<a id="__codelineno-0-509" name="__codelineno-0-509"></a>    <span class="c1"># Draw graph</span>
-<a id="__codelineno-0-510" name="__codelineno-0-510"></a>    <span class="n">node_colors</span> <span class="o">=</span> <span class="p">[</span><span class="n">color_palette</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">colors_map</span><span class="p">[</span><span class="n">node</span><span class="p">],</span> <span class="s1">&#39;gray&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">()]</span>
-<a id="__codelineno-0-511" name="__codelineno-0-511"></a>
-<a id="__codelineno-0-512" name="__codelineno-0-512"></a>    <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_nodes</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">node_color</span><span class="o">=</span><span class="n">node_colors</span><span class="p">,</span> 
-<a id="__codelineno-0-513" name="__codelineno-0-513"></a>                           <span class="n">node_size</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
-<a id="__codelineno-0-514" name="__codelineno-0-514"></a>    <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_edges</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
-<a id="__codelineno-0-515" name="__codelineno-0-515"></a>    <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_labels</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">font_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">font_color</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
-<a id="__codelineno-0-516" name="__codelineno-0-516"></a>
-<a id="__codelineno-0-517" name="__codelineno-0-517"></a>    <span class="c1"># Add legend</span>
-<a id="__codelineno-0-518" name="__codelineno-0-518"></a>    <span class="n">unique_colors</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">colors_map</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
-<a id="__codelineno-0-519" name="__codelineno-0-519"></a>    <span class="n">legend_elements</span> <span class="o">=</span> <span class="p">[</span>
-<a id="__codelineno-0-520" name="__codelineno-0-520"></a>        <span class="n">plt</span><span class="o">.</span><span class="n">Line2D</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">,</span>
-<a id="__codelineno-0-521" name="__codelineno-0-521"></a>                  <span class="n">markerfacecolor</span><span class="o">=</span><span class="n">color_palette</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ct</span><span class="p">,</span> <span class="s1">&#39;gray&#39;</span><span class="p">),</span> 
-<a id="__codelineno-0-522" name="__codelineno-0-522"></a>                  <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">ct</span><span class="p">)</span>
-<a id="__codelineno-0-523" name="__codelineno-0-523"></a>        <span class="k">for</span> <span class="n">ct</span> <span class="ow">in</span> <span class="n">unique_colors</span>
-<a id="__codelineno-0-524" name="__codelineno-0-524"></a>    <span class="p">]</span>
-<a id="__codelineno-0-525" name="__codelineno-0-525"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="n">legend_elements</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;best&#39;</span><span class="p">)</span>
-<a id="__codelineno-0-526" name="__codelineno-0-526"></a>
-<a id="__codelineno-0-527" name="__codelineno-0-527"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
-<a id="__codelineno-0-528" name="__codelineno-0-528"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
-<a id="__codelineno-0-529" name="__codelineno-0-529"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
-<a id="__codelineno-0-530" name="__codelineno-0-530"></a>
-<a id="__codelineno-0-531" name="__codelineno-0-531"></a>    <span class="k">if</span> <span class="n">save_path</span><span class="p">:</span>
-<a id="__codelineno-0-532" name="__codelineno-0-532"></a>        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
-<a id="__codelineno-0-533" name="__codelineno-0-533"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved visualization to </span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<a id="__codelineno-0-534" name="__codelineno-0-534"></a>
-<a id="__codelineno-0-535" name="__codelineno-0-535"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<a id="__codelineno-0-489" name="__codelineno-0-489"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">._viz_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_color_map</span>
+<a id="__codelineno-0-490" name="__codelineno-0-490"></a>
+<a id="__codelineno-0-491" name="__codelineno-0-491"></a>    <span class="c1"># Default color palette if not provided (sorted for deterministic assignment)</span>
+<a id="__codelineno-0-492" name="__codelineno-0-492"></a>    <span class="k">if</span> <span class="n">color_palette</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+<a id="__codelineno-0-493" name="__codelineno-0-493"></a>        <span class="n">color_palette</span> <span class="o">=</span> <span class="n">make_color_map</span><span class="p">(</span><span class="n">colors_map</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+<a id="__codelineno-0-494" name="__codelineno-0-494"></a>
+<a id="__codelineno-0-495" name="__codelineno-0-495"></a>    <span class="c1"># Compute layout</span>
+<a id="__codelineno-0-496" name="__codelineno-0-496"></a>    <span class="k">if</span> <span class="n">layout</span> <span class="o">==</span> <span class="s2">&quot;spring&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-497" name="__codelineno-0-497"></a>        <span class="n">pos</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">spring_layout</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+<a id="__codelineno-0-498" name="__codelineno-0-498"></a>    <span class="k">elif</span> <span class="n">layout</span> <span class="o">==</span> <span class="s2">&quot;kamada_kawai&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-499" name="__codelineno-0-499"></a>        <span class="n">pos</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">kamada_kawai_layout</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<a id="__codelineno-0-500" name="__codelineno-0-500"></a>    <span class="k">elif</span> <span class="n">layout</span> <span class="o">==</span> <span class="s2">&quot;circular&quot;</span><span class="p">:</span>
+<a id="__codelineno-0-501" name="__codelineno-0-501"></a>        <span class="n">pos</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">circular_layout</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<a id="__codelineno-0-502" name="__codelineno-0-502"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-0-503" name="__codelineno-0-503"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown layout: </span><span class="si">{</span><span class="n">layout</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-504" name="__codelineno-0-504"></a>
+<a id="__codelineno-0-505" name="__codelineno-0-505"></a>    <span class="c1"># Create figure</span>
+<a id="__codelineno-0-506" name="__codelineno-0-506"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+<a id="__codelineno-0-507" name="__codelineno-0-507"></a>
+<a id="__codelineno-0-508" name="__codelineno-0-508"></a>    <span class="c1"># Draw graph</span>
+<a id="__codelineno-0-509" name="__codelineno-0-509"></a>    <span class="n">node_colors</span> <span class="o">=</span> <span class="p">[</span><span class="n">color_palette</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">colors_map</span><span class="p">[</span><span class="n">node</span><span class="p">],</span> <span class="s1">&#39;gray&#39;</span><span class="p">)</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">graph</span><span class="o">.</span><span class="n">nodes</span><span class="p">()]</span>
+<a id="__codelineno-0-510" name="__codelineno-0-510"></a>
+<a id="__codelineno-0-511" name="__codelineno-0-511"></a>    <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_nodes</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">node_color</span><span class="o">=</span><span class="n">node_colors</span><span class="p">,</span>
+<a id="__codelineno-0-512" name="__codelineno-0-512"></a>                           <span class="n">node_size</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">)</span>
+<a id="__codelineno-0-513" name="__codelineno-0-513"></a>    <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_edges</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+<a id="__codelineno-0-514" name="__codelineno-0-514"></a>    <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_labels</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span> <span class="n">font_size</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">font_color</span><span class="o">=</span><span class="s1">&#39;white&#39;</span><span class="p">)</span>
+<a id="__codelineno-0-515" name="__codelineno-0-515"></a>
+<a id="__codelineno-0-516" name="__codelineno-0-516"></a>    <span class="c1"># Add legend</span>
+<a id="__codelineno-0-517" name="__codelineno-0-517"></a>    <span class="n">unique_colors</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">colors_map</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+<a id="__codelineno-0-518" name="__codelineno-0-518"></a>    <span class="n">legend_elements</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-0-519" name="__codelineno-0-519"></a>        <span class="n">plt</span><span class="o">.</span><span class="n">Line2D</span><span class="p">([</span><span class="mi">0</span><span class="p">],</span> <span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">marker</span><span class="o">=</span><span class="s1">&#39;o&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;w&#39;</span><span class="p">,</span>
+<a id="__codelineno-0-520" name="__codelineno-0-520"></a>                  <span class="n">markerfacecolor</span><span class="o">=</span><span class="n">color_palette</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">ct</span><span class="p">,</span> <span class="s1">&#39;gray&#39;</span><span class="p">),</span> 
+<a id="__codelineno-0-521" name="__codelineno-0-521"></a>                  <span class="n">markersize</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">ct</span><span class="p">)</span>
+<a id="__codelineno-0-522" name="__codelineno-0-522"></a>        <span class="k">for</span> <span class="n">ct</span> <span class="ow">in</span> <span class="n">unique_colors</span>
+<a id="__codelineno-0-523" name="__codelineno-0-523"></a>    <span class="p">]</span>
+<a id="__codelineno-0-524" name="__codelineno-0-524"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="n">legend_elements</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;best&#39;</span><span class="p">)</span>
+<a id="__codelineno-0-525" name="__codelineno-0-525"></a>
+<a id="__codelineno-0-526" name="__codelineno-0-526"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="n">title</span><span class="p">)</span>
+<a id="__codelineno-0-527" name="__codelineno-0-527"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">(</span><span class="s1">&#39;off&#39;</span><span class="p">)</span>
+<a id="__codelineno-0-528" name="__codelineno-0-528"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<a id="__codelineno-0-529" name="__codelineno-0-529"></a>
+<a id="__codelineno-0-530" name="__codelineno-0-530"></a>    <span class="k">if</span> <span class="n">save_path</span><span class="p">:</span>
+<a id="__codelineno-0-531" name="__codelineno-0-531"></a>        <span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">150</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+<a id="__codelineno-0-532" name="__codelineno-0-532"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved visualization to </span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-0-533" name="__codelineno-0-533"></a>
+<a id="__codelineno-0-534" name="__codelineno-0-534"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -3374,7 +3418,8 @@ making :meth:<code>colorize</code> bit-reproducible. When <code>None</code>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>tissue_simulator/graph_coloring.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-538">538</a></span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-537">537</a></span>
+<span class="normal"><a href="#__codelineno-0-538">538</a></span>
 <span class="normal"><a href="#__codelineno-0-539">539</a></span>
 <span class="normal"><a href="#__codelineno-0-540">540</a></span>
 <span class="normal"><a href="#__codelineno-0-541">541</a></span>
@@ -3424,32 +3469,33 @@ making :meth:<code>colorize</code> bit-reproducible. When <code>None</code>
 <span class="normal"><a href="#__codelineno-0-585">585</a></span>
 <span class="normal"><a href="#__codelineno-0-586">586</a></span>
 <span class="normal"><a href="#__codelineno-0-587">587</a></span>
-<span class="normal"><a href="#__codelineno-0-588">588</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-538" name="__codelineno-0-538"></a><span class="k">def</span><span class="w"> </span><span class="nf">visualize_graph_comparison</span><span class="p">(</span><span class="n">source_graph</span><span class="p">:</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span>
-<a id="__codelineno-0-539" name="__codelineno-0-539"></a>                               <span class="n">source_colors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
-<a id="__codelineno-0-540" name="__codelineno-0-540"></a>                               <span class="n">target_graph</span><span class="p">:</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span>
-<a id="__codelineno-0-541" name="__codelineno-0-541"></a>                               <span class="n">target_colors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
-<a id="__codelineno-0-542" name="__codelineno-0-542"></a>                               <span class="n">color_palette</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-<a id="__codelineno-0-543" name="__codelineno-0-543"></a>                               <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;graph_comparison.png&quot;</span><span class="p">,</span>
-<a id="__codelineno-0-544" name="__codelineno-0-544"></a>                               <span class="n">figsize</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">8</span><span class="p">)):</span>
-<a id="__codelineno-0-545" name="__codelineno-0-545"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<a id="__codelineno-0-546" name="__codelineno-0-546"></a><span class="sd">    Visualize source and target graphs side by side.</span>
-<a id="__codelineno-0-547" name="__codelineno-0-547"></a>
-<a id="__codelineno-0-548" name="__codelineno-0-548"></a><span class="sd">    Args:</span>
-<a id="__codelineno-0-549" name="__codelineno-0-549"></a><span class="sd">        source_graph: Source graph with target statistics</span>
-<a id="__codelineno-0-550" name="__codelineno-0-550"></a><span class="sd">        source_colors: Color mapping for source graph</span>
-<a id="__codelineno-0-551" name="__codelineno-0-551"></a><span class="sd">        target_graph: Target graph after coloring</span>
-<a id="__codelineno-0-552" name="__codelineno-0-552"></a><span class="sd">        target_colors: Color mapping for target graph</span>
-<a id="__codelineno-0-553" name="__codelineno-0-553"></a><span class="sd">        color_palette: Dictionary mapping color names to RGB values</span>
-<a id="__codelineno-0-554" name="__codelineno-0-554"></a><span class="sd">        save_path: Path to save visualization</span>
-<a id="__codelineno-0-555" name="__codelineno-0-555"></a><span class="sd">        figsize: Figure size</span>
-<a id="__codelineno-0-556" name="__codelineno-0-556"></a><span class="sd">    &quot;&quot;&quot;</span>
-<a id="__codelineno-0-557" name="__codelineno-0-557"></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="normal"><a href="#__codelineno-0-588">588</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-537" name="__codelineno-0-537"></a><span class="k">def</span><span class="w"> </span><span class="nf">visualize_graph_comparison</span><span class="p">(</span><span class="n">source_graph</span><span class="p">:</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span>
+<a id="__codelineno-0-538" name="__codelineno-0-538"></a>                               <span class="n">source_colors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+<a id="__codelineno-0-539" name="__codelineno-0-539"></a>                               <span class="n">target_graph</span><span class="p">:</span> <span class="n">nx</span><span class="o">.</span><span class="n">Graph</span><span class="p">,</span>
+<a id="__codelineno-0-540" name="__codelineno-0-540"></a>                               <span class="n">target_colors</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span>
+<a id="__codelineno-0-541" name="__codelineno-0-541"></a>                               <span class="n">color_palette</span><span class="p">:</span> <span class="n">Dict</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<a id="__codelineno-0-542" name="__codelineno-0-542"></a>                               <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;graph_comparison.png&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-543" name="__codelineno-0-543"></a>                               <span class="n">figsize</span><span class="p">:</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">16</span><span class="p">,</span> <span class="mi">8</span><span class="p">)):</span>
+<a id="__codelineno-0-544" name="__codelineno-0-544"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<a id="__codelineno-0-545" name="__codelineno-0-545"></a><span class="sd">    Visualize source and target graphs side by side.</span>
+<a id="__codelineno-0-546" name="__codelineno-0-546"></a>
+<a id="__codelineno-0-547" name="__codelineno-0-547"></a><span class="sd">    Args:</span>
+<a id="__codelineno-0-548" name="__codelineno-0-548"></a><span class="sd">        source_graph: Source graph with target statistics</span>
+<a id="__codelineno-0-549" name="__codelineno-0-549"></a><span class="sd">        source_colors: Color mapping for source graph</span>
+<a id="__codelineno-0-550" name="__codelineno-0-550"></a><span class="sd">        target_graph: Target graph after coloring</span>
+<a id="__codelineno-0-551" name="__codelineno-0-551"></a><span class="sd">        target_colors: Color mapping for target graph</span>
+<a id="__codelineno-0-552" name="__codelineno-0-552"></a><span class="sd">        color_palette: Dictionary mapping color names to RGB values</span>
+<a id="__codelineno-0-553" name="__codelineno-0-553"></a><span class="sd">        save_path: Path to save visualization</span>
+<a id="__codelineno-0-554" name="__codelineno-0-554"></a><span class="sd">        figsize: Figure size</span>
+<a id="__codelineno-0-555" name="__codelineno-0-555"></a><span class="sd">    &quot;&quot;&quot;</span>
+<a id="__codelineno-0-556" name="__codelineno-0-556"></a>    <span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<a id="__codelineno-0-557" name="__codelineno-0-557"></a>    <span class="kn">from</span><span class="w"> </span><span class="nn">._viz_utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_color_map</span>
 <a id="__codelineno-0-558" name="__codelineno-0-558"></a>
-<a id="__codelineno-0-559" name="__codelineno-0-559"></a>    <span class="c1"># Default color palette if not provided</span>
+<a id="__codelineno-0-559" name="__codelineno-0-559"></a>    <span class="c1"># Default color palette if not provided (sorted for deterministic assignment)</span>
 <a id="__codelineno-0-560" name="__codelineno-0-560"></a>    <span class="k">if</span> <span class="n">color_palette</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-<a id="__codelineno-0-561" name="__codelineno-0-561"></a>        <span class="n">unique_colors</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">source_colors</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">target_colors</span><span class="o">.</span><span class="n">values</span><span class="p">())))</span>
-<a id="__codelineno-0-562" name="__codelineno-0-562"></a>        <span class="n">colors</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">tab10</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_colors</span><span class="p">)))</span>
-<a id="__codelineno-0-563" name="__codelineno-0-563"></a>        <span class="n">color_palette</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">unique_colors</span><span class="p">,</span> <span class="n">colors</span><span class="p">))</span>
+<a id="__codelineno-0-561" name="__codelineno-0-561"></a>        <span class="n">color_palette</span> <span class="o">=</span> <span class="n">make_color_map</span><span class="p">(</span>
+<a id="__codelineno-0-562" name="__codelineno-0-562"></a>            <span class="nb">list</span><span class="p">(</span><span class="n">source_colors</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="n">target_colors</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+<a id="__codelineno-0-563" name="__codelineno-0-563"></a>        <span class="p">)</span>
 <a id="__codelineno-0-564" name="__codelineno-0-564"></a>
 <a id="__codelineno-0-565" name="__codelineno-0-565"></a>    <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
 <a id="__codelineno-0-566" name="__codelineno-0-566"></a>

@@ -331,6 +331,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../../slides/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Slides
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../../changelog/" class="md-tabs__link">
         
   
@@ -1788,6 +1807,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slides
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../changelog/" class="md-nav__link">
         
   
@@ -2377,6 +2423,11 @@
 - <code>show_plane</code>: Whether to show the slice plane
 - <code>plane_alpha</code>: Transparency of plane (0-1)
 - <code>plane_size</code>: Size of plane to display</p>
+<p>Both <code>visualize_slice_2d</code> and <code>visualize_slice_in_3d</code> assign colors
+deterministically: cell types are sorted alphabetically before being mapped
+to the <code>tab10</code> palette, so the same set of types always yields the same
+colors regardless of input order or the Python interpreter's
+<code>PYTHONHASHSEED</code>. Added in v0.1.12.</p>
 <h5 id="export_slice_csv">export_slice_csv()<a class="headerlink" href="#export_slice_csv" title="Permanent link">&para;</a></h5>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">export_slice_csv</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="n">include_3d</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
