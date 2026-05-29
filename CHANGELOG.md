@@ -5,6 +5,19 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.11] - 2026-05-29
+
+### Added
+
+- **`type` column alias in `load_tissue_from_csv`** — the loader now accepts
+  `type` as a column alias for `cell_type`, enabling direct ingestion of
+  PhysiCell `cells.csv` exports (written by the PhysiCell MCP's
+  `export_cells_csv`) without a bespoke schema adapter. Precedence:
+  `cell_type` (canonical, preferred) → `type` (alias) → `"default"` (fallback,
+  unchanged). `load_target_statistics_from_coordinates` inherits the fix
+  automatically because it composes `load_tissue_from_csv`. Three new tests
+  cover the alias, the precedence rule, and the unchanged fallback.
+
 ## [0.1.10] - 2026-05-28
 
 ### Added

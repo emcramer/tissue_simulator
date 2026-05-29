@@ -507,6 +507,57 @@ class TestLoadTissueFromCsv(unittest.TestCase):
         finally:
             os.unlink(temp_path)
 
+    def test_load_csv_type_alias(self):
+        """CSV with 'type' column (no 'cell_type') uses 'type' as cell_type."""
+        with tempfile.NamedTemporaryFile(
+            mode='w', delete=False, suffix='.csv'
+        ) as f:
+            temp_path = f.name
+            f.write("x,y,z,type\n")
+            f.write("10.0,20.0,5.0,cancer\n")
+            f.write("40.0,60.0,5.0,immune\n")
+        try:
+            loaded = load_tissue_from_csv(temp_path, default_radius=5.0)
+            self.assertEqual(len(loaded.cells), 2)
+            self.assertEqual(loaded.cells[0].cell_type, 'cancer')
+            self.assertEqual(loaded.cells[1].cell_type, 'immune')
+        finally:
+            os.unlink(temp_path)
+
+    def test_load_csv_cell_type_wins_over_type(self):
+        """When both 'cell_type' and 'type' are present, 'cell_type' wins."""
+        with tempfile.NamedTemporaryFile(
+            mode='w', delete=False, suffix='.csv'
+        ) as f:
+            temp_path = f.name
+            f.write("x,y,z,cell_type,type\n")
+            f.write("10.0,20.0,5.0,stroma,cancer\n")
+            f.write("40.0,60.0,5.0,epithelial,immune\n")
+        try:
+            loaded = load_tissue_from_csv(temp_path, default_radius=5.0)
+            self.assertEqual(len(loaded.cells), 2)
+            self.assertEqual(loaded.cells[0].cell_type, 'stroma')
+            self.assertEqual(loaded.cells[1].cell_type, 'epithelial')
+        finally:
+            os.unlink(temp_path)
+
+    def test_load_csv_no_type_columns(self):
+        """CSV with neither 'cell_type' nor 'type' falls back to 'default'."""
+        with tempfile.NamedTemporaryFile(
+            mode='w', delete=False, suffix='.csv'
+        ) as f:
+            temp_path = f.name
+            f.write("x,y,z\n")
+            f.write("10.0,20.0,5.0\n")
+            f.write("40.0,60.0,5.0\n")
+        try:
+            loaded = load_tissue_from_csv(temp_path, default_radius=5.0)
+            self.assertEqual(len(loaded.cells), 2)
+            for cell in loaded.cells:
+                self.assertEqual(cell.cell_type, 'default')
+        finally:
+            os.unlink(temp_path)
+
 
 if __name__ == '__main__':
     unittest.main()

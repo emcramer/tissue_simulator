@@ -391,6 +391,11 @@ def load_tissue_from_csv(filepath: str, height: Optional[float] = None,
     and ``is_boundary`` is treated as True only when its value is the string
     "true" (case-insensitive), otherwise False.
 
+    ``cell_type`` is the canonical column name.  As a convenience, the column
+    ``type`` (a common alias used by tools such as PhysiCell) is also accepted
+    when ``cell_type`` is absent or blank.  When both columns are present,
+    ``cell_type`` takes precedence.
+
     Args:
         filepath: Path to the CSV file to read.
         height: Optional Y-dimension; inferred from cell centers if None.
@@ -414,7 +419,7 @@ def load_tissue_from_csv(filepath: str, height: Optional[float] = None,
             else:
                 radius = default_radius
 
-            cell_type = row.get('cell_type') or 'default'
+            cell_type = row.get('cell_type') or row.get('type') or 'default'
             is_boundary = str(row.get('is_boundary')).strip().lower() == 'true'
 
             cells.append(Cell(center=center, radius=radius,
