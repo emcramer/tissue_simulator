@@ -120,7 +120,7 @@ slicer.export_slice_csv('slice_data.csv')  # Export slice data
 
 **Documentation site:** <https://emcramer.github.io/tissue_simulator/> (auto-deployed; per-version archives via the navbar switcher).
 
-**📊 Slide deck:** <https://emcramer.github.io/tissue_simulator/latest/slides/tour.slides.html> — a 13-slide visual tour (code + matplotlib output side by side), rendered from `docs/slides/tour.ipynb` on every release.
+**📊 Code-driven tour:** <https://emcramer.github.io/tissue_simulator/latest/slides/tour.html> — a scrolling, end-to-end tour (code + matplotlib output side by side), rendered from `docs/slides/tour.py` (Marimo) on every release.
 
 **Community wiki:** <https://github.com/emcramer/tissue_simulator/wiki> — FAQ, troubleshooting, roadmap (community-editable).
 

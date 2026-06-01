@@ -96,6 +96,5 @@ _wiki_seed/
 # MkDocs build output (deployed via CI, never committed)
 site/
 
-# Slide deck (CI-rendered output of docs/slides/tour.ipynb)
-docs/slides/tour.slides.html
-docs/slides/tour.slides_files/
+# Marimo tour (CI-rendered output of docs/slides/tour.py)
+docs/slides/tour.html

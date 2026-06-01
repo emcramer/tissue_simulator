@@ -44,12 +44,12 @@ def test_mkdocs_strict_build(tmp_path: Path) -> None:
     repo_root = _repo_root()
     site_dir = tmp_path / "site"
 
-    # The slide deck's rendered HTML (docs/slides/tour.slides.html) is built
-    # by CI in `.github/workflows/docs.yml` BEFORE `mkdocs build`. When the
-    # test runs cold it doesn't exist, but `docs/slides/index.md` links to
-    # it, which mkdocs --strict treats as a broken link. Drop a tiny stub so
-    # the link resolves; restore afterward.
-    slides_html = repo_root / "docs" / "slides" / "tour.slides.html"
+    # The tour's rendered HTML (docs/slides/tour.html) is built by CI in
+    # `.github/workflows/docs.yml` BEFORE `mkdocs build`. When the test runs
+    # cold it doesn't exist, but `docs/slides/index.md` links to it, which
+    # mkdocs --strict treats as a broken link. Drop a tiny stub so the link
+    # resolves; restore afterward.
+    slides_html = repo_root / "docs" / "slides" / "tour.html"
     stub_created = False
     if not slides_html.exists():
         slides_html.write_text("<!-- stub for mkdocs --strict; CI overwrites -->\n")
