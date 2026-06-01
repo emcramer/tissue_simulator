@@ -21,6 +21,8 @@ A comprehensive Python package for generating 3D simulated biological tissue sec
 - **🧪 Boundary Cell Support**: Handle cells that extend beyond tissue section boundaries
 - **⚡ Performance Optimized**: Efficient algorithms for generating hundreds of cells
 
+Full documentation, guides, and API reference: [https://emcramer.github.io/tissue_simulator/](https://emcramer.github.io/tissue_simulator/)
+
 ## 📦 Installation
 
 ### Quick Install
