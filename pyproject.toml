@@ -61,9 +61,7 @@ docs = [
     "mkdocstrings[python]>=0.24",
     "mkdocs-include-markdown-plugin>=6",
     "mike>=2",
-    "jupyter>=1",
-    "nbconvert>=7",
-    "ipykernel>=6",
+    "marimo>=0.10",
     "matplotlib>=3.5",
     "networkx>=3",
 ]

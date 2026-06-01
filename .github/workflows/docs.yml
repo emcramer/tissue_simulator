@@ -28,8 +28,8 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -e ".[docs]"
-      - name: Render slide deck
-        run: python docs/slides/build_slides.py
+      - name: Render tour
+        run: python docs/slides/build_tour.py
       - name: Configure git
         run: |
           git config --global user.name "github-actions[bot]"

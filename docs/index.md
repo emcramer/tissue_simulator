@@ -80,8 +80,8 @@ the [Quickstart](quickstart.md).
 
 ## Where to next
 
-- **[📊 Slide deck](slides/index.md)** — a 13-slide visual tour of the package
-  end-to-end (code + matplotlib output side by side).
+- **[📊 Code-driven tour](slides/index.md)** — an end-to-end scrolling tour of
+  the package (code + matplotlib output side by side).
 - [Quickstart](quickstart.md) — install, the five-minute tour, headline
   workflows, reproducibility notes, and troubleshooting.
 - [Complete Workflow guide](guides/complete-workflow.md) — end-to-end tutorial
