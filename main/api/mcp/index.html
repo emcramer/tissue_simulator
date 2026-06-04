@@ -994,6 +994,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#physicell-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PhysiCell Export
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#data-loading" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1275,6 +1286,28 @@
     <span class="md-ellipsis">
       
         export_slice_csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export_tissue_to_physicell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_tissue_to_physicell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export_slice_to_physicell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_slice_to_physicell
       
     </span>
   </a>
@@ -2129,6 +2162,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#physicell-export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PhysiCell Export
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#data-loading" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2410,6 +2454,28 @@
     <span class="md-ellipsis">
       
         export_slice_csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export_tissue_to_physicell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_tissue_to_physicell
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export_slice_to_physicell" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_slice_to_physicell
       
     </span>
   </a>
@@ -2739,6 +2805,11 @@
 <li><code>export_tissue_csv</code>: Export 3D tissue data</li>
 <li><code>export_slice_csv</code>: Export 2D slice data</li>
 </ul>
+<h3 id="physicell-export">PhysiCell Export<a class="headerlink" href="#physicell-export" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>export_tissue_to_physicell</code>: Export the current 3D tissue as a PhysiCell IC CSV (modern or legacy schema)</li>
+<li><code>export_slice_to_physicell</code>: Export the current slice as a PhysiCell IC CSV with <code>geometry="2D"</code> (slice-plane projection) or <code>geometry="3D"</code> (original 3D positions)</li>
+</ul>
 <h3 id="data-loading">Data Loading<a class="headerlink" href="#data-loading" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>load_tissue_from_csv</code>: Load a tissue from a coordinate CSV and set it as the current tissue</li>
@@ -3009,6 +3080,50 @@
 <a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="w">  </span><span class="nt">&quot;include_3d_coordinates&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
 <a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="p">}</span>
 </code></pre></div></p>
+<h3 id="export_tissue_to_physicell">export_tissue_to_physicell<a class="headerlink" href="#export_tissue_to_physicell" title="Permanent link">&para;</a></h3>
+<p><strong>Description</strong>: Export the current 3D tissue as a PhysiCell IC CSV. The current tissue must be created first (via <code>create_tissue</code> + <code>generate_cells</code> or <code>load_tissue_from_csv</code>). Writes the file to the server's temp directory and returns its path. Tissue export is always 3D — for a 2D PhysiCell simulation, slice the tissue first and use <code>export_slice_to_physicell</code> with <code>geometry="2D"</code>.</p>
+<p><strong>Parameters</strong>:
+- <code>filename</code> (string, optional): PhysiCell IC CSV filename (default: <code>"tissue_physicell.csv"</code>)
+- <code>format</code> (string, optional): PhysiCell CSV schema — <code>"modern"</code> (header <code>x,y,z,type[,volume]</code>) or <code>"legacy"</code> (headerless <code>x,y,z,cell_type_id,volume</code>). Default: <code>"modern"</code>
+- <code>include_volume</code> (boolean, optional): Append the <code>volume</code> column. Ignored for <code>"legacy"</code> format (volume is always required there). Default: <code>true</code>
+- <code>cell_type_mapping</code> (object, optional): Mapping from cell-type name (string) to PhysiCell integer ID. Required when <code>format="legacy"</code>; optional but validated for completeness when <code>format="modern"</code>.</p>
+<p><strong>Returns</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="p">{</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/tissue_physicell.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span><span class="nt">&quot;num_cells_exported&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">234</span><span class="p">,</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span><span class="nt">&quot;format&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;modern&quot;</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="p">}</span>
+</code></pre></div></p>
+<h3 id="export_slice_to_physicell">export_slice_to_physicell<a class="headerlink" href="#export_slice_to_physicell" title="Permanent link">&para;</a></h3>
+<p><strong>Description</strong>: Export the current slice (created via <code>create_slice</code>) as a PhysiCell IC CSV. The <code>geometry</code> parameter selects between two modes: <code>"2D"</code> (default) writes the slice-plane projection using each cell's 2D coordinates, a fixed <code>z</code> (default 0), and disk-area volumes — suited to PhysiCell 2D simulations; <code>"3D"</code> writes each cell's original 3D position from <code>center_3d</code> and sphere-volume volumes — suited to PhysiCell 3D simulations where the slice acted as a spatial filter. The <code>z</code> argument is ignored when <code>geometry="3D"</code>.</p>
+<p><strong>Parameters</strong>:
+- <code>filename</code> (string, optional): PhysiCell IC CSV filename (default: <code>"slice_physicell.csv"</code>)
+- <code>geometry</code> (string, optional): Slice export geometry. <code>"2D"</code> (default) writes the slice-plane projection at the supplied <code>z</code> with disk-area volumes (<code>pi * intersection_radius^2</code>); <code>"3D"</code> writes each cell's original 3D position from <code>center_3d</code> with sphere-volume volumes (<code>4/3 * pi * radius^3</code>). Enum: <code>["2D", "3D"]</code>. Default: <code>"2D"</code>
+- <code>z</code> (number, optional): Fixed z written for every row in 2D mode. Ignored in 3D mode. Default: <code>0.0</code>
+- <code>format</code> (string, optional): PhysiCell CSV schema — <code>"modern"</code> or <code>"legacy"</code>. Default: <code>"modern"</code>
+- <code>include_volume</code> (boolean, optional): Append the <code>volume</code> column. Ignored for <code>"legacy"</code> format. Default: <code>true</code>
+- <code>cell_type_mapping</code> (object, optional): Mapping from cell-type name (string) to PhysiCell integer ID. Required when <code>format="legacy"</code>.</p>
+<p><strong>Returns</strong> (2D mode):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="p">{</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/slice_physicell.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">&quot;num_cells_exported&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">89</span><span class="p">,</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">&quot;format&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;modern&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">  </span><span class="nt">&quot;geometry&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2D&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="nt">&quot;used_z&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="p">}</span>
+</code></pre></div></p>
+<p><strong>Returns</strong> (3D mode — <code>used_z</code> is <code>null</code> because the <code>z</code> parameter is ignored):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="p">{</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/slice_physicell.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span><span class="nt">&quot;num_cells_exported&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">89</span><span class="p">,</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">  </span><span class="nt">&quot;format&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;modern&quot;</span><span class="p">,</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">  </span><span class="nt">&quot;geometry&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;3D&quot;</span><span class="p">,</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">  </span><span class="nt">&quot;used_z&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="p">}</span>
+</code></pre></div></p>
 <h3 id="load_tissue_from_csv">load_tissue_from_csv<a class="headerlink" href="#load_tissue_from_csv" title="Permanent link">&para;</a></h3>
 <p><strong>Description</strong>: Load a TissueSection from a coordinate CSV file (the inverse of <code>export_tissue_csv</code>). The file must have columns <code>x,y,z,radius,cell_type,is_boundary</code>. The loaded tissue is set as the current tissue, so slicing, analysis, and statistics tools can run on externally sourced tissue. This is distinct from <code>load_target_statistics</code>'s <code>csv_filepath</code>, which loads a precomputed interaction table rather than per-cell coordinates.</p>
 <p><strong>Parameters</strong>:
@@ -3018,14 +3133,14 @@
 - <code>thickness</code> (number, optional): Tissue thickness (Z) in micrometers; inferred from coordinate bounds if omitted
 - <code>default_radius</code> (number, optional): Radius to use for cells missing a radius value (default: 10.0)</p>
 <p><strong>Returns</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="p">{</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
-<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/external/measured_tissue.csv&quot;</span><span class="p">,</span>
-<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span><span class="nt">&quot;num_cells&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">312</span><span class="p">,</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="w">  </span><span class="nt">&quot;cell_types&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;cancer&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">140</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;immune&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">103</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;stroma&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">69</span><span class="p">},</span>
-<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="w">  </span><span class="nt">&quot;dimensions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;height&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">500.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;width&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">500.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;thickness&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">100.0</span><span class="p">},</span>
-<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">  </span><span class="nt">&quot;packing_fraction&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.287</span>
-<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="p">{</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/external/measured_tissue.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span><span class="nt">&quot;num_cells&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">312</span><span class="p">,</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">  </span><span class="nt">&quot;cell_types&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;cancer&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">140</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;immune&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">103</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;stroma&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">69</span><span class="p">},</span>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">  </span><span class="nt">&quot;dimensions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;height&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">500.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;width&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">500.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;thickness&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">100.0</span><span class="p">},</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">  </span><span class="nt">&quot;packing_fraction&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.287</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="load_target_statistics_from_coordinates">load_target_statistics_from_coordinates<a class="headerlink" href="#load_target_statistics_from_coordinates" title="Permanent link">&para;</a></h3>
 <p><strong>Description</strong>: Compute full target statistics directly from a coordinate CSV (columns <code>x,y,z,radius,cell_type,is_boundary</code>). Unlike <code>load_target_statistics</code> with <code>csv_filepath</code> — which reads a precomputed interaction table and does not populate <code>cell_type_proportions</code> or <code>target_density</code> — this builds the spatial network from the coordinates and produces interactions plus <code>cell_type_proportions</code> and <code>target_density</code>. The resulting statistics can drive <code>setup_replicate_generator</code> and <code>generate_replicates</code>.</p>
@@ -3034,16 +3149,16 @@
 - <code>network_mode</code> (string, optional): Network analysis mode, <code>"contact"</code> or <code>"radius"</code> (default: "contact")
 - <code>network_radius</code> (number, optional): Distance threshold for <code>"radius"</code> mode (micrometers)</p>
 <p><strong>Returns</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="p">{</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span><span class="nt">&quot;source&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;coordinate_csv&quot;</span><span class="p">,</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/external/measured_tissue.csv&quot;</span><span class="p">,</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="w">  </span><span class="nt">&quot;network_mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;contact&quot;</span><span class="p">,</span>
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="w">  </span><span class="nt">&quot;num_interaction_types&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span>
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="w">  </span><span class="nt">&quot;cell_type_proportions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;cancer&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.45</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;immune&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.33</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;stroma&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.22</span><span class="p">},</span>
-<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">  </span><span class="nt">&quot;target_cell_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">312</span><span class="p">,</span>
-<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">  </span><span class="nt">&quot;target_density&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.287</span>
-<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="p">{</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span><span class="nt">&quot;source&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;coordinate_csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/external/measured_tissue.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="w">  </span><span class="nt">&quot;network_mode&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;contact&quot;</span><span class="p">,</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="w">  </span><span class="nt">&quot;num_interaction_types&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="w">  </span><span class="nt">&quot;cell_type_proportions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;cancer&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.45</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;immune&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.33</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;stroma&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.22</span><span class="p">},</span>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="w">  </span><span class="nt">&quot;target_cell_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">312</span><span class="p">,</span>
+<a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a><span class="w">  </span><span class="nt">&quot;target_density&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.287</span>
+<a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="assign_cell_types">assign_cell_types<a class="headerlink" href="#assign_cell_types" title="Permanent link">&para;</a></h3>
 <p><strong>Description</strong>: Assign cell types to the cells of the current tissue by simulated annealing against a target adjacency structure. Slices the current tissue at <code>z_position</code>, builds a radius-mode spatial network, loads target statistics from a graph-coloring-format CSV (with <code>node_counts</code>, <code>edge_counts</code>, <code>neighbor_dist</code> rows — the same shape that <code>tissue_simulator.graph_coloring.load_target_statistics_from_csv</code> reads), and runs <code>GraphColorizer.colorize()</code> with the given <code>seed</code>. The per-node coloring is stored on the server.</p>
@@ -3059,24 +3174,24 @@
 - <code>max_iterations</code> (integer, optional): Maximum number of simulated-annealing iterations (default: 5000)
 - <code>verbose</code> (boolean, optional): Print per-iteration progress (default: false)</p>
 <p><strong>Example</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="p">{</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span><span class="nt">&quot;target_statistics_csv&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/target_stats.csv&quot;</span><span class="p">,</span>
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span><span class="nt">&quot;colors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;cancer&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;immune&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;stroma&quot;</span><span class="p">],</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">  </span><span class="nt">&quot;z_position&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">40.0</span><span class="p">,</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="w">  </span><span class="nt">&quot;network_radius&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">50.0</span><span class="p">,</span>
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="w">  </span><span class="nt">&quot;seed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">  </span><span class="nt">&quot;max_iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5000</span>
-<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="p">{</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">  </span><span class="nt">&quot;target_statistics_csv&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/target_stats.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span><span class="nt">&quot;colors&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;cancer&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;immune&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;stroma&quot;</span><span class="p">],</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">  </span><span class="nt">&quot;z_position&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">40.0</span><span class="p">,</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="w">  </span><span class="nt">&quot;network_radius&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">50.0</span><span class="p">,</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="w">  </span><span class="nt">&quot;seed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="w">  </span><span class="nt">&quot;max_iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5000</span>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="p">}</span>
 </code></pre></div></p>
 <p><strong>Returns</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="p">{</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span><span class="nt">&quot;num_nodes_colored&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">89</span><span class="p">,</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span><span class="nt">&quot;color_counts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;cancer&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;immune&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;stroma&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">19</span><span class="p">},</span>
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="w">  </span><span class="nt">&quot;seed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span>
-<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="w">  </span><span class="nt">&quot;used_z_position&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">40.0</span><span class="p">,</span>
-<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="w">  </span><span class="nt">&quot;used_network_radius&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">50.0</span>
-<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="p">{</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span><span class="nt">&quot;num_nodes_colored&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">89</span><span class="p">,</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">  </span><span class="nt">&quot;color_counts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;cancer&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;immune&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;stroma&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">19</span><span class="p">},</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">  </span><span class="nt">&quot;seed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="w">  </span><span class="nt">&quot;used_z_position&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">40.0</span><span class="p">,</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="w">  </span><span class="nt">&quot;used_network_radius&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">50.0</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="visualize_tissue">visualize_tissue<a class="headerlink" href="#visualize_tissue" title="Permanent link">&para;</a></h3>
 <p><strong>Description</strong>: Create 3D visualization and save as PNG.</p>
@@ -3085,31 +3200,31 @@
 - <code>azimuth</code> (number, optional): Viewing azimuth (default: 45)
 - <code>filename</code> (string, optional): PNG filename (default: "tissue_3d.png")</p>
 <p><strong>Returns</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="p">{</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/tissue_3d.png&quot;</span><span class="p">,</span>
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span><span class="nt">&quot;cells_visualized&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span>
-<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="p">{</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/tissue_3d.png&quot;</span><span class="p">,</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="nt">&quot;cells_visualized&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="visualize_slice_2d">visualize_slice_2d<a class="headerlink" href="#visualize_slice_2d" title="Permanent link">&para;</a></h3>
 <p><strong>Description</strong>: Create 2D slice visualization and save as PNG.</p>
 <p><strong>Parameters</strong>:
 - <code>filename</code> (string, optional): PNG filename (default: "slice_2d.png")</p>
 <p><strong>Returns</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="p">{</span>
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/slice_2d.png&quot;</span><span class="p">,</span>
-<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">  </span><span class="nt">&quot;cells_visualized&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">89</span>
-<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="p">{</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/slice_2d.png&quot;</span><span class="p">,</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">  </span><span class="nt">&quot;cells_visualized&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">89</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="reset_tissue">reset_tissue<a class="headerlink" href="#reset_tissue" title="Permanent link">&para;</a></h3>
 <p><strong>Description</strong>: Clear current tissue and start fresh.</p>
 <p><strong>Parameters</strong>: None</p>
 <p><strong>Returns</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="p">{</span>
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Tissue and slice data cleared. Ready for new simulation.&quot;</span>
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="p">{</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Tissue and slice data cleared. Ready for new simulation.&quot;</span>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="p">}</span>
 </code></pre></div></p>
 <h2 id="workflow-examples">Workflow Examples<a class="headerlink" href="#workflow-examples" title="Permanent link">&para;</a></h2>
 <h3 id="complete-analysis-workflow">Complete Analysis Workflow<a class="headerlink" href="#complete-analysis-workflow" title="Permanent link">&para;</a></h3>
@@ -3170,16 +3285,16 @@ simulator without using the random packer:</p>
 - Cleaned up on server restart</p>
 <h2 id="debugging">Debugging<a class="headerlink" href="#debugging" title="Permanent link">&para;</a></h2>
 <h3 id="test-the-server-manually">Test the server manually:<a class="headerlink" href="#test-the-server-manually" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Run server</span>
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>python<span class="w"> </span>run_mcp_server.py
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="c1"># Server will wait for MCP protocol messages on stdin/stdout</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1"># Run server</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>python<span class="w"> </span>run_mcp_server.py
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="c1"># Server will wait for MCP protocol messages on stdin/stdout</span>
 </code></pre></div>
 <h3 id="check-if-mcp-library-is-installed">Check if MCP library is installed:<a class="headerlink" href="#check-if-mcp-library-is-installed" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import mcp; print(&#39;MCP installed&#39;)&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import mcp; print(&#39;MCP installed&#39;)&quot;</span>
 </code></pre></div>
 <h3 id="verify-package-installation">Verify package installation:<a class="headerlink" href="#verify-package-installation" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from tissue_simulator.mcp import TissueSimulatorMCPServer; print(&#39;Server module loaded&#39;)&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from tissue_simulator.mcp import TissueSimulatorMCPServer; print(&#39;Server module loaded&#39;)&quot;</span>
 </code></pre></div>
 <h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
 <ol>
