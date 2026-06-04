@@ -244,6 +244,127 @@ class TestExportSlice(unittest.TestCase):
         for row in rows[1:]:
             self.assertEqual(len(row), 4)
 
+    def test_slice_geometry_2d_is_default_and_unchanged(self):
+        # Backward-compat guarantee: omitting geometry must produce
+        # byte-identical output to passing geometry="2D" explicitly.
+        exporter = PhysiCellExporter()
+        with tempfile.TemporaryDirectory() as tmp:
+            default_path = os.path.join(tmp, "default.csv")
+            explicit_path = os.path.join(tmp, "explicit_2d.csv")
+            exporter.export_slice(self.slice_cells, default_path)
+            exporter.export_slice(
+                self.slice_cells, explicit_path, geometry="2D"
+            )
+            with open(default_path, "rb") as f:
+                default_bytes = f.read()
+            with open(explicit_path, "rb") as f:
+                explicit_bytes = f.read()
+        self.assertEqual(default_bytes, explicit_bytes)
+
+    def test_slice_geometry_3d_writes_center_3d(self):
+        # Build slice cells whose center_3d differs from center_2d, and
+        # whose z components vary (at least one is non-zero) so we can
+        # detect a regression that silently keeps the 2D z=0 behavior.
+        slice_cells = [
+            SliceCell(
+                center_3d=np.array([100.0, 200.0, 30.0]),
+                center_2d=np.array([10.0, 20.0]),
+                radius=5.0,
+                cell_type="cancer",
+                is_boundary=False,
+                distance_from_plane=0.0,
+                intersection_radius=3.0,
+            ),
+            SliceCell(
+                center_3d=np.array([110.0, 210.0, 0.0]),
+                center_2d=np.array([15.0, 25.0]),
+                radius=7.0,
+                cell_type="immune",
+                is_boundary=False,
+                distance_from_plane=0.0,
+                intersection_radius=4.5,
+            ),
+            SliceCell(
+                center_3d=np.array([120.0, 220.0, 42.5]),
+                center_2d=np.array([30.0, 30.0]),
+                radius=6.0,
+                cell_type="cancer",
+                is_boundary=False,
+                distance_from_plane=0.0,
+                intersection_radius=2.5,
+            ),
+        ]
+        exporter = PhysiCellExporter()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "slice_3d.csv")
+            exporter.export_slice(slice_cells, path, geometry="3D")
+            rows = _read_rows(path)
+
+        # Header + one row per cell.
+        self.assertEqual(rows[0], ["x", "y", "z", "type", "volume"])
+        self.assertEqual(len(rows), len(slice_cells) + 1)
+
+        for row, sc in zip(rows[1:], slice_cells):
+            self.assertAlmostEqual(float(row[0]), float(sc.center_3d[0]))
+            self.assertAlmostEqual(float(row[1]), float(sc.center_3d[1]))
+            self.assertAlmostEqual(float(row[2]), float(sc.center_3d[2]))
+            expected_volume = (4.0 / 3.0) * math.pi * sc.radius ** 3
+            self.assertTrue(
+                math.isclose(float(row[4]), expected_volume, rel_tol=1e-9)
+            )
+
+        # Guard against a regression that keeps the 2D z=0 behavior.
+        nonzero_z_rows = [row for row in rows[1:] if float(row[2]) != 0.0]
+        self.assertTrue(
+            len(nonzero_z_rows) >= 1,
+            "3D export must emit at least one non-zero z; got all zeros, "
+            "which suggests the 2D code path is still active.",
+        )
+
+    def test_slice_geometry_invalid_raises(self):
+        exporter = PhysiCellExporter()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "bad.csv")
+            with self.assertRaises(ValueError) as ctx:
+                exporter.export_slice(self.slice_cells, path, geometry="5D")
+        self.assertIn("geometry", str(ctx.exception))
+
+    def test_slice_geometry_3d_ignores_z_param(self):
+        # An explicit z must NOT leak into any row when geometry="3D";
+        # the z column should come from each cell's center_3d[2].
+        slice_cells = [
+            SliceCell(
+                center_3d=np.array([100.0, 200.0, 30.0]),
+                center_2d=np.array([10.0, 20.0]),
+                radius=5.0,
+                cell_type="cancer",
+                is_boundary=False,
+                distance_from_plane=0.0,
+                intersection_radius=3.0,
+            ),
+            SliceCell(
+                center_3d=np.array([110.0, 210.0, 12.5]),
+                center_2d=np.array([15.0, 25.0]),
+                radius=7.0,
+                cell_type="immune",
+                is_boundary=False,
+                distance_from_plane=0.0,
+                intersection_radius=4.5,
+            ),
+        ]
+        exporter = PhysiCellExporter()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "slice_3d_z.csv")
+            exporter.export_slice(
+                slice_cells, path, geometry="3D", z=99.0
+            )
+            rows = _read_rows(path)
+
+        for row in rows[1:]:
+            self.assertNotEqual(float(row[2]), 99.0)
+        for row, sc in zip(rows[1:], slice_cells):
+            self.assertAlmostEqual(float(row[2]), float(sc.center_3d[2]))
+
 
 class TestConvenienceDispatch(unittest.TestCase):
     """Top-level ``export_to_physicell`` dispatches based on input type."""

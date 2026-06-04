@@ -5,6 +5,33 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] - 2026-06-04
+
+### Added
+
+- **`geometry: "2D" | "3D"` parameter on `PhysiCellExporter.export_slice()`**
+  (`tissue_simulator/physicell_export.py`). Default `"2D"` preserves existing
+  behavior byte-for-byte (slice-plane projection, supplied `z`, disk-area
+  volumes). `"3D"` writes each cell's original 3D position from `center_3d`
+  and sphere-volume on the cell's original radius — suited to PhysiCell 3D
+  simulations where the slice was used as a spatial filter. The `z`
+  argument is ignored when `geometry="3D"`.
+- **Two new MCP tools** (`tissue_simulator/mcp/server.py`):
+  - `export_tissue_to_physicell` — exports the current 3D tissue as a
+    PhysiCell IC CSV. Always 3D.
+  - `export_slice_to_physicell` — exports the current slice as a PhysiCell
+    IC CSV, with the new `geometry` parameter. Closes the prior gap where
+    MCP exposed no PhysiCell bridge at all.
+- Four new tests in `tests/test_physicell_export.py` (backward-compat
+  byte-identity for the default, 3D-semantics, validation, z-ignored).
+
+### Changed
+
+- **`docs/api/physicell.md`** documents the new `geometry` parameter, adds a
+  worked example showing both modes, and cross-links to the new MCP tools.
+- **`docs/api/mcp.md`** documents the two new tools under a new
+  "PhysiCell Export" category.
+
 ## [0.1.12] - 2026-05-29
 
 ### Fixed

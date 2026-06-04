@@ -23,6 +23,12 @@ exporter writes ``pi * r ** 2`` for 2D slices so the value can be
 interpreted as either a 2D cross-sectional area or, equivalently, the
 "volume" of a unit-thickness cell. Downstream users should override the
 mapping if a different convention is required.
+
+:meth:`PhysiCellExporter.export_slice` supports both 2D and 3D output
+via its ``geometry`` parameter, so a slice can either be flattened to
+the slice plane (for 2D PhysiCell models) or emitted at the cells'
+original 3D positions (for 3D PhysiCell models where the slice acts as
+a spatial filter).
 """
 
 from __future__ import annotations
@@ -39,6 +45,10 @@ from .tissue import Cell, TissueSection
 _MODERN = "modern"
 _LEGACY = "legacy"
 _VALID_FORMATS = (_MODERN, _LEGACY)
+
+_GEOM_2D = "2D"
+_GEOM_3D = "3D"
+_VALID_GEOMETRIES = (_GEOM_2D, _GEOM_3D)
 
 
 @dataclass
@@ -155,26 +165,39 @@ class PhysiCellExporter:
         self,
         slice_cells: Iterable[SliceCell],
         output_path: str,
+        geometry: str = "2D",
         z: float = 0.0,
         cell_type_mapping: Optional[Dict[str, int]] = None,
         include_volume: bool = True,
         format: str = _MODERN,
     ) -> str:
         """
-        Export a 2D slice as a PhysiCell IC CSV.
+        Export a slice as a PhysiCell IC CSV.
 
         Parameters
         ----------
         slice_cells : iterable of SliceCell
-            Cells extracted by :class:`TissueSlicer`. The 2D plane
-            coordinates and circular ``intersection_radius`` are used
-            (not the original 3D radius), because the slice radius is
-            what is geometrically present in the 2D section.
+            Cells extracted by :class:`TissueSlicer`.
         output_path : str
             Destination CSV path.
+        geometry : str, default "2D"
+            Output geometry mode. One of ``"2D"`` or ``"3D"``.
+
+            * ``"2D"`` (default): the slice-plane projection. Uses each
+              cell's ``center_2d`` (its position in the 2D slice frame),
+              the supplied ``z`` coordinate (default ``0``), and the
+              intersection-circle area (``pi * intersection_radius ** 2``)
+              for the volume column. Suited to PhysiCell 2D simulations.
+            * ``"3D"``: the original 3D geometry. Uses each cell's
+              ``center_3d`` (its true 3D center) and sphere volume
+              (``(4/3) * pi * radius ** 3``) on the cell's original 3D
+              radius. Suited to PhysiCell 3D simulations where the slice
+              is used only as a spatial filter. The ``z`` parameter is
+              ignored in this mode.
         z : float, default 0.0
-            Fixed ``z`` coordinate written for every row. PhysiCell 2D
-            models conventionally fix ``z=0``.
+            Fixed ``z`` coordinate written for every row when
+            ``geometry="2D"``. PhysiCell 2D models conventionally fix
+            ``z=0``. Ignored when ``geometry="3D"``.
         cell_type_mapping : dict of str to int, optional
             Same semantics as :meth:`export_tissue`.
         include_volume : bool, default True
@@ -187,18 +210,36 @@ class PhysiCellExporter:
         -------
         str
             The ``output_path`` that was written.
+
+        Notes
+        -----
+        When ``geometry="3D"`` the supplied ``z`` argument is ignored;
+        the ``z`` column is populated from each cell's ``center_3d[2]``.
         """
+        geom = self._validate_geometry(geometry)
         fmt = self._validate_format(format)
-        rows = [
-            _Row(
-                x=float(sc.center_2d[0]),
-                y=float(sc.center_2d[1]),
-                z=float(z),
-                cell_type=str(sc.cell_type),
-                volume=self._disk_area(sc.intersection_radius),
-            )
-            for sc in slice_cells
-        ]
+        if geom == _GEOM_2D:
+            rows = [
+                _Row(
+                    x=float(sc.center_2d[0]),
+                    y=float(sc.center_2d[1]),
+                    z=float(z),
+                    cell_type=str(sc.cell_type),
+                    volume=self._disk_area(sc.intersection_radius),
+                )
+                for sc in slice_cells
+            ]
+        else:  # _GEOM_3D
+            rows = [
+                _Row(
+                    x=float(sc.center_3d[0]),
+                    y=float(sc.center_3d[1]),
+                    z=float(sc.center_3d[2]),
+                    cell_type=str(sc.cell_type),
+                    volume=self._sphere_volume(sc.radius),
+                )
+                for sc in slice_cells
+            ]
         self._write(rows, output_path, cell_type_mapping, include_volume, fmt)
         return output_path
 
@@ -217,6 +258,15 @@ class PhysiCellExporter:
                 f"format must be one of {_VALID_FORMATS}, got {format!r}"
             )
         return format
+
+    @staticmethod
+    def _validate_geometry(geometry: str) -> str:
+        if geometry not in _VALID_GEOMETRIES:
+            raise ValueError(
+                f"geometry must be one of {_VALID_GEOMETRIES}, got "
+                f"{geometry!r}"
+            )
+        return geometry
 
     @staticmethod
     def _validate_mapping(

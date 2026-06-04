@@ -32,6 +32,10 @@ The MCP server exposes the following tools for tissue simulation:
 - `export_tissue_csv`: Export 3D tissue data
 - `export_slice_csv`: Export 2D slice data
 
+### PhysiCell Export
+- `export_tissue_to_physicell`: Export the current 3D tissue as a PhysiCell IC CSV (modern or legacy schema)
+- `export_slice_to_physicell`: Export the current slice as a PhysiCell IC CSV with `geometry="2D"` (slice-plane projection) or `geometry="3D"` (original 3D positions)
+
 ### Data Loading
 - `load_tissue_from_csv`: Load a tissue from a coordinate CSV and set it as the current tissue
 - `load_target_statistics_from_coordinates`: Compute full target statistics (interactions plus proportions and density) from a coordinate CSV
@@ -367,6 +371,62 @@ Visualization saved to: /tmp/tissue_sim_xyz/tissue_view.png
   "filepath": "/tmp/tissue_sim_xyz/slice_data.csv",
   "num_cells_exported": 89,
   "include_3d_coordinates": true
+}
+```
+
+### export_tissue_to_physicell
+
+**Description**: Export the current 3D tissue as a PhysiCell IC CSV. The current tissue must be created first (via `create_tissue` + `generate_cells` or `load_tissue_from_csv`). Writes the file to the server's temp directory and returns its path. Tissue export is always 3D — for a 2D PhysiCell simulation, slice the tissue first and use `export_slice_to_physicell` with `geometry="2D"`.
+
+**Parameters**:
+- `filename` (string, optional): PhysiCell IC CSV filename (default: `"tissue_physicell.csv"`)
+- `format` (string, optional): PhysiCell CSV schema — `"modern"` (header `x,y,z,type[,volume]`) or `"legacy"` (headerless `x,y,z,cell_type_id,volume`). Default: `"modern"`
+- `include_volume` (boolean, optional): Append the `volume` column. Ignored for `"legacy"` format (volume is always required there). Default: `true`
+- `cell_type_mapping` (object, optional): Mapping from cell-type name (string) to PhysiCell integer ID. Required when `format="legacy"`; optional but validated for completeness when `format="modern"`.
+
+**Returns**:
+```json
+{
+  "status": "success",
+  "filepath": "/tmp/tissue_sim_xyz/tissue_physicell.csv",
+  "num_cells_exported": 234,
+  "format": "modern"
+}
+```
+
+### export_slice_to_physicell
+
+**Description**: Export the current slice (created via `create_slice`) as a PhysiCell IC CSV. The `geometry` parameter selects between two modes: `"2D"` (default) writes the slice-plane projection using each cell's 2D coordinates, a fixed `z` (default 0), and disk-area volumes — suited to PhysiCell 2D simulations; `"3D"` writes each cell's original 3D position from `center_3d` and sphere-volume volumes — suited to PhysiCell 3D simulations where the slice acted as a spatial filter. The `z` argument is ignored when `geometry="3D"`.
+
+**Parameters**:
+- `filename` (string, optional): PhysiCell IC CSV filename (default: `"slice_physicell.csv"`)
+- `geometry` (string, optional): Slice export geometry. `"2D"` (default) writes the slice-plane projection at the supplied `z` with disk-area volumes (`pi * intersection_radius^2`); `"3D"` writes each cell's original 3D position from `center_3d` with sphere-volume volumes (`4/3 * pi * radius^3`). Enum: `["2D", "3D"]`. Default: `"2D"`
+- `z` (number, optional): Fixed z written for every row in 2D mode. Ignored in 3D mode. Default: `0.0`
+- `format` (string, optional): PhysiCell CSV schema — `"modern"` or `"legacy"`. Default: `"modern"`
+- `include_volume` (boolean, optional): Append the `volume` column. Ignored for `"legacy"` format. Default: `true`
+- `cell_type_mapping` (object, optional): Mapping from cell-type name (string) to PhysiCell integer ID. Required when `format="legacy"`.
+
+**Returns** (2D mode):
+```json
+{
+  "status": "success",
+  "filepath": "/tmp/tissue_sim_xyz/slice_physicell.csv",
+  "num_cells_exported": 89,
+  "format": "modern",
+  "geometry": "2D",
+  "used_z": 0.0
+}
+```
+
+**Returns** (3D mode — `used_z` is `null` because the `z` parameter is ignored):
+```json
+{
+  "status": "success",
+  "filepath": "/tmp/tissue_sim_xyz/slice_physicell.csv",
+  "num_cells_exported": 89,
+  "format": "modern",
+  "geometry": "3D",
+  "used_z": null
 }
 ```
 
