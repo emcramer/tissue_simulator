@@ -31,6 +31,7 @@ from ..replicate_generator import (ReplicateGenerator, TargetStatistics,
                                      load_target_statistics_from_csv,
                                      load_target_statistics_from_tissue,
                                      load_target_statistics_from_coordinates)
+from ..physicell_export import PhysiCellExporter
 
 
 class TissueSimulatorMCPServer:
@@ -244,7 +245,45 @@ class TissueSimulatorMCPServer:
                         }
                     }
                 ),
-                
+
+                Tool(
+                    name="export_tissue_to_physicell",
+                    description=(
+                        "Export the current 3D tissue as a PhysiCell IC CSV. The current tissue "
+                        "must be created first (via `create_tissue` + `generate_cells` or "
+                        "`load_tissue_from_csv`). Writes the file to the server's temp directory "
+                        "and returns its path. Tissue export is always 3D — for a 2D PhysiCell "
+                        "simulation, slice the tissue first and use `export_slice_to_physicell` "
+                        "with `geometry=\"2D\"`."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filename": {
+                                "type": "string",
+                                "description": "Name for the PhysiCell IC CSV file (without path)",
+                                "default": "tissue_physicell.csv"
+                            },
+                            "format": {
+                                "type": "string",
+                                "description": "PhysiCell CSV schema: 'modern' (header x,y,z,type [,volume]) or 'legacy' (headerless x,y,z,cell_type_id,volume)",
+                                "enum": ["modern", "legacy"],
+                                "default": "modern"
+                            },
+                            "include_volume": {
+                                "type": "boolean",
+                                "description": "Append the volume column. Ignored for 'legacy' format (volume is always required there).",
+                                "default": True
+                            },
+                            "cell_type_mapping": {
+                                "type": "object",
+                                "description": "Mapping from cell-type name to PhysiCell integer ID. Required when format='legacy'.",
+                                "additionalProperties": {"type": "integer"}
+                            }
+                        }
+                    }
+                ),
+
                 Tool(
                     name="load_tissue_from_csv",
                     description=(
@@ -422,7 +461,58 @@ class TissueSimulatorMCPServer:
                         }
                     }
                 ),
-                
+
+                Tool(
+                    name="export_slice_to_physicell",
+                    description=(
+                        "Export the current slice (created via `create_slice`) as a PhysiCell IC "
+                        "CSV. The `geometry` parameter selects between two modes: `\"2D\"` (default) "
+                        "writes the slice-plane projection using each cell's 2D coordinates, a "
+                        "fixed z (default 0), and disk-area volumes — suited to PhysiCell 2D "
+                        "simulations; `\"3D\"` writes each cell's original 3D position from "
+                        "`center_3d` and sphere-volume volumes — suited to PhysiCell 3D "
+                        "simulations where the slice acted as a spatial filter. The `z` argument "
+                        "is ignored when `geometry=\"3D\"`."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "filename": {
+                                "type": "string",
+                                "description": "Name for the PhysiCell IC CSV file (without path)",
+                                "default": "slice_physicell.csv"
+                            },
+                            "geometry": {
+                                "type": "string",
+                                "description": "'2D' writes slice-plane projection at the supplied z with disk-area volumes; '3D' writes each cell's original 3D position with sphere-volume volumes (z is ignored).",
+                                "enum": ["2D", "3D"],
+                                "default": "2D"
+                            },
+                            "z": {
+                                "type": "number",
+                                "description": "Fixed z written for every row in 2D mode. Ignored in 3D mode.",
+                                "default": 0.0
+                            },
+                            "format": {
+                                "type": "string",
+                                "description": "PhysiCell CSV schema: 'modern' (header x,y,z,type [,volume]) or 'legacy' (headerless x,y,z,cell_type_id,volume)",
+                                "enum": ["modern", "legacy"],
+                                "default": "modern"
+                            },
+                            "include_volume": {
+                                "type": "boolean",
+                                "description": "Append the volume column. Ignored for 'legacy' format (volume is always required there).",
+                                "default": True
+                            },
+                            "cell_type_mapping": {
+                                "type": "object",
+                                "description": "Mapping from cell-type name to PhysiCell integer ID. Required when format='legacy'.",
+                                "additionalProperties": {"type": "integer"}
+                            }
+                        }
+                    }
+                ),
+
                 Tool(
                     name="visualize_tissue",
                     description=(
@@ -675,6 +765,10 @@ class TissueSimulatorMCPServer:
                     return await self._handle_export_tissue_csv(arguments)
                 elif name == "export_slice_csv":
                     return await self._handle_export_slice_csv(arguments)
+                elif name == "export_tissue_to_physicell":
+                    return await self._handle_export_tissue_to_physicell(arguments)
+                elif name == "export_slice_to_physicell":
+                    return await self._handle_export_slice_to_physicell(arguments)
                 elif name == "visualize_tissue":
                     return await self._handle_visualize_tissue(arguments)
                 elif name == "visualize_slice_2d":
@@ -1123,25 +1217,108 @@ class TissueSimulatorMCPServer:
                 type="text",
                 text=json.dumps({"error": "No slice to export. Call create_slice first."})
             )]
-        
+
         filename = args.get("filename", "slice_data.csv")
         include_3d = args.get("include_3d", True)
         filepath = os.path.join(self.temp_dir, filename)
-        
+
         self.current_slicer.export_slice_csv(filepath, include_3d=include_3d)
-        
+
         result = {
             "status": "success",
             "filepath": filepath,
             "num_cells_exported": len(self.current_slicer.slice_cells),
             "include_3d_coordinates": include_3d
         }
-        
+
         return [TextContent(
             type="text",
             text=json.dumps(result, indent=2)
         )]
-    
+
+    async def _handle_export_tissue_to_physicell(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle export_tissue_to_physicell tool call."""
+        if self.current_tissue is None or not self.current_tissue.cells:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "No tissue with cells to export. Run create_tissue + generate_cells first."})
+            )]
+
+        filename = args.get("filename", "tissue_physicell.csv")
+        fmt = args.get("format", "modern")
+        include_volume = args.get("include_volume", True)
+        cell_type_mapping = args.get("cell_type_mapping")
+
+        filepath = os.path.join(self.temp_dir, filename)
+
+        try:
+            exporter = PhysiCellExporter()
+            exporter.export_tissue(
+                self.current_tissue,
+                filepath,
+                cell_type_mapping=cell_type_mapping,
+                include_volume=include_volume,
+                format=fmt,
+            )
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to export tissue to PhysiCell: {e}"})
+            )]
+
+        result = {
+            "status": "success",
+            "filepath": filepath,
+            "num_cells_exported": len(self.current_tissue.cells),
+            "format": fmt,
+        }
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+
+    async def _handle_export_slice_to_physicell(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle export_slice_to_physicell tool call."""
+        if self.current_slicer is None or not self.current_slicer.slice_cells:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "No slice available to export. Run create_slice first."})
+            )]
+
+        filename = args.get("filename", "slice_physicell.csv")
+        geometry = args.get("geometry", "2D")
+        z = float(args.get("z", 0.0))
+        fmt = args.get("format", "modern")
+        include_volume = args.get("include_volume", True)
+        cell_type_mapping = args.get("cell_type_mapping")
+
+        filepath = os.path.join(self.temp_dir, filename)
+
+        try:
+            exporter = PhysiCellExporter()
+            exporter.export_slice(
+                self.current_slicer.slice_cells,
+                filepath,
+                geometry=geometry,
+                z=z,
+                cell_type_mapping=cell_type_mapping,
+                include_volume=include_volume,
+                format=fmt,
+            )
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to export slice to PhysiCell: {e}"})
+            )]
+
+        result = {
+            "status": "success",
+            "filepath": filepath,
+            "num_cells_exported": len(self.current_slicer.slice_cells),
+            "format": fmt,
+            "geometry": geometry,
+            "used_z": z if geometry == "2D" else None,
+        }
+        return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
     async def _handle_visualize_tissue(self, args: Dict[str, Any]) -> List[TextContent]:
         """Handle visualize_tissue tool call."""
         if self.current_tissue is None or not self.current_tissue.cells:

@@ -7,7 +7,9 @@ package must be installed) and call the async ``_handle_*`` methods.
 """
 
 import asyncio
+import csv
 import json
+import math
 import tempfile
 import os
 
@@ -18,6 +20,7 @@ mcp = pytest.importorskip("mcp")
 
 from tissue_simulator import TissueSection
 from tissue_simulator.mcp.server import TissueSimulatorMCPServer
+from tissue_simulator.slicing import TissueSlicer
 
 
 def _call(coro):
@@ -250,3 +253,142 @@ def test_coordinates_vs_interaction_table_distinct():
         assert server.target_stats.target_density is None
     finally:
         os.remove(table_path)
+
+
+# ---------------------------------------------------------------------------
+# PhysiCell export handlers (added in v0.1.13).
+# ---------------------------------------------------------------------------
+
+
+def _build_sliced_server():
+    """
+    Build an MCP server with a small packed tissue + populated slicer.
+
+    Returns the server, the underlying tissue, and the slicer so callers can
+    make per-cell assertions against ``server.current_slicer.slice_cells``.
+    """
+    server = TissueSimulatorMCPServer()
+    tissue = TissueSection(
+        120, 120, 40,
+        {'cancer': (5, 8), 'immune': (6, 9), 'stroma': (5, 7)},
+        seed=7,
+    )
+    tissue.generate_cells(max_attempts=400, seed=7)
+    assert len(tissue.cells) > 5
+    server.current_tissue = tissue
+
+    slicer = TissueSlicer(tissue)
+    slicer.slice_plane(z_position=20.0)
+    assert len(slicer.slice_cells) > 0, "slice must contain at least one cell"
+    server.current_slicer = slicer
+    return server, tissue, slicer
+
+
+def test_export_tissue_to_physicell():
+    """Tissue PhysiCell export writes a header-prefixed modern CSV."""
+    server = TissueSimulatorMCPServer()
+    tissue = TissueSection(
+        120, 120, 40,
+        {'a': (5, 8), 'b': (6, 10)},
+        seed=7,
+    )
+    tissue.generate_cells(max_attempts=400, seed=7)
+    assert len(tissue.cells) >= 1
+    server.current_tissue = tissue
+
+    result = _result_json(
+        _call(server._handle_export_tissue_to_physicell({}))
+    )
+
+    assert result.get("status") == "success", result
+    assert result["num_cells_exported"] == len(server.current_tissue.cells)
+    assert result["format"] == "modern"
+
+    filepath = result["filepath"]
+    assert os.path.exists(filepath)
+
+    with open(filepath, newline="") as f:
+        header_line = f.readline().rstrip("\r\n")
+    assert header_line == "x,y,z,type,volume"
+
+
+def test_export_slice_to_physicell_2d_default():
+    """Default slice export is 2D with z=0 and one row per slice cell."""
+    server, _tissue, slicer = _build_sliced_server()
+
+    result = _result_json(
+        _call(server._handle_export_slice_to_physicell({}))
+    )
+
+    assert result.get("status") == "success", result
+    assert result["geometry"] == "2D"
+    assert result["used_z"] == 0.0
+    assert result["format"] == "modern"
+    assert result["num_cells_exported"] == len(slicer.slice_cells)
+
+    filepath = result["filepath"]
+    assert os.path.exists(filepath)
+
+    with open(filepath, newline="") as f:
+        rows = list(csv.reader(f))
+
+    # First row is header, remaining rows are data; one data row per cell.
+    assert len(rows) - 1 == result["num_cells_exported"]
+    header, *data_rows = rows
+    assert header == ["x", "y", "z", "type", "volume"]
+    z_index = header.index("z")
+    for row in data_rows:
+        z_val = float(row[z_index])
+        assert z_val == 0.0
+
+
+def test_export_slice_to_physicell_3d():
+    """3D slice export uses original 3D positions and sphere volumes."""
+    server, _tissue, slicer = _build_sliced_server()
+
+    result = _result_json(
+        _call(server._handle_export_slice_to_physicell({"geometry": "3D"}))
+    )
+
+    assert result.get("status") == "success", result
+    assert result["geometry"] == "3D"
+    assert result["used_z"] is None
+    assert result["format"] == "modern"
+    assert result["num_cells_exported"] == len(slicer.slice_cells)
+
+    filepath = result["filepath"]
+    assert os.path.exists(filepath)
+
+    with open(filepath, newline="") as f:
+        rows = list(csv.reader(f))
+    header, *data_rows = rows
+    assert header == ["x", "y", "z", "type", "volume"]
+    assert len(data_rows) == len(slicer.slice_cells)
+
+    z_index = header.index("z")
+    volume_index = header.index("volume")
+
+    # Regression guard: 3D mode preserves the source-cell z positions so at
+    # least one row should be non-zero (slice plane is z=20).
+    nonzero_z = [float(r[z_index]) for r in data_rows if float(r[z_index]) != 0.0]
+    assert nonzero_z, "expected at least one non-zero z in 3D-mode export"
+
+    # Volume column must match the sphere volume of the corresponding
+    # slice_cells[i].radius. Row order in the export follows iteration of
+    # current_slicer.slice_cells in PhysiCellExporter.export_slice.
+    for row, sc in zip(data_rows, slicer.slice_cells):
+        expected_volume = (4.0 / 3.0) * math.pi * float(sc.radius) ** 3
+        assert math.isclose(float(row[volume_index]), expected_volume, rel_tol=1e-9)
+
+
+def test_export_slice_to_physicell_no_slicer_errors():
+    """Calling the slice export with no slicer must return an error JSON."""
+    server = TissueSimulatorMCPServer()
+    assert server.current_slicer is None
+
+    result = _result_json(
+        _call(server._handle_export_slice_to_physicell({}))
+    )
+
+    assert "error" in result, result
+    assert "slice" in result["error"].lower()

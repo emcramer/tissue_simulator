@@ -48,12 +48,24 @@ written path.
   raises `ValueError` (tightened in v0.1.1).
 - `format`: `"modern"` or `"legacy"`.
 
-#### `export_slice(slice_cells, output_path, z=0.0, cell_type_mapping=None, include_volume=True, format="modern")`
+#### `export_slice(slice_cells, output_path, geometry="2D", z=0.0, cell_type_mapping=None, include_volume=True, format="modern")`
 
 Same arguments as `export_tissue`, but for an iterable of `SliceCell`
-from `TissueSlicer`. Every row uses the supplied `z` (PhysiCell 2D
-models conventionally use `z=0`) and the `volume` column carries the
-2D disk area of the slice intersection.
+from `TissueSlicer`. The `geometry` parameter selects between two
+modes (added in v0.1.13):
+
+- **`geometry="2D"`** (default) — slice-plane projection. Each row
+  uses the cell's 2D coordinates (`center_2d`), the supplied `z`
+  (PhysiCell 2D models conventionally use `z=0`), and a disk-area
+  volume `pi * intersection_radius^2`. Suited to PhysiCell 2D
+  simulations. This is byte-identical to the pre-v0.1.13 behavior.
+- **`geometry="3D"`** — original 3D positions. Each row uses the
+  cell's original `center_3d` (the position of the source 3D cell
+  whose surface intersected the slice plane) and a sphere volume
+  `4/3 * pi * radius^3` derived from the cell's original 3D radius.
+  Suited to PhysiCell 3D simulations where the slice was used as a
+  spatial filter (which cells to seed) rather than as a true 2D
+  projection. The `z` argument is ignored in this mode.
 
 #### `build_default_mapping(cell_types)`
 
@@ -92,6 +104,23 @@ Modern-format export is covered in the [Worked example](#worked-example)
 below. The PhysiCell simulation domain must contain every cell; this
 exporter does not clip or shift coordinates. Align `tissue_simulator`
 bounds to PhysiCell's domain upstream of export.
+
+### Slice geometry: 2D vs 3D
+
+Both slice export modes operate on the same `slice_cells` list — the
+choice only changes the per-row coordinates and volume column:
+
+```python
+# 2D PhysiCell sim — flatten the slice to z=0.
+exporter.export_slice(slicer.slice_cells, "slice_2d.csv", geometry="2D")
+
+# 3D PhysiCell sim — preserve each cell's original 3D position.
+exporter.export_slice(slicer.slice_cells, "slice_3d.csv", geometry="3D")
+```
+
+The same operations are available via MCP — see
+`export_tissue_to_physicell` and `export_slice_to_physicell` in
+[`mcp.md`](mcp.md).
 
 ## Read
 
