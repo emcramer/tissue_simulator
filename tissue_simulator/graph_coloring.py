@@ -30,6 +30,10 @@ class GraphColorizer:
     1.  Node color counts.
     2.  Pairwise edge counts between all combinations of colors.
     3.  Neighbor color distribution (average number of neighbors of color X for a node of color Y).
+
+    To accelerate repeated runs (e.g. generating tissue replicates),
+    :meth:`colorize` supports warm-starting from a caller-supplied initial
+    coloring (``initial_coloring``).
     """
 
     def __init__(self, source_graph: nx.Graph = None,
@@ -239,8 +243,9 @@ class GraphColorizer:
 
         return cost
         
-    def colorize(self, initial_temp=100.0, final_temp=0.1, cooling_rate=0.995, 
-                 max_iterations=100000, verbose=True):
+    def colorize(self, initial_temp=100.0, final_temp=0.1, cooling_rate=0.995,
+                 max_iterations=100000, verbose=True,
+                 initial_coloring=None):
         """
         Performs the simulated annealing process to find the optimal coloring.
 
@@ -250,34 +255,65 @@ class GraphColorizer:
             cooling_rate: Rate at which temperature decreases (e.g., 0.99 -> slow, 0.9 -> fast)
             max_iterations: Maximum number of iterations
             verbose: If True, prints progress updates
+            initial_coloring: Optional dict mapping nodes to colors to use as the
+                starting (warm-start) coloring instead of the random
+                node-counts-based shuffle. Every value must be one of
+                ``self.colors``. Nodes missing from the dict are filled with the
+                most-frequent target color; keys not in the target graph are
+                ignored. When ``None`` (default) the random-shuffle initial
+                coloring is used, byte-for-byte identical to the original
+                implementation.
 
         Returns:
             dict: Best coloring found for the target graph
         """
-        # Initial coloring: match the node counts from the target statistics
-        initial_coloring = {}
-        color_list = []
-        for color, count in self.target_stats['node_counts'].items():
-            color_list.extend([color] * count)
-        
-        # Ensure we have a color for every node in the target graph
-        if len(color_list) < len(self.nodes):
-            # Fill remaining nodes with the most frequent color
-            most_frequent_color = max(self.target_stats['node_counts'], 
-                                     key=self.target_stats['node_counts'].get)
-            color_list.extend([most_frequent_color] * (len(self.nodes) - len(color_list)))
-        
-        self._rng.shuffle(color_list)
-        current_coloring = {node: color for node, color in zip(self.nodes, color_list[:len(self.nodes)])}
-        
+        if initial_coloring is None:
+            # Initial coloring: match the node counts from the target statistics
+            color_list = []
+            for color, count in self.target_stats['node_counts'].items():
+                color_list.extend([color] * count)
+
+            # Ensure we have a color for every node in the target graph
+            if len(color_list) < len(self.nodes):
+                # Fill remaining nodes with the most frequent color
+                most_frequent_color = max(self.target_stats['node_counts'],
+                                         key=self.target_stats['node_counts'].get)
+                color_list.extend([most_frequent_color] * (len(self.nodes) - len(color_list)))
+
+            self._rng.shuffle(color_list)
+            current_coloring = {node: color for node, color in zip(self.nodes, color_list[:len(self.nodes)])}
+        else:
+            # Warm-start: use the caller-supplied coloring.
+            for node, color in initial_coloring.items():
+                if color not in self.colors:
+                    raise ValueError(
+                        f"initial_coloring assigns invalid color {color!r} to node {node!r}; "
+                        f"valid colors are {self.colors}."
+                    )
+
+            current_coloring = {node: initial_coloring[node]
+                                for node in self.nodes if node in initial_coloring}
+
+            # Fill any nodes missing from initial_coloring with the most frequent color.
+            missing_nodes = [node for node in self.nodes if node not in current_coloring]
+            if missing_nodes:
+                most_frequent_color = max(self.target_stats['node_counts'],
+                                         key=self.target_stats['node_counts'].get)
+                for node in missing_nodes:
+                    current_coloring[node] = most_frequent_color
+                if verbose:
+                    print(f"Warm-start: filled {len(missing_nodes)} node(s) "
+                          f"with most-frequent color '{most_frequent_color}'.")
+
         best_coloring = current_coloring.copy()
-        
+
         current_stats, self.neighbor_counts = self._calculate_statistics(self.target_graph, current_coloring)
         current_cost = self._calculate_cost(current_stats)
         best_cost = current_cost
-        
+
         temperature = initial_temp
-        
+
+        i = -1
         for i in range(max_iterations):
             if temperature < final_temp:
                 if verbose:

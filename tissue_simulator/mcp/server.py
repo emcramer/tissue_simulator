@@ -433,6 +433,17 @@ class TissueSimulatorMCPServer:
                                 "type": "boolean",
                                 "description": "Print per-iteration progress",
                                 "default": False
+                            },
+                            "warm_start": {
+                                "type": "boolean",
+                                "description": (
+                                    "When true, reuse the server's previously stored "
+                                    "cell-type assignment as the initial coloring for this "
+                                    "run, IF a prior assignment exists AND its node-id set "
+                                    "exactly equals the new graph's node set; otherwise it "
+                                    "is ignored."
+                                ),
+                                "default": False
                             }
                         },
                         "required": ["target_statistics_csv", "colors"]
@@ -1154,6 +1165,7 @@ class TissueSimulatorMCPServer:
         cooling_rate = args.get("cooling_rate", 0.995)
         max_iterations = args.get("max_iterations", 5000)
         verbose = args.get("verbose", False)
+        warm_start = args.get("warm_start", False)
 
         try:
             # 1. Slice the current tissue at z_pos.
@@ -1174,12 +1186,24 @@ class TissueSimulatorMCPServer:
                 target_statistics=target_stats,
                 seed=seed
             )
+
+            # Determine whether a warm-start initial coloring applies: the
+            # prior assignment must exist and cover exactly the new graph's nodes.
+            initial_coloring = None
+            warm_start_applied = False
+            if warm_start:
+                prior = getattr(self, "cell_type_assignment", None)
+                if isinstance(prior, dict) and set(prior.keys()) == set(graph.nodes()):
+                    initial_coloring = prior
+                    warm_start_applied = True
+
             assignment = colorizer.colorize(
                 initial_temp=initial_temp,
                 final_temp=final_temp,
                 cooling_rate=cooling_rate,
                 max_iterations=max_iterations,
-                verbose=verbose
+                verbose=verbose,
+                initial_coloring=initial_coloring
             )
 
             # Store on server for downstream tools.
@@ -1196,7 +1220,8 @@ class TissueSimulatorMCPServer:
                 "color_counts": color_counts,
                 "seed": seed,
                 "used_z_position": z_pos,
-                "used_network_radius": net_radius
+                "used_network_radius": net_radius,
+                "warm_start_applied": warm_start_applied
             }
 
             return [TextContent(

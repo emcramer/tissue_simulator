@@ -491,6 +491,7 @@ Visualization saved to: /tmp/tissue_sim_xyz/tissue_view.png
 - `cooling_rate` (number, optional): Temperature decrease rate per step (default: 0.995)
 - `max_iterations` (integer, optional): Maximum number of simulated-annealing iterations (default: 5000)
 - `verbose` (boolean, optional): Print per-iteration progress (default: false)
+- `warm_start` (boolean, optional): When true, reuse the server's previously stored cell-type assignment as the initial coloring for this run, IF a prior assignment exists AND its node-id set exactly equals the new graph's node set; otherwise it is ignored (default: false). Warm-starting greatly speeds re-convergence when generating replicates against the same target.
 
 **Example**:
 ```json
@@ -512,7 +513,8 @@ Visualization saved to: /tmp/tissue_sim_xyz/tissue_view.png
   "color_counts": {"cancer": 40, "immune": 30, "stroma": 19},
   "seed": 42,
   "used_z_position": 40.0,
-  "used_network_radius": 50.0
+  "used_network_radius": 50.0,
+  "warm_start_applied": false
 }
 ```
 

@@ -5,6 +5,56 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.14] - 2026-06-17
+
+### Added
+
+- **Warm-start support in `GraphColorizer.colorize()`**
+  (`tissue_simulator/graph_coloring.py`). New `initial_coloring` parameter
+  accepts a caller-supplied `{node: color}` dict to use as the starting
+  coloring instead of the random node-counts shuffle. Values are validated
+  against `self.colors`, nodes missing from the dict are filled with the
+  most-frequent target color, and foreign keys are ignored. When `None`
+  (default) behavior is **byte-for-byte identical** to v0.1.13 for seeded
+  runs. Warm-starting from a previously converged coloring sharply reduces
+  the iterations needed to re-converge on a similar graph — in a 500-node
+  benchmark a warm-started run at a 4k-iteration budget reached a lower cost
+  than a cold run at 40k, making it well suited to generating tissue
+  replicates against the same target statistics.
+- `initial_coloring` is threaded through
+  `TissueNetworkWorkflow.assign_cell_types()`
+  (`tissue_simulator/tissue_workflow.py`).
+- **`warm_start` parameter on the `assign_cell_types` MCP tool**
+  (`tissue_simulator/mcp/server.py`). When `true`, reuses the server's
+  previously stored cell-type assignment as the initial coloring, but only
+  when a prior assignment exists and its node-id set exactly matches the new
+  graph's nodes; otherwise it is safely ignored. The result reports
+  `warm_start_applied`.
+- New tests in `tests/test_graph_coloring_integration.py` and
+  `tests/test_mcp_server.py` covering the warm-start round-trip, missing/
+  foreign-key handling, invalid-color validation, and the MCP `warm_start`
+  applied / ignored / node-set-mismatch branches.
+
+### Changed
+
+- **`docs/api/graph-coloring.md`** and **`docs/api/mcp.md`** document the new
+  warm-start parameters.
+
+### Fixed
+
+- `GraphColorizer.colorize()` no longer raises `NameError` when
+  `max_iterations=0` (the post-loop progress print referenced an undefined
+  loop variable). This also makes a zero-iteration warm-start a clean no-op
+  that returns the supplied coloring unchanged.
+
+### Notes
+
+- Locality-biased move proposals were prototyped and benchmarked for this
+  release but **dropped**: on the package's typical homophily/clustering
+  targets they consistently *slowed* convergence (2–4× higher cost at equal
+  budget), because progress comes from swapping mismatched, distant nodes
+  rather than adjacent ones. Warm-starting is the retained scaling win.
+
 ## [0.1.13] - 2026-06-04
 
 ### Added

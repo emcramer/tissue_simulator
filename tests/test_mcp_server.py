@@ -392,3 +392,210 @@ def test_export_slice_to_physicell_no_slicer_errors():
 
     assert "error" in result, result
     assert "slice" in result["error"].lower()
+
+
+# ---------------------------------------------------------------------------
+# assign_cell_types: warm_start MCP exposure.
+# ---------------------------------------------------------------------------
+
+
+def _make_three_type_tissue(seed=7):
+    """Build a small three-cell-type tissue large enough to color (>5 cells)."""
+    tissue = TissueSection(
+        120, 120, 40,
+        {'cancer': (5, 8), 'immune': (6, 9), 'stroma': (5, 7)},
+        seed=seed,
+    )
+    tissue.generate_cells(max_attempts=400, seed=seed)
+    assert len(tissue.cells) > 5
+    return tissue
+
+
+def _write_three_color_stats_csv(path):
+    """Write a graph-coloring-format target-statistics CSV (3 colors)."""
+    colors = ['cancer', 'immune', 'stroma']
+    header_cols = [f"nodes_{c}" for c in colors]
+    for i in range(len(colors)):
+        for j in range(i, len(colors)):
+            header_cols.append(f"edges_{colors[i]}-{colors[j]}")
+    row_values = ["5", "4", "3", "3", "2", "1", "1", "1", "1"]
+    with open(path, "w") as f:
+        f.write(",".join(header_cols) + "\n")
+        f.write(",".join(row_values) + "\n")
+    return colors
+
+
+def test_assign_cell_types_tool_schema_has_warm_start():
+    """The assign_cell_types tool schema must expose warm_start."""
+    server = TissueSimulatorMCPServer()
+
+    list_tools_handler = None
+    handlers = getattr(server.server, "request_handlers", None)
+    if not handlers:
+        pytest.skip("Could not access MCP request handlers to inspect schema.")
+    for req_type, handler in handlers.items():
+        name = getattr(req_type, "__name__", str(req_type))
+        if "ListTools" in name:
+            list_tools_handler = handler
+            break
+    if list_tools_handler is None:
+        pytest.skip("No ListTools handler registered.")
+
+    try:
+        result = _call(list_tools_handler(object()))
+        tools = getattr(result.root, "tools", None) or result.tools
+    except TypeError:
+        result = _call(list_tools_handler())
+        tools = getattr(result.root, "tools", None) or result.tools
+
+    assign_tool = next(t for t in tools if t.name == "assign_cell_types")
+    props = assign_tool.inputSchema["properties"]
+    assert "warm_start" in props
+    assert props["warm_start"]["type"] == "boolean"
+    assert props["warm_start"].get("default") is False
+
+
+def test_assign_cell_types_warm_start_applied_on_second_run():
+    """A second call with warm_start=True on the same tissue applies warm-start.
+
+    The first call stores an assignment over the slice's node set. The second
+    call slices the same tissue at the same z (identical node ids), so the
+    stored assignment's key set matches the new graph and warm-start applies.
+    """
+    server = TissueSimulatorMCPServer()
+    server.current_tissue = _make_three_type_tissue()
+
+    fd, csv_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        colors = _write_three_color_stats_csv(csv_path)
+
+        common_args = {
+            "target_statistics_csv": csv_path,
+            "colors": colors,
+            "z_position": 20.0,
+            "network_radius": 25.0,
+            "seed": 42,
+            "initial_temp": 10.0,
+            "final_temp": 0.5,
+            "cooling_rate": 0.95,
+            "max_iterations": 200,
+            "verbose": False,
+        }
+
+        first = _result_json(
+            _call(server._handle_assign_cell_types(dict(common_args)))
+        )
+        assert first.get("status") == "success", first
+        assert first["warm_start_applied"] is False
+        first_assignment = dict(server.cell_type_assignment)
+
+        # Second run with warm_start=True; same z -> same node-id set.
+        second_args = dict(common_args)
+        second_args["warm_start"] = True
+        second = _result_json(
+            _call(server._handle_assign_cell_types(second_args))
+        )
+
+        assert second.get("status") == "success", second
+        assert second["warm_start_applied"] is True, (
+            "warm_start should apply when the prior assignment covers exactly "
+            "the new graph's node set."
+        )
+        # Node set is unchanged between runs.
+        assert set(server.cell_type_assignment.keys()) == set(first_assignment.keys())
+    finally:
+        os.remove(csv_path)
+
+
+def test_assign_cell_types_warm_start_ignored_on_node_set_mismatch():
+    """warm_start=True is ignored when the prior node set != the new graph's.
+
+    The first call stores an assignment over the slice's node set at one
+    z_position. The second call slices at a different z, producing a graph whose
+    node-id set differs from the stored assignment's keys, so warm-start must be
+    ignored ("otherwise it is ignored"). This pins the
+    ``set(prior.keys()) == set(graph.nodes())`` guard branch.
+    """
+    server = TissueSimulatorMCPServer()
+    server.current_tissue = _make_three_type_tissue()
+
+    fd, csv_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        colors = _write_three_color_stats_csv(csv_path)
+
+        common_args = {
+            "target_statistics_csv": csv_path,
+            "colors": colors,
+            "network_radius": 25.0,
+            "seed": 42,
+            "initial_temp": 10.0,
+            "final_temp": 0.5,
+            "cooling_rate": 0.95,
+            "max_iterations": 200,
+            "verbose": False,
+        }
+
+        # First run at one z populates server.cell_type_assignment.
+        first_args = dict(common_args)
+        first_args["z_position"] = 10.0
+        first = _result_json(
+            _call(server._handle_assign_cell_types(first_args))
+        )
+        assert first.get("status") == "success", first
+        first_nodes = set(server.cell_type_assignment.keys())
+
+        # Second run at a different z slices a different set of cells, so the
+        # node-id set differs from the stored assignment's keys.
+        second_args = dict(common_args)
+        second_args["z_position"] = 30.0
+        second_args["warm_start"] = True
+        second = _result_json(
+            _call(server._handle_assign_cell_types(second_args))
+        )
+        assert second.get("status") == "success", second
+
+        second_nodes = set(server.cell_type_assignment.keys())
+        if second_nodes == first_nodes:
+            pytest.skip("Both z slices captured identical node-id sets; "
+                        "cannot exercise the mismatch branch with this tissue.")
+
+        assert second["warm_start_applied"] is False, (
+            "warm_start must be ignored when the prior assignment's node set "
+            "does not exactly equal the new graph's node set."
+        )
+    finally:
+        os.remove(csv_path)
+
+
+def test_assign_cell_types_warm_start_ignored_without_prior():
+    """warm_start=True on a first run (no prior assignment) is ignored."""
+    server = TissueSimulatorMCPServer()
+    server.current_tissue = _make_three_type_tissue()
+    # No assignment has been made yet (attribute may be unset or None).
+    assert getattr(server, "cell_type_assignment", None) is None
+
+    fd, csv_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        colors = _write_three_color_stats_csv(csv_path)
+
+        result = _result_json(
+            _call(server._handle_assign_cell_types({
+                "target_statistics_csv": csv_path,
+                "colors": colors,
+                "z_position": 20.0,
+                "network_radius": 25.0,
+                "seed": 42,
+                "max_iterations": 200,
+                "verbose": False,
+                "warm_start": True,
+            }))
+        )
+
+        assert result.get("status") == "success", result
+        # No prior assignment existed, so warm-start cannot apply.
+        assert result["warm_start_applied"] is False
+    finally:
+        os.remove(csv_path)

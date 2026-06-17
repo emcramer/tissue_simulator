@@ -263,6 +263,16 @@ The cell type assignment uses simulated annealing optimization. Key parameters:
   - More = better results but slower
   - Typical range: 5000-50000
 
+- **initial_coloring**: Optional dict mapping nodes to colors to use as the
+  warm-start coloring instead of a random shuffle (default: None)
+  - Every value must be one of the colorizer's `colors`
+  - Nodes missing from the dict are filled with the most-frequent target
+    color; keys not in the graph are ignored
+  - When None, a random initial coloring is built and shuffled as before
+  - **Warm-starting** from a previously converged coloring dramatically
+    reduces the iterations needed to re-converge on a similar graph — useful
+    when generating many tissue replicates against the same target statistics
+
 ## Reproducibility (seed)
 
 `GraphColorizer.__init__` accepts an optional `seed: Optional[int] = None`.
@@ -279,7 +289,8 @@ The seed is also threaded through the workflow entry points:
 `TissueNetworkWorkflow.assign_cell_types(..., seed=N)`,
 `TissueNetworkWorkflow.run_complete_workflow(..., seed=N)`, and the
 top-level `quick_workflow(..., seed=N)` all forward it to the underlying
-`GraphColorizer`.
+`GraphColorizer`. `TissueNetworkWorkflow.assign_cell_types` also forwards
+`initial_coloring=` to `GraphColorizer.colorize` for warm-starting.
 
 ```python
 from tissue_simulator import GraphColorizer

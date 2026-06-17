@@ -153,7 +153,8 @@ class TissueNetworkWorkflow:
                          cooling_rate: float = 0.995,
                          max_iterations: int = 100000,
                          verbose: bool = True,
-                         seed: Optional[int] = None) -> Dict:
+                         seed: Optional[int] = None,
+                         initial_coloring: Optional[Dict] = None) -> Dict:
         """
         Assign cell types to network nodes using simulated annealing.
 
@@ -166,6 +167,9 @@ class TissueNetworkWorkflow:
             seed: Optional integer seed forwarded to GraphColorizer for
                 bit-reproducible simulated annealing. When None (default),
                 behavior is unchanged.
+            initial_coloring: Optional dict mapping node IDs to cell types to
+                use as the warm-start coloring instead of a random assignment.
+                When None (default), a random initial coloring is used.
 
         Returns:
             Dictionary mapping node IDs to cell types
@@ -189,7 +193,8 @@ class TissueNetworkWorkflow:
             final_temp=final_temp,
             cooling_rate=cooling_rate,
             max_iterations=max_iterations,
-            verbose=verbose
+            verbose=verbose,
+            initial_coloring=initial_coloring
         )
         
         print("Cell type assignment complete!")
