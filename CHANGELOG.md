@@ -17,10 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   most-frequent target color, and foreign keys are ignored. When `None`
   (default) behavior is **byte-for-byte identical** to v0.1.13 for seeded
   runs. Warm-starting from a previously converged coloring sharply reduces
-  the iterations needed to re-converge on a similar graph — in a 500-node
+  the iterations needed to re-converge on the **same** graph — in a 500-node
   benchmark a warm-started run at a 4k-iteration budget reached a lower cost
-  than a cold run at 40k, making it well suited to generating tissue
-  replicates against the same target statistics.
+  than a cold run at 40k. This is a tool for *refining or resuming* a single
+  coloring; see the note below on why it is not used for independent replicate
+  generation.
 - `initial_coloring` is threaded through
   `TissueNetworkWorkflow.assign_cell_types()`
   (`tissue_simulator/tissue_workflow.py`).
@@ -30,15 +31,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when a prior assignment exists and its node-id set exactly matches the new
   graph's nodes; otherwise it is safely ignored. The result reports
   `warm_start_applied`.
+- **`TissueNetworkWorkflow.generate_colored_replicates(num_replicates, ...)`**
+  (`tissue_simulator/tissue_workflow.py`) — generate multiple independent
+  cell-type colorings of one tissue slice that all match the same target
+  statistics. Each replicate **cold-starts** from its own deterministic
+  per-replicate seed (derived via `numpy.random.SeedSequence`, matching
+  `ReplicateGenerator`), so the set is reproducible yet diverse. `warm_start`
+  is an opt-in (default `False`) for refinement.
+- **`generate_colored_replicates` MCP tool**
+  (`tissue_simulator/mcp/server.py`) exposing the above, returning
+  per-replicate color counts and a `mean_pairwise_diversity` score.
 - New tests in `tests/test_graph_coloring_integration.py` and
   `tests/test_mcp_server.py` covering the warm-start round-trip, missing/
-  foreign-key handling, invalid-color validation, and the MCP `warm_start`
-  applied / ignored / node-set-mismatch branches.
+  foreign-key handling, invalid-color validation, the MCP `warm_start`
+  applied / ignored / node-set-mismatch branches, and the colored-replicate
+  shape, reproducibility, cold-diversity and warm-collapse behavior.
 
 ### Changed
 
-- **`docs/api/graph-coloring.md`** and **`docs/api/mcp.md`** document the new
-  warm-start parameters.
+- **`docs/api/graph-coloring.md`**, **`docs/api/mcp.md`**, and
+  **`docs/api/replicate-generation.md`** document the new warm-start parameters
+  and the colored-replicate workflow (including the geometric-vs-colored
+  replicate distinction).
 
 ### Fixed
 
@@ -53,7 +67,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release but **dropped**: on the package's typical homophily/clustering
   targets they consistently *slowed* convergence (2–4× higher cost at equal
   budget), because progress comes from swapping mismatched, distant nodes
-  rather than adjacent ones. Warm-starting is the retained scaling win.
+  rather than adjacent ones.
+- Warm-start was likewise evaluated as a *default* for replicate generation
+  and **deliberately left opt-in**: chaining each replicate from the previous
+  one collapses diversity to ~0% (every replicate becomes a near-identical
+  copy of the first). Cold-start replicates, by contrast, converge at a small
+  iteration budget on realistic (loose) targets *and* stay ~65% diverse — so
+  `generate_colored_replicates` cold-starts by default. Warm-start remains the
+  right tool for refining/resuming a single coloring.
 
 ## [0.1.13] - 2026-06-04
 

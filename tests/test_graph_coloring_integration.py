@@ -560,3 +560,113 @@ def test_workflow_assign_cell_types_forwards_warm_start(base_tissue):
     )
     assert second == first
     assert set(second.keys()) == set(first.keys())
+
+
+# ---------------------------------------------------------------------------
+# generate_colored_replicates: cold-default diverse replicates, warm opt-in.
+# ---------------------------------------------------------------------------
+
+
+def _build_loaded_workflow(base_tissue):
+    """Build a workflow with a slice, network, and two-color target loaded."""
+    wf = TissueNetworkWorkflow()
+    wf.set_tissue(base_tissue)
+    num_slice_cells = wf.create_slice(z_position=base_tissue.thickness / 2)
+    wf.build_network(mode="radius", radius=50.0)
+
+    target_stats = {
+        'node_counts': {
+            'cancer': num_slice_cells // 2,
+            'immune': num_slice_cells - (num_slice_cells // 2),
+        },
+        'edge_counts': {
+            'cancer-cancer': 10,
+            'cancer-immune': 10,
+            'immune-immune': 10,
+        },
+        'neighbor_dist': {
+            'cancer': {'cancer': 1.0, 'immune': 1.0},
+            'immune': {'cancer': 1.0, 'immune': 1.0},
+        },
+    }
+    wf.load_target_statistics(statistics=target_stats, cell_types=['cancer', 'immune'])
+    return wf, num_slice_cells
+
+
+def test_generate_colored_replicates_shape_and_validity(base_tissue):
+    """Returns N colorings, each covering every node with valid colors."""
+    wf, num_slice_cells = _build_loaded_workflow(base_tissue)
+
+    replicates = wf.generate_colored_replicates(
+        num_replicates=3, seed=5, max_iterations=100, verbose=False,
+    )
+
+    assert len(replicates) == 3
+    for coloring in replicates:
+        assert len(coloring) == num_slice_cells
+        assert set(coloring.values()).issubset({'cancer', 'immune'})
+    # The first replicate is exposed as the active assignment.
+    assert wf.cell_type_assignment == replicates[0]
+
+
+def test_generate_colored_replicates_seed_reproducible(base_tissue):
+    """The same base seed yields a bit-identical set of replicates."""
+    wf1, _ = _build_loaded_workflow(base_tissue)
+    wf2, _ = _build_loaded_workflow(base_tissue)
+
+    reps1 = wf1.generate_colored_replicates(num_replicates=3, seed=2024,
+                                            max_iterations=150, verbose=False)
+    reps2 = wf2.generate_colored_replicates(num_replicates=3, seed=2024,
+                                            max_iterations=150, verbose=False)
+
+    assert reps1 == reps2
+
+
+def test_generate_colored_replicates_cold_default_is_diverse(base_tissue):
+    """Cold-start replicates (the default) are not all identical.
+
+    Uses max_iterations=0 so each replicate is just its own seeded
+    node-counts shuffle; independent derived seeds must yield >1 distinct
+    coloring.
+    """
+    wf, num_slice_cells = _build_loaded_workflow(base_tissue)
+    if num_slice_cells < 4:
+        pytest.skip("Slice too small to meaningfully diverge.")
+
+    replicates = wf.generate_colored_replicates(
+        num_replicates=4, seed=7, max_iterations=0, verbose=False,
+    )
+    distinct = {tuple(sorted(c.items())) for c in replicates}
+    assert len(distinct) > 1, (
+        "Cold-start replicates collapsed to a single coloring; they should be "
+        "independent."
+    )
+
+
+def test_generate_colored_replicates_warm_start_chains_and_collapses(base_tissue):
+    """warm_start=True chains each replicate from the previous one.
+
+    With max_iterations=0 every warm-started replicate after the first must
+    equal the first exactly (no annealing happens), demonstrating the
+    diversity collapse that makes warm-start a refinement tool rather than a
+    replicate generator.
+    """
+    wf, _ = _build_loaded_workflow(base_tissue)
+
+    replicates = wf.generate_colored_replicates(
+        num_replicates=3, seed=7, warm_start=True, max_iterations=0, verbose=False,
+    )
+    assert replicates[1] == replicates[0]
+    assert replicates[2] == replicates[0]
+
+
+def test_generate_colored_replicates_validation(base_tissue):
+    """num_replicates < 1 and unbuilt prerequisites raise ValueError."""
+    wf, _ = _build_loaded_workflow(base_tissue)
+    with pytest.raises(ValueError):
+        wf.generate_colored_replicates(num_replicates=0)
+
+    # Missing network / target statistics also raise.
+    empty = TissueNetworkWorkflow()
+    with pytest.raises(ValueError):
+        empty.generate_colored_replicates(num_replicates=2)

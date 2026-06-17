@@ -599,3 +599,105 @@ def test_assign_cell_types_warm_start_ignored_without_prior():
         assert result["warm_start_applied"] is False
     finally:
         os.remove(csv_path)
+
+
+# ---------------------------------------------------------------------------
+# generate_colored_replicates MCP tool.
+# ---------------------------------------------------------------------------
+
+
+def test_generate_colored_replicates_tool_schema():
+    """The generate_colored_replicates tool schema exposes the key params."""
+    server = TissueSimulatorMCPServer()
+    handlers = getattr(server.server, "request_handlers", None)
+    if not handlers:
+        pytest.skip("Could not access MCP request handlers to inspect schema.")
+    list_tools_handler = None
+    for req_type, handler in handlers.items():
+        if "ListTools" in getattr(req_type, "__name__", str(req_type)):
+            list_tools_handler = handler
+            break
+    if list_tools_handler is None:
+        pytest.skip("No ListTools handler registered.")
+    try:
+        result = _call(list_tools_handler(object()))
+        tools = getattr(result.root, "tools", None) or result.tools
+    except TypeError:
+        result = _call(list_tools_handler())
+        tools = getattr(result.root, "tools", None) or result.tools
+
+    tool = next(t for t in tools if t.name == "generate_colored_replicates")
+    props = tool.inputSchema["properties"]
+    assert "num_replicates" in props
+    assert "warm_start" in props
+    assert set(tool.inputSchema["required"]) == {
+        "target_statistics_csv", "colors", "num_replicates"
+    }
+
+
+def test_generate_colored_replicates_cold_diverse_warm_collapses():
+    """Cold (default) replicates are diverse; warm_start collapses diversity.
+
+    With max_iterations=0 each cold replicate is its own seeded shuffle, so the
+    mean pairwise diversity is > 0; warm_start chains every replicate from the
+    first, driving diversity to exactly 0.
+    """
+    server = TissueSimulatorMCPServer()
+    server.current_tissue = _make_three_type_tissue()
+
+    fd, csv_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        colors = _write_three_color_stats_csv(csv_path)
+        base_args = {
+            "target_statistics_csv": csv_path,
+            "colors": colors,
+            "num_replicates": 4,
+            "z_position": 20.0,
+            "network_radius": 25.0,
+            "seed": 42,
+            "max_iterations": 0,
+            "verbose": False,
+        }
+
+        cold = _result_json(_call(server._handle_generate_colored_replicates(dict(base_args))))
+        assert cold.get("status") == "success", cold
+        assert cold["num_replicates"] == 4
+        assert len(cold["replicate_color_counts"]) == 4
+        assert cold["mean_pairwise_diversity"] > 0.0
+
+        warm_args = dict(base_args)
+        warm_args["warm_start"] = True
+        warm = _result_json(_call(server._handle_generate_colored_replicates(warm_args)))
+        assert warm.get("status") == "success", warm
+        assert warm["mean_pairwise_diversity"] == 0.0
+    finally:
+        os.remove(csv_path)
+
+
+def test_generate_colored_replicates_seed_reproducible():
+    """Same seed -> identical mean pairwise diversity and per-replicate counts."""
+    fd, csv_path = tempfile.mkstemp(suffix=".csv")
+    os.close(fd)
+    try:
+        colors = _write_three_color_stats_csv(csv_path)
+
+        def _run():
+            server = TissueSimulatorMCPServer()
+            server.current_tissue = _make_three_type_tissue()
+            return _result_json(_call(server._handle_generate_colored_replicates({
+                "target_statistics_csv": csv_path,
+                "colors": colors,
+                "num_replicates": 3,
+                "z_position": 20.0,
+                "network_radius": 25.0,
+                "seed": 99,
+                "max_iterations": 150,
+                "verbose": False,
+            })))
+
+        a, b = _run(), _run()
+        assert a["replicate_color_counts"] == b["replicate_color_counts"]
+        assert a["mean_pairwise_diversity"] == b["mean_pairwise_diversity"]
+    finally:
+        os.remove(csv_path)

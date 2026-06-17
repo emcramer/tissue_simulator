@@ -17,6 +17,12 @@ The replicate generation module allows you to generate multiple tissue samples t
 > `generate_cells` for positions, then `assign_cell_types` for labels via
 > `GraphColorizer`. See the "When to use what" section of
 > [`graph-coloring.md`](graph-coloring.md#when-to-use-what).
+>
+> **Geometric vs. colored replicates.** `ReplicateGenerator` produces
+> *geometric* replicates — each sample has a different cell packing. To instead
+> hold one geometry fixed and draw several diverse *type labelings* of it, use
+> `TissueNetworkWorkflow.generate_colored_replicates(n)`, documented under
+> [Generating colored replicates](graph-coloring.md#generating-colored-replicates).
 
 ## Key Features
 
