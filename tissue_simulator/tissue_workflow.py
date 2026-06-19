@@ -25,7 +25,8 @@ from .tissue import TissueSection
 from .slicing import TissueSlicer
 from .spatial_analysis import SpatialNetworkAnalyzer
 from .graph_coloring import (
-    GraphColorizer, 
+    GraphColorizer,
+    color_graph_to_targets,
     calculate_graph_statistics,
     compare_graph_statistics,
     load_target_statistics_from_csv,
@@ -274,21 +275,18 @@ class TissueNetworkWorkflow:
                 mode = "warm-start" if (warm_start and previous_coloring is not None) else "cold-start"
                 print(f"\nColoring replicate {k + 1}/{num_replicates} ({mode})...")
 
-            colorizer = GraphColorizer(
-                target_graph=self.graph,
-                colors=self.color_names,
-                target_statistics=self.target_statistics,
-                seed=replicate_seed,
-            )
-
             initial_coloring = previous_coloring if (warm_start and previous_coloring is not None) else None
-            coloring = colorizer.colorize(
+            coloring = color_graph_to_targets(
+                self.graph,
+                self.color_names,
+                self.target_statistics,
+                seed=replicate_seed,
+                initial_coloring=initial_coloring,
                 initial_temp=initial_temp,
                 final_temp=final_temp,
                 cooling_rate=cooling_rate,
                 max_iterations=max_iterations,
                 verbose=verbose,
-                initial_coloring=initial_coloring,
             )
 
             replicates.append(coloring)

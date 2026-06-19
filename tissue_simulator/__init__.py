@@ -27,6 +27,7 @@ from .replicate_generator import (
 )
 from .graph_coloring import (
     GraphColorizer,
+    color_graph_to_targets,
     calculate_graph_statistics,
     compare_graph_statistics,
     load_target_statistics_from_csv as load_graph_stats_csv,
@@ -70,7 +71,7 @@ from .power_analysis import (
     summarize_power_analysis,
 )
 
-__version__ = "0.1.14"
+__version__ = "0.1.15"
 __all__ = [
     # Core tissue simulation
     "TissueSection", "Cell", "SpherePacker", "load_tissue_from_csv",
@@ -84,7 +85,8 @@ __all__ = [
     "load_replicate_stats_csv", "load_target_statistics_from_tissue",
     "load_target_statistics_from_coordinates",
     # Graph coloring and cell type assignment
-    "GraphColorizer", "calculate_graph_statistics", "compare_graph_statistics",
+    "GraphColorizer", "color_graph_to_targets",
+    "calculate_graph_statistics", "compare_graph_statistics",
     "load_graph_stats_csv", "export_colored_graph_statistics",
     "visualize_colored_graph", "visualize_graph_comparison",
     # Evaluation

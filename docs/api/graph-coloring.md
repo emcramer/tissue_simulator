@@ -324,6 +324,27 @@ assert a1 == a2  # identical dicts
 - For better results: `initial_temp=1000, max_iterations=20000, cooling_rate=0.998`
 - For high accuracy: `initial_temp=2000, max_iterations=50000, cooling_rate=0.999`
 
+### Adaptive stopping and cost history
+
+`colorize` accepts two optional knobs for long runs:
+
+- `patience=N` stops early once `best_cost` has not improved for `N`
+  consecutive iterations (a plateau), so you can raise `max_iterations` without
+  always paying for it.
+- `return_history=True` returns `(coloring, cost_history)` where
+  `cost_history` is the per-iteration `best_cost` series — feed it to
+  `tissue_simulator.convergence.find_convergence_time` to quantify when the run
+  converged. Defaults (`patience=None`, `return_history=False`) leave behavior
+  and the return type unchanged.
+
+### `color_graph_to_targets` helper
+
+`color_graph_to_targets(target_graph, colors, target_statistics, seed=None, initial_coloring=None, return_cost=False, **colorize_kwargs)`
+is a thin wrapper that builds a `GraphColorizer` and runs `colorize`, returning
+the coloring (or `(coloring, cost)` when `return_cost=True`). It is the shared
+code path used by both `TissueNetworkWorkflow.generate_colored_replicates` and
+`ReplicateGenerator`'s `method="graph_coloring"` mode.
+
 ## Generating colored replicates
 
 To draw several statistically-equivalent-but-distinct cell-type labelings of
