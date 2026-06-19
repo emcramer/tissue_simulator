@@ -964,6 +964,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#adaptive-stopping-and-cost-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptive stopping and cost history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color_graph_to_targets-helper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        color_graph_to_targets helper
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2002,6 +2024,28 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#adaptive-stopping-and-cost-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptive stopping and cost history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color_graph_to_targets-helper" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        color_graph_to_targets helper
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2537,6 +2581,24 @@ top-level <code>quick_workflow(..., seed=N)</code> all forward it to the underly
 <li>For better results: <code>initial_temp=1000, max_iterations=20000, cooling_rate=0.998</code></li>
 <li>For high accuracy: <code>initial_temp=2000, max_iterations=50000, cooling_rate=0.999</code></li>
 </ul>
+<h3 id="adaptive-stopping-and-cost-history">Adaptive stopping and cost history<a class="headerlink" href="#adaptive-stopping-and-cost-history" title="Permanent link">&para;</a></h3>
+<p><code>colorize</code> accepts two optional knobs for long runs:</p>
+<ul>
+<li><code>patience=N</code> stops early once <code>best_cost</code> has not improved for <code>N</code>
+  consecutive iterations (a plateau), so you can raise <code>max_iterations</code> without
+  always paying for it.</li>
+<li><code>return_history=True</code> returns <code>(coloring, cost_history)</code> where
+  <code>cost_history</code> is the per-iteration <code>best_cost</code> series — feed it to
+  <code>tissue_simulator.convergence.find_convergence_time</code> to quantify when the run
+  converged. Defaults (<code>patience=None</code>, <code>return_history=False</code>) leave behavior
+  and the return type unchanged.</li>
+</ul>
+<h3 id="color_graph_to_targets-helper"><code>color_graph_to_targets</code> helper<a class="headerlink" href="#color_graph_to_targets-helper" title="Permanent link">&para;</a></h3>
+<p><code>color_graph_to_targets(target_graph, colors, target_statistics, seed=None, initial_coloring=None, return_cost=False, **colorize_kwargs)</code>
+is a thin wrapper that builds a <code>GraphColorizer</code> and runs <code>colorize</code>, returning
+the coloring (or <code>(coloring, cost)</code> when <code>return_cost=True</code>). It is the shared
+code path used by both <code>TissueNetworkWorkflow.generate_colored_replicates</code> and
+<code>ReplicateGenerator</code>'s <code>method="graph_coloring"</code> mode.</p>
 <h2 id="generating-colored-replicates">Generating colored replicates<a class="headerlink" href="#generating-colored-replicates" title="Permanent link">&para;</a></h2>
 <p>To draw several statistically-equivalent-but-distinct cell-type labelings of
 one tissue slice, use <code>TissueNetworkWorkflow.generate_colored_replicates(n)</code>.

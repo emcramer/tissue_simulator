@@ -3316,6 +3316,14 @@ simulator without using the random packer:</p>
 <li>Configure the replicate generator: <code>setup_replicate_generator</code></li>
 <li>Generate matching replicates: <code>generate_replicates</code></li>
 </ol>
+<p><code>setup_replicate_generator</code> accepts a <code>method</code> argument: <code>"radius_tuning"</code>
+(default) repacks and tunes per-type radii, while <code>"graph_coloring"</code> packs
+geometry once per replicate and assigns cell types via simulated-annealing
+graph coloring to match the target interaction statistics — more consistent and
+faster-converging for interaction targets. For the colored method, <code>n_restarts</code>
+keeps the best of several SA runs per replicate; for radius-tuning,
+<code>radius_optimizer="differential_evolution"</code> swaps the heuristic for a
+gradient-free SciPy optimizer.</p>
 <h2 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
 <p>All tools return JSON with either:
 - <code>"status": "success"</code> with results
