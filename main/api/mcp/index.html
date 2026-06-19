@@ -1348,6 +1348,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#generate_colored_replicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_colored_replicates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#visualize_tissue" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2516,6 +2527,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#generate_colored_replicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_colored_replicates
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#visualize_tissue" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2818,6 +2840,7 @@
 <h3 id="cell-type-assignment">Cell Type Assignment<a class="headerlink" href="#cell-type-assignment" title="Permanent link">&para;</a></h3>
 <ul>
 <li><code>assign_cell_types</code>: Slice the current tissue, build a radius-mode spatial network, and assign cell types via simulated annealing against a graph-coloring-format target CSV (with optional seed for bit-reproducibility)</li>
+<li><code>generate_colored_replicates</code>: Generate multiple independent cell-type colorings of the current slice that all match the same target statistics (cold-start per replicate by default for diversity; reports mean pairwise diversity)</li>
 </ul>
 <h3 id="visualization">Visualization<a class="headerlink" href="#visualization" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3172,7 +3195,8 @@
 - <code>final_temp</code> (number, optional): Stopping temperature (default: 0.1)
 - <code>cooling_rate</code> (number, optional): Temperature decrease rate per step (default: 0.995)
 - <code>max_iterations</code> (integer, optional): Maximum number of simulated-annealing iterations (default: 5000)
-- <code>verbose</code> (boolean, optional): Print per-iteration progress (default: false)</p>
+- <code>verbose</code> (boolean, optional): Print per-iteration progress (default: false)
+- <code>warm_start</code> (boolean, optional): When true, reuse the server's previously stored cell-type assignment as the initial coloring for this run, IF a prior assignment exists AND its node-id set exactly equals the new graph's node set; otherwise it is ignored (default: false). Warm-starting greatly speeds re-convergence when generating replicates against the same target.</p>
 <p><strong>Example</strong>:
 <div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="p">{</span>
 <a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">  </span><span class="nt">&quot;target_statistics_csv&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/target_stats.csv&quot;</span><span class="p">,</span>
@@ -3190,9 +3214,38 @@
 <a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="w">  </span><span class="nt">&quot;color_counts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;cancer&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;immune&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;stroma&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">19</span><span class="p">},</span>
 <a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="w">  </span><span class="nt">&quot;seed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span>
 <a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="w">  </span><span class="nt">&quot;used_z_position&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">40.0</span><span class="p">,</span>
-<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="w">  </span><span class="nt">&quot;used_network_radius&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">50.0</span>
-<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="p">}</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="w">  </span><span class="nt">&quot;used_network_radius&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">50.0</span><span class="p">,</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="w">  </span><span class="nt">&quot;warm_start_applied&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="p">}</span>
 </code></pre></div></p>
+<h3 id="generate_colored_replicates">generate_colored_replicates<a class="headerlink" href="#generate_colored_replicates" title="Permanent link">&para;</a></h3>
+<p><strong>Description</strong>: Generate multiple independent cell-type colorings of the current tissue slice that all match the same target statistics. Slices the tissue, builds a radius-mode network, then runs simulated annealing <code>num_replicates</code> times. Each replicate cold-starts from its own derived seed by default, producing diverse but statistically-equivalent labelings; the first replicate is stored as the active assignment.</p>
+<p><strong>Parameters</strong>:</p>
+<ul>
+<li><code>target_statistics_csv</code> (string, required): Path to a graph-coloring-format CSV</li>
+<li><code>colors</code> (array of strings, required): Cell-type names</li>
+<li><code>num_replicates</code> (integer, required): Number of colorings to generate (&gt;= 1)</li>
+<li><code>z_position</code> (number, optional): Slice plane; defaults to <code>thickness / 2</code></li>
+<li><code>network_radius</code> (number, optional): Distance threshold (default: stored value or 50.0)</li>
+<li><code>seed</code> (integer, optional): Base seed; replicate <code>k</code> uses a deterministic seed derived from <code>(seed, k)</code>, making the whole set reproducible</li>
+<li><code>warm_start</code> (boolean, optional): When true, each replicate after the first warm-starts from the previous coloring. This speeds convergence but <strong>collapses diversity</strong> (replicates become near-identical); intended for refinement, not independent replicates (default: false)</li>
+<li><code>initial_temp</code> / <code>final_temp</code> / <code>cooling_rate</code> / <code>max_iterations</code> (optional): Annealing schedule, applied per replicate</li>
+<li><code>verbose</code> (boolean, optional): Print per-replicate progress (default: false)</li>
+</ul>
+<p><strong>Returns</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="p">{</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span><span class="nt">&quot;num_replicates&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="nt">&quot;num_nodes_colored&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">89</span><span class="p">,</span>
+<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="w">  </span><span class="nt">&quot;replicate_color_counts&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;cancer&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;immune&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;stroma&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">19</span><span class="p">},</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">],</span>
+<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a><span class="w">  </span><span class="nt">&quot;mean_pairwise_diversity&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.63</span><span class="p">,</span>
+<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="w">  </span><span class="nt">&quot;warm_start&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="w">  </span><span class="nt">&quot;seed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span>
+<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a><span class="w">  </span><span class="nt">&quot;used_z_position&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">40.0</span><span class="p">,</span>
+<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="w">  </span><span class="nt">&quot;used_network_radius&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">50.0</span>
+<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a><span class="p">}</span>
+</code></pre></div></p>
+<p><code>mean_pairwise_diversity</code> is the fraction of nodes whose color differs, averaged over all replicate pairs (0.0 for a single replicate, or when <code>warm_start</code> collapses the set).</p>
 <h3 id="visualize_tissue">visualize_tissue<a class="headerlink" href="#visualize_tissue" title="Permanent link">&para;</a></h3>
 <p><strong>Description</strong>: Create 3D visualization and save as PNG.</p>
 <p><strong>Parameters</strong>:
@@ -3200,31 +3253,31 @@
 - <code>azimuth</code> (number, optional): Viewing azimuth (default: 45)
 - <code>filename</code> (string, optional): PNG filename (default: "tissue_3d.png")</p>
 <p><strong>Returns</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="p">{</span>
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/tissue_3d.png&quot;</span><span class="p">,</span>
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="w">  </span><span class="nt">&quot;cells_visualized&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span>
-<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="p">{</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/tissue_3d.png&quot;</span><span class="p">,</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">  </span><span class="nt">&quot;cells_visualized&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="visualize_slice_2d">visualize_slice_2d<a class="headerlink" href="#visualize_slice_2d" title="Permanent link">&para;</a></h3>
 <p><strong>Description</strong>: Create 2D slice visualization and save as PNG.</p>
 <p><strong>Parameters</strong>:
 - <code>filename</code> (string, optional): PNG filename (default: "slice_2d.png")</p>
 <p><strong>Returns</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="p">{</span>
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
-<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/slice_2d.png&quot;</span><span class="p">,</span>
-<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">  </span><span class="nt">&quot;cells_visualized&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">89</span>
-<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="p">{</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">  </span><span class="nt">&quot;filepath&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tmp/tissue_sim_xyz/slice_2d.png&quot;</span><span class="p">,</span>
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">  </span><span class="nt">&quot;cells_visualized&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">89</span>
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="p">}</span>
 </code></pre></div></p>
 <h3 id="reset_tissue">reset_tissue<a class="headerlink" href="#reset_tissue" title="Permanent link">&para;</a></h3>
 <p><strong>Description</strong>: Clear current tissue and start fresh.</p>
 <p><strong>Parameters</strong>: None</p>
 <p><strong>Returns</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="p">{</span>
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
-<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Tissue and slice data cleared. Ready for new simulation.&quot;</span>
-<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="p">{</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="w">  </span><span class="nt">&quot;message&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Tissue and slice data cleared. Ready for new simulation.&quot;</span>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="p">}</span>
 </code></pre></div></p>
 <h2 id="workflow-examples">Workflow Examples<a class="headerlink" href="#workflow-examples" title="Permanent link">&para;</a></h2>
 <h3 id="complete-analysis-workflow">Complete Analysis Workflow<a class="headerlink" href="#complete-analysis-workflow" title="Permanent link">&para;</a></h3>
@@ -3285,16 +3338,16 @@ simulator without using the random packer:</p>
 - Cleaned up on server restart</p>
 <h2 id="debugging">Debugging<a class="headerlink" href="#debugging" title="Permanent link">&para;</a></h2>
 <h3 id="test-the-server-manually">Test the server manually:<a class="headerlink" href="#test-the-server-manually" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1"># Run server</span>
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>python<span class="w"> </span>run_mcp_server.py
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>
-<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a><span class="c1"># Server will wait for MCP protocol messages on stdin/stdout</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="c1"># Run server</span>
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>python<span class="w"> </span>run_mcp_server.py
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="c1"># Server will wait for MCP protocol messages on stdin/stdout</span>
 </code></pre></div>
 <h3 id="check-if-mcp-library-is-installed">Check if MCP library is installed:<a class="headerlink" href="#check-if-mcp-library-is-installed" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import mcp; print(&#39;MCP installed&#39;)&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;import mcp; print(&#39;MCP installed&#39;)&quot;</span>
 </code></pre></div>
 <h3 id="verify-package-installation">Verify package installation:<a class="headerlink" href="#verify-package-installation" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from tissue_simulator.mcp import TissueSimulatorMCPServer; print(&#39;Server module loaded&#39;)&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from tissue_simulator.mcp import TissueSimulatorMCPServer; print(&#39;Server module loaded&#39;)&quot;</span>
 </code></pre></div>
 <h2 id="limitations">Limitations<a class="headerlink" href="#limitations" title="Permanent link">&para;</a></h2>
 <ol>

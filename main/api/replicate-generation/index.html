@@ -2642,6 +2642,11 @@ a CD8 annulus). For those, use the two-stage <code>TissueWorkflow</code> path â€
 <code>generate_cells</code> for positions, then <code>assign_cell_types</code> for labels via
 <code>GraphColorizer</code>. See the "When to use what" section of
 <a href="../graph-coloring/#when-to-use-what"><code>graph-coloring.md</code></a>.</p>
+<p><strong>Geometric vs. colored replicates.</strong> <code>ReplicateGenerator</code> produces
+<em>geometric</em> replicates â€” each sample has a different cell packing. To instead
+hold one geometry fixed and draw several diverse <em>type labelings</em> of it, use
+<code>TissueNetworkWorkflow.generate_colored_replicates(n)</code>, documented under
+<a href="../graph-coloring/#generating-colored-replicates">Generating colored replicates</a>.</p>
 </blockquote>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <ul>

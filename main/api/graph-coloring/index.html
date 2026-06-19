@@ -970,6 +970,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#generating-colored-replicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generating colored replicates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#network-building-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1997,6 +2008,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#generating-colored-replicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generating colored replicates
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#network-building-modes" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2454,7 +2476,20 @@ use the two-stage <code>TissueWorkflow</code> path.</p>
 <p><strong>max_iterations</strong>: Maximum iterations (default: 100000)</p>
 </li>
 <li>More = better results but slower</li>
-<li>Typical range: 5000-50000</li>
+<li>
+<p>Typical range: 5000-50000</p>
+</li>
+<li>
+<p><strong>initial_coloring</strong>: Optional dict mapping nodes to colors to use as the
+  warm-start coloring instead of a random shuffle (default: None)</p>
+</li>
+<li>Every value must be one of the colorizer's <code>colors</code></li>
+<li>Nodes missing from the dict are filled with the most-frequent target
+    color; keys not in the graph are ignored</li>
+<li>When None, a random initial coloring is built and shuffled as before</li>
+<li><strong>Warm-starting</strong> from a previously converged coloring dramatically
+    reduces the iterations needed to re-converge on a similar graph — useful
+    when generating many tissue replicates against the same target statistics</li>
 </ul>
 <h2 id="reproducibility-seed">Reproducibility (seed)<a class="headerlink" href="#reproducibility-seed" title="Permanent link">&para;</a></h2>
 <p><code>GraphColorizer.__init__</code> accepts an optional <code>seed: Optional[int] = None</code>.
@@ -2470,7 +2505,8 @@ reproducibility plumbing already documented for <code>TissueSection</code> and
 <code>TissueNetworkWorkflow.assign_cell_types(..., seed=N)</code>,
 <code>TissueNetworkWorkflow.run_complete_workflow(..., seed=N)</code>, and the
 top-level <code>quick_workflow(..., seed=N)</code> all forward it to the underlying
-<code>GraphColorizer</code>.</p>
+<code>GraphColorizer</code>. <code>TissueNetworkWorkflow.assign_cell_types</code> also forwards
+<code>initial_coloring=</code> to <code>GraphColorizer.colorize</code> for warm-starting.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphColorizer</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># Two colorizers with the same seed and identical inputs produce</span>
@@ -2501,15 +2537,46 @@ top-level <code>quick_workflow(..., seed=N)</code> all forward it to the underly
 <li>For better results: <code>initial_temp=1000, max_iterations=20000, cooling_rate=0.998</code></li>
 <li>For high accuracy: <code>initial_temp=2000, max_iterations=50000, cooling_rate=0.999</code></li>
 </ul>
+<h2 id="generating-colored-replicates">Generating colored replicates<a class="headerlink" href="#generating-colored-replicates" title="Permanent link">&para;</a></h2>
+<p>To draw several statistically-equivalent-but-distinct cell-type labelings of
+one tissue slice, use <code>TissueNetworkWorkflow.generate_colored_replicates(n)</code>.
+Each replicate is an independent simulated-annealing colorization of the same
+network against the same target statistics:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">workflow</span><span class="o">.</span><span class="n">create_slice</span><span class="p">(</span><span class="n">z_position</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">workflow</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">workflow</span><span class="o">.</span><span class="n">load_target_statistics</span><span class="p">(</span><span class="n">statistics</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>                                <span class="n">cell_types</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">])</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># Five independent, reproducible colorings of the same slice.</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">generate_colored_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+</code></pre></div>
+<p>By default each replicate <strong>cold-starts</strong> from its own deterministic
+per-replicate seed (derived from <code>seed</code> via <code>numpy.random.SeedSequence</code>). Cold
+replicates both converge quickly and stay genuinely diverse, so this is the
+right default for independent replicate generation.</p>
+<div class="admonition note">
+<p class="admonition-title">Warm-start is for refinement, not replicates</p>
+<p>Setting <code>warm_start=True</code> chains each replicate's initial coloring from the
+previous one. This speeds convergence on strongly-structured targets but
+<strong>collapses replicate diversity</strong> — subsequent replicates become
+near-identical to the first. Benchmarks across loose (realistic) targets
+show cold replicates already converge at a small iteration budget <em>and</em>
+remain ~65% diverse, whereas warm-started replicates drop to ~0% diversity.
+Use <code>warm_start=True</code> only to <em>refine or resume</em> a single coloring, not to
+generate independent replicates.</p>
+<p>This is distinct from <strong>geometric</strong> replicates produced by
+<a href="../replicate-generation/"><code>ReplicateGenerator</code></a>, which vary the underlying
+cell packing rather than the type labeling.</p>
+</div>
 <h2 id="network-building-modes">Network Building Modes<a class="headerlink" href="#network-building-modes" title="Permanent link">&para;</a></h2>
 <p>Two modes for defining cell connections:</p>
 <h3 id="contact-mode">Contact Mode<a class="headerlink" href="#contact-mode" title="Permanent link">&para;</a></h3>
 <p>Cells are connected if they're touching:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span><span class="p">)</span>
 </code></pre></div></p>
 <h3 id="radius-mode">Radius Mode<a class="headerlink" href="#radius-mode" title="Permanent link">&para;</a></h3>
 <p>Cells are connected if within a distance threshold:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
 </code></pre></div></p>
 <p><strong>Choosing radius:</strong>
 - Small radius (20-40 μm): Local interactions
@@ -2525,12 +2592,12 @@ top-level <code>quick_workflow(..., seed=N)</code> all forward it to the underly
 <li><strong>Jensen-Shannon Divergence</strong>: Statistical divergence (0-1, lower is better)</li>
 <li><strong>Percent Differences</strong>: Per-edge-type differences</li>
 </ul>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">evaluation</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">print_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="c1"># Access specific metrics</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">mae</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;mean_absolute_error&#39;</span><span class="p">]</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">js_div</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;js_divergence&#39;</span><span class="p">]</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="n">avg_diff</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;avg_percent_difference&#39;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">evaluation</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">print_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1"># Access specific metrics</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">mae</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;mean_absolute_error&#39;</span><span class="p">]</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">js_div</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;js_divergence&#39;</span><span class="p">]</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="n">avg_diff</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;avg_percent_difference&#39;</span><span class="p">]</span>
 </code></pre></div>
 <h2 id="output-files">Output Files<a class="headerlink" href="#output-files" title="Permanent link">&para;</a></h2>
 <p>The workflow generates several output files:</p>
@@ -2560,34 +2627,34 @@ top-level <code>quick_workflow(..., seed=N)</code> all forward it to the underly
 </ol>
 <h2 id="advanced-usage">Advanced Usage<a class="headerlink" href="#advanced-usage" title="Permanent link">&para;</a></h2>
 <h3 id="custom-target-statistics-from-existing-tissue">Custom Target Statistics from Existing Tissue<a class="headerlink" href="#custom-target-statistics-from-existing-tissue" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Extract statistics from a reference tissue</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate_graph_statistics</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">reference_graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">reference_slicer</span><span class="p">)</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">reference_coloring</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">cell</span><span class="o">.</span><span class="n">cell_type</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cell</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">reference_slicer</span><span class="o">.</span><span class="n">slice_cells</span><span class="p">)}</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">calculate_graph_statistics</span><span class="p">(</span><span class="n">reference_graph</span><span class="p">,</span> <span class="n">reference_coloring</span><span class="p">,</span> <span class="n">cell_types</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Extract statistics from a reference tissue</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate_graph_statistics</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">reference_graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">reference_slicer</span><span class="p">)</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="n">reference_coloring</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">cell</span><span class="o">.</span><span class="n">cell_type</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cell</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">reference_slicer</span><span class="o">.</span><span class="n">slice_cells</span><span class="p">)}</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">calculate_graph_statistics</span><span class="p">(</span><span class="n">reference_graph</span><span class="p">,</span> <span class="n">reference_coloring</span><span class="p">,</span> <span class="n">cell_types</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="batch-processing-multiple-slices">Batch Processing Multiple Slices<a class="headerlink" href="#batch-processing-multiple-slices" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_standard_slices</span>
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c1"># Create multiple slices</span>
-<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">slicers</span> <span class="o">=</span> <span class="n">create_standard_slices</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">num_slices</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="c1"># Process each slice</span>
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">slicer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">slicers</span><span class="p">):</span>
-<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="n">workflow</span> <span class="o">=</span> <span class="n">TissueNetworkWorkflow</span><span class="p">()</span>
-<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">slicer</span> <span class="o">=</span> <span class="n">slicer</span>
-<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
-<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>    <span class="c1"># ... continue workflow</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_standard_slices</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="c1"># Create multiple slices</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="n">slicers</span> <span class="o">=</span> <span class="n">create_standard_slices</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">num_slices</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="c1"># Process each slice</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">slicer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">slicers</span><span class="p">):</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>    <span class="n">workflow</span> <span class="o">=</span> <span class="n">TissueNetworkWorkflow</span><span class="p">()</span>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">slicer</span> <span class="o">=</span> <span class="n">slicer</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>    <span class="c1"># ... continue workflow</span>
 </code></pre></div>
 <h3 id="custom-color-palettes-for-visualization">Custom Color Palettes for Visualization<a class="headerlink" href="#custom-color-palettes-for-visualization" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">color_palette</span> <span class="o">=</span> <span class="p">{</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="s1">&#39;#d62728&#39;</span><span class="p">,</span>   <span class="c1"># Red</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="s1">&#39;#1f77b4&#39;</span><span class="p">,</span>   <span class="c1"># Blue</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="s1">&#39;#2ca02c&#39;</span>    <span class="c1"># Green</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="p">}</span>
-<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>
-<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="n">workflow</span><span class="o">.</span><span class="n">visualize_network</span><span class="p">(</span><span class="n">color_palette</span><span class="o">=</span><span class="n">color_palette</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">color_palette</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="s1">&#39;#d62728&#39;</span><span class="p">,</span>   <span class="c1"># Red</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="s1">&#39;#1f77b4&#39;</span><span class="p">,</span>   <span class="c1"># Blue</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="s1">&#39;#2ca02c&#39;</span>    <span class="c1"># Green</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="p">}</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="n">workflow</span><span class="o">.</span><span class="n">visualize_network</span><span class="p">(</span><span class="n">color_palette</span><span class="o">=</span><span class="n">color_palette</span><span class="p">)</span>
 </code></pre></div>
 <p>When <code>color_palette</code> is <strong>not</strong> provided, <code>visualize_colored_graph</code> and
 <code>visualize_graph_comparison</code> build a default palette by sorting cell types
@@ -2621,7 +2688,7 @@ v0.1.12.</p>
 - <code>tissue_simulator/evaluation.py</code>: Evaluation metrics</p>
 <h2 id="citation">Citation<a class="headerlink" href="#citation" title="Permanent link">&para;</a></h2>
 <p>If you use this workflow in your research, please cite:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>[Add appropriate citation information]
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>[Add appropriate citation information]
 </code></pre></div>
 
 
