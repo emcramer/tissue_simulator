@@ -263,6 +263,16 @@ The cell type assignment uses simulated annealing optimization. Key parameters:
   - More = better results but slower
   - Typical range: 5000-50000
 
+- **initial_coloring**: Optional dict mapping nodes to colors to use as the
+  warm-start coloring instead of a random shuffle (default: None)
+  - Every value must be one of the colorizer's `colors`
+  - Nodes missing from the dict are filled with the most-frequent target
+    color; keys not in the graph are ignored
+  - When None, a random initial coloring is built and shuffled as before
+  - **Warm-starting** from a previously converged coloring dramatically
+    reduces the iterations needed to re-converge on a similar graph — useful
+    when generating many tissue replicates against the same target statistics
+
 ## Reproducibility (seed)
 
 `GraphColorizer.__init__` accepts an optional `seed: Optional[int] = None`.
@@ -279,7 +289,8 @@ The seed is also threaded through the workflow entry points:
 `TissueNetworkWorkflow.assign_cell_types(..., seed=N)`,
 `TissueNetworkWorkflow.run_complete_workflow(..., seed=N)`, and the
 top-level `quick_workflow(..., seed=N)` all forward it to the underlying
-`GraphColorizer`.
+`GraphColorizer`. `TissueNetworkWorkflow.assign_cell_types` also forwards
+`initial_coloring=` to `GraphColorizer.colorize` for warm-starting.
 
 ```python
 from tissue_simulator import GraphColorizer
@@ -312,6 +323,42 @@ assert a1 == a2  # identical dicts
 - For quick testing: `initial_temp=100, max_iterations=5000`
 - For better results: `initial_temp=1000, max_iterations=20000, cooling_rate=0.998`
 - For high accuracy: `initial_temp=2000, max_iterations=50000, cooling_rate=0.999`
+
+## Generating colored replicates
+
+To draw several statistically-equivalent-but-distinct cell-type labelings of
+one tissue slice, use `TissueNetworkWorkflow.generate_colored_replicates(n)`.
+Each replicate is an independent simulated-annealing colorization of the same
+network against the same target statistics:
+
+```python
+workflow.create_slice(z_position=50.0)
+workflow.build_network(mode="radius", radius=50.0)
+workflow.load_target_statistics(statistics=target_stats,
+                                cell_types=['cancer', 'immune', 'stroma'])
+
+# Five independent, reproducible colorings of the same slice.
+replicates = workflow.generate_colored_replicates(num_replicates=5, seed=42)
+```
+
+By default each replicate **cold-starts** from its own deterministic
+per-replicate seed (derived from `seed` via `numpy.random.SeedSequence`). Cold
+replicates both converge quickly and stay genuinely diverse, so this is the
+right default for independent replicate generation.
+
+!!! note "Warm-start is for refinement, not replicates"
+    Setting `warm_start=True` chains each replicate's initial coloring from the
+    previous one. This speeds convergence on strongly-structured targets but
+    **collapses replicate diversity** — subsequent replicates become
+    near-identical to the first. Benchmarks across loose (realistic) targets
+    show cold replicates already converge at a small iteration budget *and*
+    remain ~65% diverse, whereas warm-started replicates drop to ~0% diversity.
+    Use `warm_start=True` only to *refine or resume* a single coloring, not to
+    generate independent replicates.
+
+    This is distinct from **geometric** replicates produced by
+    [`ReplicateGenerator`](replicate-generation.md), which vary the underlying
+    cell packing rather than the type labeling.
 
 ## Network Building Modes
 

@@ -42,6 +42,7 @@ The MCP server exposes the following tools for tissue simulation:
 
 ### Cell Type Assignment
 - `assign_cell_types`: Slice the current tissue, build a radius-mode spatial network, and assign cell types via simulated annealing against a graph-coloring-format target CSV (with optional seed for bit-reproducibility)
+- `generate_colored_replicates`: Generate multiple independent cell-type colorings of the current slice that all match the same target statistics (cold-start per replicate by default for diversity; reports mean pairwise diversity)
 
 ### Visualization
 - `visualize_tissue`: Generate 3D tissue visualization
@@ -491,6 +492,7 @@ Visualization saved to: /tmp/tissue_sim_xyz/tissue_view.png
 - `cooling_rate` (number, optional): Temperature decrease rate per step (default: 0.995)
 - `max_iterations` (integer, optional): Maximum number of simulated-annealing iterations (default: 5000)
 - `verbose` (boolean, optional): Print per-iteration progress (default: false)
+- `warm_start` (boolean, optional): When true, reuse the server's previously stored cell-type assignment as the initial coloring for this run, IF a prior assignment exists AND its node-id set exactly equals the new graph's node set; otherwise it is ignored (default: false). Warm-starting greatly speeds re-convergence when generating replicates against the same target.
 
 **Example**:
 ```json
@@ -512,9 +514,43 @@ Visualization saved to: /tmp/tissue_sim_xyz/tissue_view.png
   "color_counts": {"cancer": 40, "immune": 30, "stroma": 19},
   "seed": 42,
   "used_z_position": 40.0,
+  "used_network_radius": 50.0,
+  "warm_start_applied": false
+}
+```
+
+### generate_colored_replicates
+
+**Description**: Generate multiple independent cell-type colorings of the current tissue slice that all match the same target statistics. Slices the tissue, builds a radius-mode network, then runs simulated annealing `num_replicates` times. Each replicate cold-starts from its own derived seed by default, producing diverse but statistically-equivalent labelings; the first replicate is stored as the active assignment.
+
+**Parameters**:
+
+- `target_statistics_csv` (string, required): Path to a graph-coloring-format CSV
+- `colors` (array of strings, required): Cell-type names
+- `num_replicates` (integer, required): Number of colorings to generate (>= 1)
+- `z_position` (number, optional): Slice plane; defaults to `thickness / 2`
+- `network_radius` (number, optional): Distance threshold (default: stored value or 50.0)
+- `seed` (integer, optional): Base seed; replicate `k` uses a deterministic seed derived from `(seed, k)`, making the whole set reproducible
+- `warm_start` (boolean, optional): When true, each replicate after the first warm-starts from the previous coloring. This speeds convergence but **collapses diversity** (replicates become near-identical); intended for refinement, not independent replicates (default: false)
+- `initial_temp` / `final_temp` / `cooling_rate` / `max_iterations` (optional): Annealing schedule, applied per replicate
+- `verbose` (boolean, optional): Print per-replicate progress (default: false)
+
+**Returns**:
+```json
+{
+  "status": "success",
+  "num_replicates": 5,
+  "num_nodes_colored": 89,
+  "replicate_color_counts": [{"cancer": 40, "immune": 30, "stroma": 19}, "..."],
+  "mean_pairwise_diversity": 0.63,
+  "warm_start": false,
+  "seed": 42,
+  "used_z_position": 40.0,
   "used_network_radius": 50.0
 }
 ```
+
+`mean_pairwise_diversity` is the fraction of nodes whose color differs, averaged over all replicate pairs (0.0 for a single replicate, or when `warm_start` collapses the set).
 
 ### visualize_tissue
 

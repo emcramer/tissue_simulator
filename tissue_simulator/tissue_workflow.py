@@ -153,7 +153,8 @@ class TissueNetworkWorkflow:
                          cooling_rate: float = 0.995,
                          max_iterations: int = 100000,
                          verbose: bool = True,
-                         seed: Optional[int] = None) -> Dict:
+                         seed: Optional[int] = None,
+                         initial_coloring: Optional[Dict] = None) -> Dict:
         """
         Assign cell types to network nodes using simulated annealing.
 
@@ -166,6 +167,9 @@ class TissueNetworkWorkflow:
             seed: Optional integer seed forwarded to GraphColorizer for
                 bit-reproducible simulated annealing. When None (default),
                 behavior is unchanged.
+            initial_coloring: Optional dict mapping node IDs to cell types to
+                use as the warm-start coloring instead of a random assignment.
+                When None (default), a random initial coloring is used.
 
         Returns:
             Dictionary mapping node IDs to cell types
@@ -189,12 +193,112 @@ class TissueNetworkWorkflow:
             final_temp=final_temp,
             cooling_rate=cooling_rate,
             max_iterations=max_iterations,
-            verbose=verbose
+            verbose=verbose,
+            initial_coloring=initial_coloring
         )
         
         print("Cell type assignment complete!")
         return self.cell_type_assignment
-    
+
+    def generate_colored_replicates(self,
+                                    num_replicates: int,
+                                    seed: Optional[int] = None,
+                                    warm_start: bool = False,
+                                    initial_temp: float = 100.0,
+                                    final_temp: float = 0.1,
+                                    cooling_rate: float = 0.995,
+                                    max_iterations: int = 100000,
+                                    verbose: bool = True) -> List[Dict]:
+        """
+        Generate multiple cell-type colorings of the current network.
+
+        Each replicate is an independent simulated-annealing colorization of
+        the same target graph against the loaded target statistics, producing
+        diverse cell-type assignments that all match the target. This is the
+        cell-type-assignment analogue of replicate generation: use it to draw
+        several statistically-equivalent-but-distinct labelings of one tissue
+        slice.
+
+        By default each replicate **cold-starts** from its own deterministic
+        per-replicate seed (derived from ``seed`` via ``numpy.random.SeedSequence``,
+        matching ``ReplicateGenerator``), so the replicates are genuinely
+        independent. Benchmarks show cold replicates both converge quickly and
+        remain diverse.
+
+        Args:
+            num_replicates: Number of colorings to generate (>= 1).
+            seed: Optional base seed. When provided, replicate ``k`` uses a
+                deterministic seed derived from ``(seed, k)``, so the whole set
+                of replicates is bit-reproducible. When None, each replicate is
+                unseeded.
+            warm_start: When True, each replicate after the first warm-starts
+                from the previous replicate's coloring instead of cold-starting.
+                This speeds convergence on strongly-structured targets but
+                **collapses replicate diversity** — subsequent replicates become
+                near-identical to the first. Intended for *refining* a coloring,
+                not for generating independent replicates. Default False.
+            initial_temp: Starting temperature for annealing.
+            final_temp: Final temperature for annealing.
+            cooling_rate: Rate of temperature decrease.
+            max_iterations: Maximum iterations per replicate.
+            verbose: Whether to print per-replicate progress.
+
+        Returns:
+            List of ``num_replicates`` colorings, each a dict mapping node IDs
+            to cell types. ``self.cell_type_assignment`` is also set to the
+            first replicate so the downstream ``apply_cell_types_to_slice`` /
+            ``evaluate`` helpers operate on a concrete coloring.
+        """
+        if self.graph is None:
+            raise ValueError("Network not built. Call build_network() first.")
+        if self.target_statistics is None:
+            raise ValueError("Target statistics not loaded. Call load_target_statistics() first.")
+        if num_replicates < 1:
+            raise ValueError(f"num_replicates must be >= 1, got {num_replicates}.")
+
+        replicates: List[Dict] = []
+        previous_coloring: Optional[Dict] = None
+
+        for k in range(num_replicates):
+            # Derive a deterministic per-replicate seed from (seed, k) using
+            # SeedSequence, matching the convention in ReplicateGenerator. When
+            # seed is None each replicate stays unseeded (backward-compatible).
+            if seed is not None:
+                replicate_seed = int(
+                    np.random.SeedSequence([seed, k]).generate_state(1)[0]
+                )
+            else:
+                replicate_seed = None
+
+            if verbose:
+                mode = "warm-start" if (warm_start and previous_coloring is not None) else "cold-start"
+                print(f"\nColoring replicate {k + 1}/{num_replicates} ({mode})...")
+
+            colorizer = GraphColorizer(
+                target_graph=self.graph,
+                colors=self.color_names,
+                target_statistics=self.target_statistics,
+                seed=replicate_seed,
+            )
+
+            initial_coloring = previous_coloring if (warm_start and previous_coloring is not None) else None
+            coloring = colorizer.colorize(
+                initial_temp=initial_temp,
+                final_temp=final_temp,
+                cooling_rate=cooling_rate,
+                max_iterations=max_iterations,
+                verbose=verbose,
+                initial_coloring=initial_coloring,
+            )
+
+            replicates.append(coloring)
+            previous_coloring = coloring
+
+        # Expose the first replicate as the active assignment so the existing
+        # apply/evaluate helpers have a concrete coloring to work with.
+        self.cell_type_assignment = replicates[0]
+        return replicates
+
     def apply_cell_types_to_slice(self):
         """
         Apply the assigned cell types back to the slice cells.

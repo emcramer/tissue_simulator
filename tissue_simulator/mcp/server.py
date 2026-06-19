@@ -433,9 +433,118 @@ class TissueSimulatorMCPServer:
                                 "type": "boolean",
                                 "description": "Print per-iteration progress",
                                 "default": False
+                            },
+                            "warm_start": {
+                                "type": "boolean",
+                                "description": (
+                                    "When true, reuse the server's previously stored "
+                                    "cell-type assignment as the initial coloring for this "
+                                    "run, IF a prior assignment exists AND its node-id set "
+                                    "exactly equals the new graph's node set; otherwise it "
+                                    "is ignored."
+                                ),
+                                "default": False
                             }
                         },
                         "required": ["target_statistics_csv", "colors"]
+                    }
+                ),
+
+                Tool(
+                    name="generate_colored_replicates",
+                    description=(
+                        "Generate multiple independent cell-type colorings of the current "
+                        "tissue slice that all match the same target statistics. Slices the "
+                        "tissue at z_position, builds a contact/radius network, loads target "
+                        "statistics from a graph-coloring-format CSV, then runs "
+                        "GraphColorizer.colorize() num_replicates times. Each replicate "
+                        "cold-starts from its own derived seed by default, producing diverse "
+                        "but statistically-equivalent labelings. Returns per-replicate color "
+                        "counts plus a mean pairwise diversity score; stores the first "
+                        "replicate as the active assignment."
+                    ),
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "target_statistics_csv": {
+                                "type": "string",
+                                "description": (
+                                    "Path to a graph-coloring-format CSV (same shape that "
+                                    "tissue_simulator.graph_coloring.load_target_statistics_from_csv "
+                                    "reads)."
+                                )
+                            },
+                            "colors": {
+                                "type": "array",
+                                "description": "List of cell-type names.",
+                                "items": {"type": "string"},
+                                "minItems": 1
+                            },
+                            "num_replicates": {
+                                "type": "integer",
+                                "description": "Number of colorings to generate (>= 1).",
+                                "minimum": 1
+                            },
+                            "z_position": {
+                                "type": "number",
+                                "description": (
+                                    "Z-plane for the horizontal slice; defaults to "
+                                    "tissue.thickness / 2 if omitted."
+                                )
+                            },
+                            "network_radius": {
+                                "type": "number",
+                                "description": (
+                                    "Distance threshold for the spatial network (micrometers). "
+                                    "Defaults to the server's stored network_radius if set, "
+                                    "otherwise 50.0."
+                                )
+                            },
+                            "seed": {
+                                "type": "integer",
+                                "description": (
+                                    "Base RNG seed; replicate k uses a deterministic seed "
+                                    "derived from (seed, k), making the whole set reproducible."
+                                )
+                            },
+                            "warm_start": {
+                                "type": "boolean",
+                                "description": (
+                                    "When true, each replicate after the first warm-starts "
+                                    "from the previous replicate's coloring. This speeds "
+                                    "convergence but collapses diversity (replicates become "
+                                    "near-identical); intended for refinement, not independent "
+                                    "replicates."
+                                ),
+                                "default": False
+                            },
+                            "initial_temp": {
+                                "type": "number",
+                                "description": "Starting temperature for simulated annealing",
+                                "default": 100.0
+                            },
+                            "final_temp": {
+                                "type": "number",
+                                "description": "Stopping temperature for simulated annealing",
+                                "default": 0.1
+                            },
+                            "cooling_rate": {
+                                "type": "number",
+                                "description": "Temperature decrease rate per step",
+                                "default": 0.995
+                            },
+                            "max_iterations": {
+                                "type": "integer",
+                                "description": "Maximum simulated-annealing iterations per replicate",
+                                "default": 5000
+                            },
+                            "verbose": {
+                                "type": "boolean",
+                                "description": "Print per-replicate progress",
+                                "default": False
+                            }
+                        },
+                        "required": ["target_statistics_csv", "colors", "num_replicates"]
                     }
                 ),
 
@@ -783,6 +892,8 @@ class TissueSimulatorMCPServer:
                     return await self._handle_load_target_statistics_from_coordinates(arguments)
                 elif name == "assign_cell_types":
                     return await self._handle_assign_cell_types(arguments)
+                elif name == "generate_colored_replicates":
+                    return await self._handle_generate_colored_replicates(arguments)
                 elif name == "setup_replicate_generator":
                     return await self._handle_setup_replicate_generator(arguments)
                 elif name == "generate_replicates":
@@ -1154,6 +1265,7 @@ class TissueSimulatorMCPServer:
         cooling_rate = args.get("cooling_rate", 0.995)
         max_iterations = args.get("max_iterations", 5000)
         verbose = args.get("verbose", False)
+        warm_start = args.get("warm_start", False)
 
         try:
             # 1. Slice the current tissue at z_pos.
@@ -1174,12 +1286,24 @@ class TissueSimulatorMCPServer:
                 target_statistics=target_stats,
                 seed=seed
             )
+
+            # Determine whether a warm-start initial coloring applies: the
+            # prior assignment must exist and cover exactly the new graph's nodes.
+            initial_coloring = None
+            warm_start_applied = False
+            if warm_start:
+                prior = getattr(self, "cell_type_assignment", None)
+                if isinstance(prior, dict) and set(prior.keys()) == set(graph.nodes()):
+                    initial_coloring = prior
+                    warm_start_applied = True
+
             assignment = colorizer.colorize(
                 initial_temp=initial_temp,
                 final_temp=final_temp,
                 cooling_rate=cooling_rate,
                 max_iterations=max_iterations,
-                verbose=verbose
+                verbose=verbose,
+                initial_coloring=initial_coloring
             )
 
             # Store on server for downstream tools.
@@ -1196,7 +1320,8 @@ class TissueSimulatorMCPServer:
                 "color_counts": color_counts,
                 "seed": seed,
                 "used_z_position": z_pos,
-                "used_network_radius": net_radius
+                "used_network_radius": net_radius,
+                "warm_start_applied": warm_start_applied
             }
 
             return [TextContent(
@@ -1208,6 +1333,113 @@ class TissueSimulatorMCPServer:
             return [TextContent(
                 type="text",
                 text=json.dumps({"error": f"Failed to assign cell types: {str(e)}"})
+            )]
+
+    async def _handle_generate_colored_replicates(self, args: Dict[str, Any]) -> List[TextContent]:
+        """Handle generate_colored_replicates tool call."""
+        import numpy as np
+        from collections import Counter
+
+        if self.current_tissue is None or not self.current_tissue.cells:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": "No tissue with cells available. Call create_tissue/generate_cells or load_tissue_from_csv first."})
+            )]
+
+        target_csv = args.get("target_statistics_csv")
+        colors = args.get("colors")
+        num_replicates = args.get("num_replicates")
+        if not target_csv:
+            return [TextContent(type="text", text=json.dumps({"error": "target_statistics_csv is required"}))]
+        if not colors:
+            return [TextContent(type="text", text=json.dumps({"error": "colors is required (non-empty list of cell-type names)"}))]
+        if not isinstance(num_replicates, int) or num_replicates < 1:
+            return [TextContent(type="text", text=json.dumps({"error": "num_replicates is required and must be an integer >= 1"}))]
+
+        z_pos = args.get("z_position")
+        if z_pos is None:
+            z_pos = self.current_tissue.thickness / 2
+
+        net_radius = args.get("network_radius")
+        if net_radius is None:
+            net_radius = getattr(self, "network_radius", None) or 50.0
+
+        seed = args.get("seed")
+        warm_start = args.get("warm_start", False)
+        initial_temp = args.get("initial_temp", 100.0)
+        final_temp = args.get("final_temp", 0.1)
+        cooling_rate = args.get("cooling_rate", 0.995)
+        max_iterations = args.get("max_iterations", 5000)
+        verbose = args.get("verbose", False)
+
+        try:
+            # 1. Slice the current tissue and build a radius-mode network.
+            slicer = TissueSlicer(self.current_tissue)
+            slicer.slice_plane(z_position=z_pos)
+            analyzer = SpatialNetworkAnalyzer()
+            graph = analyzer.build_network_from_slice(slicer, mode="radius", radius=net_radius)
+
+            # 2. Load target statistics.
+            target_stats = load_graph_coloring_stats_from_csv(target_csv, colors)
+
+            # 3. Generate num_replicates colorings.
+            colorings = []
+            previous = None
+            for k in range(num_replicates):
+                replicate_seed = (
+                    int(np.random.SeedSequence([seed, k]).generate_state(1)[0])
+                    if seed is not None else None
+                )
+                colorizer = GraphColorizer(
+                    target_graph=graph,
+                    colors=colors,
+                    target_statistics=target_stats,
+                    seed=replicate_seed,
+                )
+                initial_coloring = previous if (warm_start and previous is not None) else None
+                coloring = colorizer.colorize(
+                    initial_temp=initial_temp,
+                    final_temp=final_temp,
+                    cooling_rate=cooling_rate,
+                    max_iterations=max_iterations,
+                    verbose=verbose,
+                    initial_coloring=initial_coloring,
+                )
+                colorings.append(coloring)
+                previous = coloring
+
+            # Store the first replicate as the active assignment.
+            self.cell_type_assignment = colorings[0]
+            self.current_slicer = slicer
+
+            # 4. Mean pairwise diversity: fraction of nodes whose color differs,
+            #    averaged over all replicate pairs (0.0 when only one replicate).
+            nodes = list(graph.nodes())
+            pair_diffs = []
+            for a in range(len(colorings)):
+                for b in range(a + 1, len(colorings)):
+                    ca, cb = colorings[a], colorings[b]
+                    differing = sum(1 for n in nodes if ca.get(n) != cb.get(n))
+                    pair_diffs.append(differing / len(nodes) if nodes else 0.0)
+            mean_pairwise_diversity = float(np.mean(pair_diffs)) if pair_diffs else 0.0
+
+            result = {
+                "status": "success",
+                "num_replicates": num_replicates,
+                "num_nodes_colored": len(colorings[0]),
+                "replicate_color_counts": [dict(Counter(c.values())) for c in colorings],
+                "mean_pairwise_diversity": mean_pairwise_diversity,
+                "warm_start": bool(warm_start),
+                "seed": seed,
+                "used_z_position": z_pos,
+                "used_network_radius": net_radius,
+            }
+            return [TextContent(type="text", text=json.dumps(result, indent=2))]
+
+        except Exception as e:
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": f"Failed to generate colored replicates: {str(e)}"})
             )]
 
     async def _handle_export_slice_csv(self, args: Dict[str, Any]) -> List[TextContent]:
