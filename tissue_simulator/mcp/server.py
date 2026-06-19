@@ -748,12 +748,44 @@ class TissueSimulatorMCPServer:
                             "seed": {
                                 "type": "integer",
                                 "description": "Random seed for reproducibility"
+                            },
+                            "method": {
+                                "type": "string",
+                                "enum": ["radius_tuning", "graph_coloring"],
+                                "description": (
+                                    "Replicate strategy. 'radius_tuning' (default) repacks and "
+                                    "nudges per-type radii to match proportions. 'graph_coloring' "
+                                    "packs geometry once and assigns cell types via simulated-"
+                                    "annealing graph coloring to match interaction statistics — "
+                                    "more consistent and faster-converging for interaction targets."
+                                ),
+                                "default": "radius_tuning"
+                            },
+                            "n_restarts": {
+                                "type": "integer",
+                                "description": (
+                                    "For 'graph_coloring': independent SA runs per replicate; "
+                                    "the lowest-cost coloring is kept (hardens against bad local "
+                                    "minima)."
+                                ),
+                                "default": 1,
+                                "minimum": 1
+                            },
+                            "radius_optimizer": {
+                                "type": "string",
+                                "enum": ["heuristic", "differential_evolution"],
+                                "description": (
+                                    "For 'radius_tuning': proportion tuner. 'heuristic' (default) "
+                                    "or gradient-free scipy 'differential_evolution' (slower, more "
+                                    "robust)."
+                                ),
+                                "default": "heuristic"
                             }
                         },
                         "required": ["height", "width", "thickness", "cell_radii"]
                     }
                 ),
-                
+
                 Tool(
                     name="generate_replicates",
                     description=(
@@ -1777,13 +1809,16 @@ class TissueSimulatorMCPServer:
         thickness = args["thickness"]
         cell_radii_dict = args["cell_radii"]
         seed = args.get("seed")
-        
+        method = args.get("method", "radius_tuning")
+        n_restarts = args.get("n_restarts", 1)
+        radius_optimizer = args.get("radius_optimizer", "heuristic")
+
         # Convert cell_radii dict to proper format
         cell_radii = {
-            name: tuple(radii) 
+            name: tuple(radii)
             for name, radii in cell_radii_dict.items()
         }
-        
+
         try:
             self.replicate_generator = ReplicateGenerator(
                 target_stats=self.target_stats,
@@ -1791,9 +1826,12 @@ class TissueSimulatorMCPServer:
                 base_cell_radii=cell_radii,
                 network_mode=self.network_mode,
                 network_radius=self.network_radius,
-                seed=seed
+                seed=seed,
+                method=method,
+                n_restarts=n_restarts,
+                radius_optimizer=radius_optimizer,
             )
-            
+
             result = {
                 "status": "success",
                 "tissue_dimensions": {
@@ -1804,6 +1842,7 @@ class TissueSimulatorMCPServer:
                 "cell_types": list(cell_radii.keys()),
                 "network_mode": self.network_mode,
                 "seed": seed,
+                "method": method,
                 "ready_to_generate": True
             }
             

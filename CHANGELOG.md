@@ -5,6 +5,65 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.15] - 2026-06-19
+
+### Added
+
+- **`method="graph_coloring"` mode for `ReplicateGenerator`**
+  (`tissue_simulator/replicate_generator.py`). Matching interaction statistics
+  is fundamentally a *labeling* problem on a fixed neighbor graph, not a
+  geometry problem. The new mode packs geometry once per replicate (fresh seed
+  → geometric diversity), builds the neighbor graph, then assigns cell types via
+  the simulated-annealing `GraphColorizer` to match the target interaction
+  statistics — far more consistent and faster-converging than the default
+  `radius_tuning` path. Cell-type proportions are locked exactly (SA swap-moves
+  preserve node counts). Benchmark: ~2.4× lower mean divergence and bounded
+  (no high-divergence outliers) versus radius-tuning on a structured target.
+  The `radius_tuning` default is unchanged for backward compatibility.
+- **`InteractionStatistics` → GraphColorizer target bridge**
+  (`ReplicateGenerator._build_colorizer_targets` / `_round_proportions_to_counts`):
+  de-normalizes target interaction fractions against the packed graph's actual
+  node count using the same `max_possible` convention as
+  `compute_interaction_statistics`, so a perfect coloring reproduces the target
+  by construction (verified by a round-trip test).
+- **`color_graph_to_targets`** shared helper (`tissue_simulator/graph_coloring.py`,
+  exported from the package) used by both the colored replicate mode and
+  `TissueNetworkWorkflow.generate_colored_replicates`.
+- **Adaptive stopping** on `GraphColorizer.colorize` (`patience` to stop on a
+  cost plateau, `return_history` to return the per-iteration `best_cost` series
+  for `convergence.find_convergence_time`) and a `patience` plateau break on the
+  radius-tuning loop. Defaults leave existing behavior and return type unchanged.
+- **`n_restarts`** for the colored mode (keep the lowest-cost of several
+  independent SA runs per replicate) and **`parallel=True`** on
+  `generate_replicates` (`ProcessPoolExecutor`; deterministic per-replicate
+  seeds make parallel results identical to serial).
+- **`ReplicateGenerator.consistency_report`** quantifies run-to-run variability
+  and compares methods via `power_analysis.compare_initialization_variance`.
+- **`radius_optimizer="differential_evolution"`** opt-in for the radius-tuning
+  path: a gradient-free SciPy optimizer over per-type radius multipliers against
+  a fixed-seed (deterministic) proportion objective.
+- **MCP**: `setup_replicate_generator` gains `method`, `n_restarts`, and
+  `radius_optimizer` parameters.
+- New tests in `tests/test_replicate_graph_coloring.py` (bridge round-trip,
+  colored-mode validity/reproducibility, lower divergence than radius-tuning,
+  multi-restart, parallel==serial, consistency report, adaptive stopping / cost
+  history, DE optimizer, and the MCP wiring).
+
+### Changed
+
+- `docs/api/replicate-generation.md`, `docs/api/graph-coloring.md`, and
+  `docs/api/mcp.md` document the new generation methods and supporting features,
+  including a short survey of related algorithm families (Potts/MRF labeling,
+  Gibbs/Markov point processes, SA reconstruction, cluster processes).
+
+### Notes
+
+- Gradient-based SciPy optimizers (e.g. `least_squares`) are deliberately not
+  offered for radius tuning: the radius→cell-count map is integer-valued and
+  stochastic, so finite-difference gradients are mostly zero. The gradient-free
+  `differential_evolution` is used instead, and for interaction targets the
+  `graph_coloring` method is preferred over any radius tuning.
+
 ## [0.1.14] - 2026-06-17
 
 ### Added

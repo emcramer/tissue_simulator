@@ -34,6 +34,95 @@ The replicate generation module allows you to generate multiple tissue samples t
 - **Comprehensive export**: Save tissues and statistics in multiple formats
 - **MCP integration**: Fully accessible via LLM coding assistant
 
+## Generation methods
+
+`ReplicateGenerator` supports two strategies via the `method` argument:
+
+### `method="radius_tuning"` (default)
+
+The original approach: each replicate repacks a tissue and a heuristic nudges
+per-type radii to steer cell-type **proportions**. Because cell types are
+assigned at packing time and the only lever on spatial **interaction** patterns
+is an indirect radius proxy, this converges slowly and inconsistently for
+interaction targets. Kept as the default for backward compatibility and for
+cases where you specifically want to tune geometry/density.
+
+Two knobs improve it:
+
+- `radius_optimizer="differential_evolution"` replaces the sqrt-ratio heuristic
+  with a gradient-free SciPy optimizer over per-type radius multipliers against
+  a fixed-seed (deterministic) proportion objective. Gradient methods are
+  deliberately *not* offered — the radius→cell-count map is integer-valued and
+  stochastic, so finite-difference gradients are mostly zero. DE is more robust
+  but slower.
+- `patience=N` on `generate_replicates` / `generate_single_replicate` stops the
+  tuning loop early once the best divergence plateaus.
+
+### `method="graph_coloring"` (recommended for interaction targets)
+
+Matching interaction statistics is fundamentally a **labeling** problem on a
+fixed neighbor graph, not a geometry problem. This mode packs geometry **once**
+per replicate (fresh seed → geometric diversity), builds the neighbor graph,
+then assigns cell types with the simulated-annealing
+[`GraphColorizer`](graph-coloring.md) to match the target interaction
+statistics. Cell-type proportions are locked exactly (the SA swap-moves
+preserve node counts), and convergence is far more consistent.
+
+```python
+gen = ReplicateGenerator(
+    target_stats=target,
+    tissue_dimensions=(400, 400, 100),
+    base_cell_radii={'cancer': (8, 12), 'immune': (5, 8), 'fibroblast': (6, 10)},
+    network_mode="radius", network_radius=30.0, seed=42,
+    method="graph_coloring",
+    n_restarts=3,                       # keep best of 3 SA runs per replicate
+    coloring_params={'max_iterations': 8000, 'patience': 2000},
+)
+replicates = gen.generate_replicates(num_replicates=10, parallel=True)
+```
+
+Supporting features:
+
+- **`n_restarts`**: run several independent SA colorings per replicate and keep
+  the lowest-cost one (hardens against bad local minima).
+- **Adaptive stopping**: pass `patience` inside `coloring_params` to stop SA once
+  the cost plateaus (uses the cost trajectory; see `colorize(return_history=True)`
+  and `convergence.find_convergence_time`).
+- **`parallel=True`**: replicates are independent and deterministically seeded,
+  so `generate_replicates(parallel=True)` runs them across processes with
+  identical results to the serial path.
+
+### Measuring consistency
+
+`consistency_report` quantifies run-to-run variability and compares methods
+(via the `power_analysis` module), so you can *prove* an approach is more
+consistent:
+
+```python
+report = gen.consistency_report({
+    "radius_tuning": radius_replicates,
+    "graph_coloring": colored_replicates,
+})
+# report["per_method"][name] -> {n, mean, std, cv};  report["pairwise"] -> Cohen's d, required N
+```
+
+Note: the coefficient of variation is `std/|mean|` and inflates when the mean
+sits near zero (a method matching the target almost perfectly), so read `cv`
+alongside the absolute `std`/`mean`.
+
+### Related algorithm families
+
+Matching target spatial statistics is well-studied. For the **labeling**
+subproblem (used here) the relevant family is Potts/Markov-random-field models
+optimized by simulated annealing — which is what `GraphColorizer` implements,
+optionally hardened by parallel tempering / population annealing. For the
+**geometry** subproblem (if you need the point pattern itself to match spatial
+summary functions) the relevant families are Gibbs/Markov point processes
+(Strauss, area-interaction, multitype Gibbs via MCMC birth-death-move), SA
+reconstruction to pair-correlation `g(r)` / Ripley's K / nearest-neighbor
+distributions, and cluster processes (Matérn / Thomas / log-Gaussian Cox) for
+clustered arrangements.
+
 ## Installation
 
 The replicate generator requires pandas and NetworkX:

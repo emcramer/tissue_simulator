@@ -245,7 +245,8 @@ class GraphColorizer:
         
     def colorize(self, initial_temp=100.0, final_temp=0.1, cooling_rate=0.995,
                  max_iterations=100000, verbose=True,
-                 initial_coloring=None):
+                 initial_coloring=None,
+                 patience=None, min_delta=1e-9, return_history=False):
         """
         Performs the simulated annealing process to find the optimal coloring.
 
@@ -263,9 +264,22 @@ class GraphColorizer:
                 ignored. When ``None`` (default) the random-shuffle initial
                 coloring is used, byte-for-byte identical to the original
                 implementation.
+            patience: Optional adaptive-stopping budget. When set, the search
+                stops early once ``best_cost`` has not improved by more than
+                ``min_delta`` for ``patience`` consecutive iterations (a plateau).
+                When ``None`` (default) the loop runs to ``max_iterations`` /
+                ``final_temp`` exactly as before.
+            min_delta: Minimum ``best_cost`` improvement that counts as progress
+                for the ``patience`` plateau check.
+            return_history: When True, return ``(best_coloring, cost_history)``
+                where ``cost_history`` is the per-iteration ``best_cost`` series
+                (suitable for ``convergence.find_convergence_time``). When False
+                (default) only ``best_coloring`` is returned, preserving the
+                original return type.
 
         Returns:
-            dict: Best coloring found for the target graph
+            dict: Best coloring found for the target graph (or
+            ``(dict, list[float])`` when ``return_history=True``).
         """
         if initial_coloring is None:
             # Initial coloring: match the node counts from the target statistics
@@ -313,6 +327,9 @@ class GraphColorizer:
 
         temperature = initial_temp
 
+        cost_history = []
+        iters_since_improvement = 0
+
         i = -1
         for i in range(max_iterations):
             if temperature < final_temp:
@@ -342,24 +359,81 @@ class GraphColorizer:
                 self.neighbor_counts = new_neighbor_counts
                 
                 if current_cost < best_cost:
+                    if (best_cost - current_cost) > min_delta:
+                        iters_since_improvement = -1  # reset (becomes 0 below)
                     best_coloring = current_coloring.copy()
                     best_cost = current_cost
-            
+
             # Cool down
             temperature *= cooling_rate
-            
+
             # Occasionally do a full recalculation to avoid floating point drift
             if i > 0 and i % 5000 == 0:
                 current_stats, self.neighbor_counts = self._calculate_statistics(self.target_graph, current_coloring)
                 current_cost = self._calculate_cost(current_stats)
 
+            if return_history:
+                cost_history.append(best_cost)
+
+            # Adaptive stopping: break once best_cost has plateaued.
+            iters_since_improvement += 1
+            if patience is not None and iters_since_improvement >= patience:
+                if verbose:
+                    print(f"Best cost plateaued for {patience} iterations. Stopping early.")
+                break
+
             if verbose and i % 500 == 0:
                 print(f"Iter {i}: Temp={temperature:.2f}, Cost={current_cost:.4f}, Best Cost={best_cost:.4f}")
-        
+
         if verbose:
             print(f"\nFinished after {i+1} iterations.")
             print(f"Final best cost: {best_cost}")
+        if return_history:
+            return best_coloring, cost_history
         return best_coloring
+
+
+def color_graph_to_targets(target_graph: nx.Graph,
+                           colors: List[str],
+                           target_statistics: Dict,
+                           seed: Optional[int] = None,
+                           initial_coloring: Optional[Dict] = None,
+                           return_cost: bool = False,
+                           **colorize_kwargs):
+    """
+    Colorize ``target_graph`` to match ``target_statistics`` via simulated annealing.
+
+    Thin shared wrapper around :class:`GraphColorizer` so callers
+    (``ReplicateGenerator``, ``TissueNetworkWorkflow``) use a single code path.
+
+    Args:
+        target_graph: NetworkX graph to color.
+        colors: List of color / cell-type names.
+        target_statistics: GraphColorizer-format target dict
+            (``node_counts`` / ``edge_counts`` / ``neighbor_dist``).
+        seed: Optional RNG seed for bit-reproducible annealing.
+        initial_coloring: Optional warm-start coloring passed to ``colorize``.
+        return_cost: When True, also return the final cost of the returned
+            coloring (useful for picking the best of several restarts).
+        **colorize_kwargs: Forwarded to :meth:`GraphColorizer.colorize`
+            (e.g. ``initial_temp``, ``final_temp``, ``cooling_rate``,
+            ``max_iterations``, ``verbose``).
+
+    Returns:
+        dict mapping node -> color (the best coloring found), or
+        ``(coloring, cost)`` when ``return_cost=True``.
+    """
+    colorizer = GraphColorizer(
+        target_graph=target_graph,
+        colors=list(colors),
+        target_statistics=target_statistics,
+        seed=seed,
+    )
+    coloring = colorizer.colorize(initial_coloring=initial_coloring, **colorize_kwargs)
+    if return_cost:
+        stats, _ = colorizer._calculate_statistics(colorizer.target_graph, coloring)
+        return coloring, colorizer._calculate_cost(stats)
+    return coloring
 
 
 def calculate_graph_statistics(graph: nx.Graph, colors_map: Dict, color_names: List[str]) -> Dict:
