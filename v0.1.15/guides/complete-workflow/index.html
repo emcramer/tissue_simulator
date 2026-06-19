@@ -1,0 +1,3539 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="3D simulated biological tissue section generator with network-based spatial analysis and ABM-initialization workflows">
+      
+      
+      
+        <link rel="canonical" href="https://emcramer.github.io/tissue_simulator/v0.1.15/guides/complete-workflow/">
+      
+      
+        <link rel="prev" href="../../quickstart/">
+      
+      
+        <link rel="next" href="../mcp/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Complete Workflow - Tissue Simulator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#complete-workflow-guide-graph-based-cell-type-assignment" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Tissue Simulator" class="md-header__button md-logo" aria-label="Tissue Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tissue Simulator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Complete Workflow
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/emcramer/tissue_simulator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    emcramer/tissue_simulator
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../quickstart/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quickstart
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../api/core/" class="md-tabs__link">
+          
+  
+  
+  API Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/tissue/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../slides/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Tour
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Tissue Simulator" class="md-nav__button md-logo" aria-label="Tissue Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tissue Simulator
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/emcramer/tissue_simulator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    emcramer/tissue_simulator
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Complete Workflow
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Complete Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Complete Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-generate-3d-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Generate 3D Tissue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-extract-2d-slice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Extract 2D Slice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-build-network-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Build Network Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-define-target-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Define Target Statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-assign-cell-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Assign Cell Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-visualize-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Visualize Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-7-evaluate-against-target" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7: Evaluate Against Target
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-8-export-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8: Export Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#understanding-target-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Understanding Target Statistics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Understanding Target Statistics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-node-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Node Counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-edge-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Edge Counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-neighbor-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Neighbor Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-target-statistics-from-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating Target Statistics from Data
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating Target Statistics from Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#from-csv-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From CSV File:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-existing-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From Existing Tissue:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tuning-simulated-annealing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning Simulated Annealing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tuning Simulated Annealing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-initial-temperature-initial_temp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Initial Temperature (initial_temp)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-final-temperature-final_temp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Final Temperature (final_temp)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-cooling-rate-cooling_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Cooling Rate (cooling_rate)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-maximum-iterations-max_iterations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Maximum Iterations (max_iterations)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preset-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preset Configurations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Preset Configurations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fast-testing-5-10-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fast Testing (5-10 seconds)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balanced-30-60-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balanced (30-60 seconds)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#high-quality-2-5-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High Quality (2-5 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-adjust-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Adjust Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#network-building-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network Building Modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Network Building Modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#contact-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contact Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#radius-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Radius Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-the-radius" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing the Radius
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evaluation-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation Metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Evaluation Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-jensen-shannon-divergence-js-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Jensen-Shannon Divergence (JS Divergence)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cosine-similarity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cosine Similarity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-mean-absolute-error-mae" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Mean Absolute Error (MAE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-root-mean-squared-error-rmse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Root Mean Squared Error (RMSE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-percent-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Percent Differences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accessing-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-complete-workflow-with-tissuenetworkworkflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: Complete Workflow with TissueNetworkWorkflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-batch-processing-multiple-slices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: Batch Processing Multiple Slices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-comparing-network-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: Comparing Network Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issue-high-js-divergence-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: High JS Divergence (&gt; 0.3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-slow-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Slow Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-poor-match-for-specific-cell-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Poor Match for Specific Cell Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-converges-quickly-but-poor-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Converges Quickly but Poor Quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-memory-errors-with-large-networks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Memory Errors with Large Networks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-topics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Topics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Topics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-color-palettes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Color Palettes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extracting-statistics-from-reference-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extracting Statistics from Reference Tissue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-sweep-to-find-optimal-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Sweep to Find Optimal Settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core (TissueSection / Cell / SpherePacker)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/slicing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slicing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/spatial-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/graph-coloring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph Coloring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/replicate-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Replicate Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/convergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Convergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/power-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Power Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/physicell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PhysiCell Bridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tissue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tissue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/packing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    packing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/slicing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slicing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/spatial_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spatial_analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/graph_coloring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    graph_coloring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/replicate_generator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    replicate_generator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tissue_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tissue_workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/convergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    convergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/power_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    power_analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/physicell_export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    physicell_export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/physicell_reader/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    physicell_reader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mcp.server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tour
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Table of Contents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#complete-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Complete Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#step-1-generate-3d-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 1: Generate 3D Tissue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-2-extract-2d-slice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 2: Extract 2D Slice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-3-build-network-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 3: Build Network Graph
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-4-define-target-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 4: Define Target Statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-5-assign-cell-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 5: Assign Cell Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-6-visualize-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 6: Visualize Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-7-evaluate-against-target" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 7: Evaluate Against Target
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#step-8-export-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Step 8: Export Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#understanding-target-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Understanding Target Statistics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Understanding Target Statistics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-node-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Node Counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-edge-counts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Edge Counts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-neighbor-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Neighbor Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#creating-target-statistics-from-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Creating Target Statistics from Data
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Creating Target Statistics from Data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#from-csv-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From CSV File:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-existing-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        From Existing Tissue:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tuning-simulated-annealing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tuning Simulated Annealing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tuning Simulated Annealing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-initial-temperature-initial_temp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Initial Temperature (initial_temp)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-final-temperature-final_temp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Final Temperature (final_temp)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-cooling-rate-cooling_rate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Cooling Rate (cooling_rate)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-maximum-iterations-max_iterations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Maximum Iterations (max_iterations)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preset-configurations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preset Configurations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Preset Configurations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fast-testing-5-10-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fast Testing (5-10 seconds)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#balanced-30-60-seconds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Balanced (30-60 seconds)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#high-quality-2-5-minutes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        High Quality (2-5 minutes)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-adjust-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to Adjust Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#network-building-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network Building Modes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Network Building Modes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#contact-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contact Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#radius-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Radius Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-the-radius" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing the Radius
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evaluation-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation Metrics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Evaluation Metrics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-jensen-shannon-divergence-js-divergence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Jensen-Shannon Divergence (JS Divergence)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cosine-similarity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cosine Similarity
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-mean-absolute-error-mae" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Mean Absolute Error (MAE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-root-mean-squared-error-rmse" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Root Mean Squared Error (RMSE)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-percent-differences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Percent Differences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accessing-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Accessing Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-complete-workflow-with-tissuenetworkworkflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: Complete Workflow with TissueNetworkWorkflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-batch-processing-multiple-slices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: Batch Processing Multiple Slices
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-comparing-network-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: Comparing Network Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issue-high-js-divergence-03" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: High JS Divergence (&gt; 0.3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-slow-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Slow Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-poor-match-for-specific-cell-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Poor Match for Specific Cell Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-converges-quickly-but-poor-quality" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Converges Quickly but Poor Quality
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-memory-errors-with-large-networks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Memory Errors with Large Networks
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-topics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Topics
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Topics">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-color-palettes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Color Palettes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#extracting-statistics-from-reference-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Extracting Statistics from Reference Tissue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-sweep-to-find-optimal-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Sweep to Find Optimal Settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/emcramer/tissue_simulator/edit/main/docs/guides/complete-workflow.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/emcramer/tissue_simulator/raw/main/docs/guides/complete-workflow.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"/></svg>
+    </a>
+  
+
+
+<h1 id="complete-workflow-guide-graph-based-cell-type-assignment">Complete Workflow Guide: Graph-Based Cell Type Assignment<a class="headerlink" href="#complete-workflow-guide-graph-based-cell-type-assignment" title="Permanent link">&para;</a></h1>
+<p>This guide demonstrates the complete workflow for generating simulated tissue sections with cell types assigned based on network statistics using simulated annealing.</p>
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ol>
+<li><a href="#quick-start">Quick Start</a></li>
+<li><a href="#complete-workflow">Complete Workflow</a></li>
+<li><a href="#understanding-target-statistics">Understanding Target Statistics</a></li>
+<li><a href="#tuning-simulated-annealing">Tuning Simulated Annealing</a></li>
+<li><a href="#network-building-modes">Network Building Modes</a></li>
+<li><a href="#evaluation-metrics">Evaluation Metrics</a></li>
+<li><a href="#examples">Examples</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ol>
+<hr />
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<p>The fastest way to run the complete workflow:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TissueSection</span><span class="p">,</span> <span class="n">SpherePacker</span><span class="p">,</span> <span class="n">quick_workflow</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># 1. Create tissue</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">tissue</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">thickness</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">packer</span> <span class="o">=</span> <span class="n">SpherePacker</span><span class="p">(</span><span class="n">tissue</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">packer</span><span class="o">.</span><span class="n">pack_cells</span><span class="p">(</span><span class="n">cell_types</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;placeholder&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">]},</span> <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1500</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># 2. Run complete workflow (seed=42 makes the colorize step bit-reproducible)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">workflow</span> <span class="o">=</span> <span class="n">quick_workflow</span><span class="p">(</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">tissue</span><span class="o">=</span><span class="n">tissue</span><span class="p">,</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">cell_types</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">],</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">target_stats_file</span><span class="o">=</span><span class="s2">&quot;target_statistics.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;results&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">)</span>
+</code></pre></div>
+<p>Passing <code>seed=42</code> (or any integer) routes every stochastic decision in the
+graph-coloring step through an instance-bound <code>random.Random(seed)</code>, so the
+resulting cell-type assignment is bit-identical across runs. See the
+"Reproducibility (seed)" section of
+<a href="../../api/graph-coloring/"><code>../api/graph-coloring.md</code></a> for details.</p>
+<hr />
+<h2 id="complete-workflow">Complete Workflow<a class="headerlink" href="#complete-workflow" title="Permanent link">&para;</a></h2>
+<h3 id="step-1-generate-3d-tissue">Step 1: Generate 3D Tissue<a class="headerlink" href="#step-1-generate-3d-tissue" title="Permanent link">&para;</a></h3>
+<p>First, create a 3D tissue structure using random sphere packing:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TissueSection</span><span class="p">,</span> <span class="n">SpherePacker</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Define tissue dimensions (micrometers)</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">tissue</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">height</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>      <span class="c1"># Y-axis</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">width</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span>       <span class="c1"># X-axis</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">thickness</span><span class="o">=</span><span class="mi">80</span>     <span class="c1"># Z-axis</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c1"># Create packer and generate cells</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">packer</span> <span class="o">=</span> <span class="n">SpherePacker</span><span class="p">(</span><span class="n">tissue</span><span class="p">)</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">num_cells</span> <span class="o">=</span> <span class="n">packer</span><span class="o">.</span><span class="n">pack_cells</span><span class="p">(</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="n">cell_types</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;placeholder&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">]},</span>  <span class="c1"># Initial assignment (will be reassigned)</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1500</span><span class="p">,</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>    <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="n">allow_boundary_cells</span><span class="o">=</span><span class="kc">True</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">)</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="n">num_cells</span><span class="si">}</span><span class="s2"> cells&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Note</strong>: The initial cell type assignment is just a placeholder. The graph coloring algorithm will reassign cell types based on network statistics.</p>
+<h3 id="step-2-extract-2d-slice">Step 2: Extract 2D Slice<a class="headerlink" href="#step-2-extract-2d-slice" title="Permanent link">&para;</a></h3>
+<p>Extract a 2D cross-section from the 3D tissue:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TissueSlicer</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">slicer</span> <span class="o">=</span> <span class="n">TissueSlicer</span><span class="p">(</span><span class="n">tissue</span><span class="p">)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># Option A: Horizontal slice at specified z-position</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">slice_cells</span> <span class="o">=</span> <span class="n">slicer</span><span class="o">.</span><span class="n">slice_plane</span><span class="p">(</span><span class="n">z_position</span><span class="o">=</span><span class="n">tissue</span><span class="o">.</span><span class="n">thickness</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1"># Option B: Angled slice</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">slice_cells</span> <span class="o">=</span> <span class="n">slicer</span><span class="o">.</span><span class="n">slice_plane</span><span class="p">(</span><span class="n">angle_x</span><span class="o">=</span><span class="mf">15.0</span><span class="p">,</span> <span class="n">angle_y</span><span class="o">=</span><span class="mf">30.0</span><span class="p">)</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Slice contains </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">slice_cells</span><span class="p">)</span><span class="si">}</span><span class="s2"> cells&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="step-3-build-network-graph">Step 3: Build Network Graph<a class="headerlink" href="#step-3-build-network-graph" title="Permanent link">&para;</a></h3>
+<p>Create a spatial relationship graph from the 2D slice:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">SpatialNetworkAnalyzer</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># Option A: Contact mode (cells must touch)</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="c1"># Option B: Radius mode (cells within distance threshold)</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Network: </span><span class="si">{</span><span class="n">graph</span><span class="o">.</span><span class="n">number_of_nodes</span><span class="p">()</span><span class="si">}</span><span class="s2"> nodes, </span><span class="si">{</span><span class="n">graph</span><span class="o">.</span><span class="n">number_of_edges</span><span class="p">()</span><span class="si">}</span><span class="s2"> edges&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="step-4-define-target-statistics">Step 4: Define Target Statistics<a class="headerlink" href="#step-4-define-target-statistics" title="Permanent link">&para;</a></h3>
+<p>Specify the desired spatial organization:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="s1">&#39;node_counts&#39;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>        <span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mi">40</span><span class="p">,</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>        <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mi">35</span><span class="p">,</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>        <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mi">25</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="p">},</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="s1">&#39;edge_counts&#39;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        <span class="s1">&#39;cancer-cancer&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span>    <span class="c1"># Cancer cells cluster together</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>        <span class="s1">&#39;cancer-immune&#39;</span><span class="p">:</span> <span class="mi">45</span><span class="p">,</span>    <span class="c1"># Moderate cancer-immune interaction</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>        <span class="s1">&#39;cancer-stroma&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>    <span class="c1"># Some cancer-stroma interaction</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>        <span class="s1">&#39;immune-immune&#39;</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span>    <span class="c1"># Immune cells moderately clustered</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>        <span class="s1">&#39;immune-stroma&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>    <span class="c1"># Immune-stroma interaction</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>        <span class="s1">&#39;stroma-stroma&#39;</span><span class="p">:</span> <span class="mi">15</span>     <span class="c1"># Stroma less clustered</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="p">},</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>    <span class="s1">&#39;neighbor_dist&#39;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>        <span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mf">2.2</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">},</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>        <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mf">2.5</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mf">1.8</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mf">1.3</span><span class="p">},</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>        <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mf">1.2</span><span class="p">}</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>    <span class="p">}</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="step-5-assign-cell-types">Step 5: Assign Cell Types<a class="headerlink" href="#step-5-assign-cell-types" title="Permanent link">&para;</a></h3>
+<p>Use simulated annealing to assign cell types:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphColorizer</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">colorizer</span> <span class="o">=</span> <span class="n">GraphColorizer</span><span class="p">(</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">target_graph</span><span class="o">=</span><span class="n">graph</span><span class="p">,</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">],</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">target_statistics</span><span class="o">=</span><span class="n">target_stats</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="p">)</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="n">cell_type_assignment</span> <span class="o">=</span> <span class="n">colorizer</span><span class="o">.</span><span class="n">colorize</span><span class="p">(</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="n">initial_temp</span><span class="o">=</span><span class="mf">1000.0</span><span class="p">,</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="n">final_temp</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="n">cooling_rate</span><span class="o">=</span><span class="mf">0.998</span><span class="p">,</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">10000</span><span class="p">,</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="n">verbose</span><span class="o">=</span><span class="kc">True</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="p">)</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="c1"># Apply to slice cells</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">slice_cell</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">slicer</span><span class="o">.</span><span class="n">slice_cells</span><span class="p">):</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>    <span class="n">slice_cell</span><span class="o">.</span><span class="n">cell_type</span> <span class="o">=</span> <span class="n">cell_type_assignment</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="step-6-visualize-results">Step 6: Visualize Results<a class="headerlink" href="#step-6-visualize-results" title="Permanent link">&para;</a></h3>
+<p>Create visualizations:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">visualize_colored_graph</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1"># Visualize network</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">visualize_colored_graph</span><span class="p">(</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">graph</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">cell_type_assignment</span><span class="p">,</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;spring&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Tissue Network with Assigned Cell Types&quot;</span><span class="p">,</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">save_path</span><span class="o">=</span><span class="s2">&quot;network.png&quot;</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="p">)</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="c1"># Visualize 2D slice</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="n">slicer</span><span class="o">.</span><span class="n">visualize_slice_2d</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="step-7-evaluate-against-target">Step 7: Evaluate Against Target<a class="headerlink" href="#step-7-evaluate-against-target" title="Permanent link">&para;</a></h3>
+<p>Compare results with target statistics:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="n">calculate_graph_statistics</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">evaluate_graph_coloring</span><span class="p">,</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">print_evaluation_report</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="p">)</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Calculate final statistics</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="n">final_stats</span> <span class="o">=</span> <span class="n">calculate_graph_statistics</span><span class="p">(</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">graph</span><span class="p">,</span> 
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="n">cell_type_assignment</span><span class="p">,</span> 
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">]</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="p">)</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="c1"># Convert target stats to comparison format</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="n">target_stats_formatted</span> <span class="o">=</span> <span class="p">{}</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="k">for</span> <span class="n">color</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">]:</span>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>    <span class="n">target_stats_formatted</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;nodes_</span><span class="si">{</span><span class="n">color</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">target_stats</span><span class="p">[</span><span class="s1">&#39;node_counts&#39;</span><span class="p">][</span><span class="n">color</span><span class="p">]</span>
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">target_stats</span><span class="p">[</span><span class="s1">&#39;edge_counts&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>    <span class="n">target_stats_formatted</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;edges_</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>
+<a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="c1"># Comprehensive evaluation</span>
+<a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="n">evaluation</span> <span class="o">=</span> <span class="n">evaluate_graph_coloring</span><span class="p">(</span><span class="n">target_stats_formatted</span><span class="p">,</span> <span class="n">final_stats</span><span class="p">)</span>
+<a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="n">print_evaluation_report</span><span class="p">(</span><span class="n">target_stats_formatted</span><span class="p">,</span> <span class="n">final_stats</span><span class="p">,</span> <span class="n">evaluation</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="step-8-export-results">Step 8: Export Results<a class="headerlink" href="#step-8-export-results" title="Permanent link">&para;</a></h3>
+<p>Save all results:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">export_colored_graph_statistics</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># Export slice data</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">slicer</span><span class="o">.</span><span class="n">export_slice_csv</span><span class="p">(</span><span class="s2">&quot;slice_data.csv&quot;</span><span class="p">,</span> <span class="n">include_3d</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="c1"># Export network</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">export_network</span><span class="p">(</span><span class="s2">&quot;network.graphml&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;graphml&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="c1"># Export statistics</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="n">export_colored_graph_statistics</span><span class="p">(</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="n">graph</span><span class="p">,</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="n">cell_type_assignment</span><span class="p">,</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    <span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">],</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>    <span class="s2">&quot;statistics.csv&quot;</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="understanding-target-statistics">Understanding Target Statistics<a class="headerlink" href="#understanding-target-statistics" title="Permanent link">&para;</a></h2>
+<p>Target statistics define the desired spatial organization with three components:</p>
+<h3 id="1-node-counts">1. Node Counts<a class="headerlink" href="#1-node-counts" title="Permanent link">&para;</a></h3>
+<p>How many cells of each type:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="s1">&#39;node_counts&#39;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mi">40</span><span class="p">,</span>   <span class="c1"># 40 cancer cells</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mi">35</span><span class="p">,</span>   <span class="c1"># 35 immune cells</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mi">25</span>    <span class="c1"># 25 stromal cells</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p">}</span>
+</code></pre></div></p>
+<h3 id="2-edge-counts">2. Edge Counts<a class="headerlink" href="#2-edge-counts" title="Permanent link">&para;</a></h3>
+<p>How many connections between cell type pairs:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="s1">&#39;edge_counts&#39;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="s1">&#39;cancer-cancer&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span>    <span class="c1"># 60 connections between cancer cells</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="s1">&#39;cancer-immune&#39;</span><span class="p">:</span> <span class="mi">45</span><span class="p">,</span>    <span class="c1"># 45 connections between cancer and immune</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="s1">&#39;cancer-stroma&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>    <span class="c1"># 30 connections between cancer and stroma</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="s1">&#39;immune-immune&#39;</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span>    <span class="c1"># etc.</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="s1">&#39;immune-stroma&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="s1">&#39;stroma-stroma&#39;</span><span class="p">:</span> <span class="mi">15</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">}</span>
+</code></pre></div></p>
+<p><strong>High edge counts</strong> indicate clustering or strong spatial association.
+<strong>Low edge counts</strong> indicate dispersion or weak spatial association.</p>
+<h3 id="3-neighbor-distribution">3. Neighbor Distribution<a class="headerlink" href="#3-neighbor-distribution" title="Permanent link">&para;</a></h3>
+<p>Average number of neighbors of each type for each cell type:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="s1">&#39;neighbor_dist&#39;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>        <span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">,</span>   <span class="c1"># Average cancer cell has 3.0 cancer neighbors</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>        <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mf">2.2</span><span class="p">,</span>   <span class="c1"># Average cancer cell has 2.2 immune neighbors</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>        <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mf">1.5</span>    <span class="c1"># Average cancer cell has 1.5 stromal neighbors</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="p">},</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="c1"># ... similar for other cell types</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="p">}</span>
+</code></pre></div></p>
+<p>This captures the local neighborhood composition around each cell type.</p>
+<h3 id="creating-target-statistics-from-data">Creating Target Statistics from Data<a class="headerlink" href="#creating-target-statistics-from-data" title="Permanent link">&para;</a></h3>
+<h4 id="from-csv-file">From CSV File:<a class="headerlink" href="#from-csv-file" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_graph_stats_csv</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_graph_stats_csv</span><span class="p">(</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="s2">&quot;reference_statistics.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="n">cell_types</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">]</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="p">)</span>
+</code></pre></div>
+<h4 id="from-existing-tissue">From Existing Tissue:<a class="headerlink" href="#from-existing-tissue" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate_graph_statistics</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c1"># Assuming you have a reference graph with known cell types</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">reference_coloring</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">cell</span><span class="o">.</span><span class="n">cell_type</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cell</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">reference_slice</span><span class="o">.</span><span class="n">cells</span><span class="p">)}</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="n">target_stats_raw</span> <span class="o">=</span> <span class="n">calculate_graph_statistics</span><span class="p">(</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="n">reference_graph</span><span class="p">,</span> 
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="n">reference_coloring</span><span class="p">,</span> 
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">]</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="p">)</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="c1"># Convert to GraphColorizer format</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>    <span class="s1">&#39;node_counts&#39;</span><span class="p">:</span> <span class="p">{},</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>    <span class="s1">&#39;edge_counts&#39;</span><span class="p">:</span> <span class="p">{},</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>    <span class="s1">&#39;neighbor_dist&#39;</span><span class="p">:</span> <span class="p">{}</span>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="p">}</span>
+<a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="c1"># ... (conversion logic)</span>
+</code></pre></div>
+<hr />
+<h2 id="tuning-simulated-annealing">Tuning Simulated Annealing<a class="headerlink" href="#tuning-simulated-annealing" title="Permanent link">&para;</a></h2>
+<p>The simulated annealing algorithm has four key parameters:</p>
+<h3 id="1-initial-temperature-initial_temp">1. Initial Temperature (<code>initial_temp</code>)<a class="headerlink" href="#1-initial-temperature-initial_temp" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>What it does</strong>: Controls how much random exploration happens at the start</li>
+<li><strong>Higher values</strong>: More exploration, can escape local minima</li>
+<li><strong>Lower values</strong>: Less exploration, faster convergence</li>
+<li><strong>Typical range</strong>: 100 - 2000</li>
+<li><strong>Default</strong>: 100.0</li>
+</ul>
+<h3 id="2-final-temperature-final_temp">2. Final Temperature (<code>final_temp</code>)<a class="headerlink" href="#2-final-temperature-final_temp" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>What it does</strong>: Determines when to stop optimizing</li>
+<li><strong>Lower values</strong>: More refinement, better final quality</li>
+<li><strong>Higher values</strong>: Stops earlier, faster runtime</li>
+<li><strong>Typical range</strong>: 0.001 - 1.0</li>
+<li><strong>Default</strong>: 0.1</li>
+</ul>
+<h3 id="3-cooling-rate-cooling_rate">3. Cooling Rate (<code>cooling_rate</code>)<a class="headerlink" href="#3-cooling-rate-cooling_rate" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>What it does</strong>: How quickly temperature decreases</li>
+<li><strong>Closer to 1.0</strong>: Slower cooling, more iterations at each temperature</li>
+<li><strong>Closer to 0.9</strong>: Faster cooling, fewer iterations</li>
+<li><strong>Typical range</strong>: 0.99 - 0.999</li>
+<li><strong>Default</strong>: 0.995</li>
+</ul>
+<h3 id="4-maximum-iterations-max_iterations">4. Maximum Iterations (<code>max_iterations</code>)<a class="headerlink" href="#4-maximum-iterations-max_iterations" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>What it does</strong>: Hard limit on number of optimization steps</li>
+<li><strong>Higher values</strong>: Better results but slower</li>
+<li><strong>Lower values</strong>: Faster but may not converge</li>
+<li><strong>Typical range</strong>: 5,000 - 50,000</li>
+<li><strong>Default</strong>: 100,000</li>
+</ul>
+<h3 id="preset-configurations">Preset Configurations<a class="headerlink" href="#preset-configurations" title="Permanent link">&para;</a></h3>
+<h4 id="fast-testing-5-10-seconds">Fast Testing (5-10 seconds)<a class="headerlink" href="#fast-testing-5-10-seconds" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">colorizer</span><span class="o">.</span><span class="n">colorize</span><span class="p">(</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">initial_temp</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">final_temp</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="n">cooling_rate</span><span class="o">=</span><span class="mf">0.995</span><span class="p">,</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">3000</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="p">)</span>
+</code></pre></div>
+<h4 id="balanced-30-60-seconds">Balanced (30-60 seconds)<a class="headerlink" href="#balanced-30-60-seconds" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">colorizer</span><span class="o">.</span><span class="n">colorize</span><span class="p">(</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="n">initial_temp</span><span class="o">=</span><span class="mf">500.0</span><span class="p">,</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">final_temp</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">cooling_rate</span><span class="o">=</span><span class="mf">0.998</span><span class="p">,</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">10000</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="p">)</span>
+</code></pre></div>
+<h4 id="high-quality-2-5-minutes">High Quality (2-5 minutes)<a class="headerlink" href="#high-quality-2-5-minutes" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">colorizer</span><span class="o">.</span><span class="n">colorize</span><span class="p">(</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>    <span class="n">initial_temp</span><span class="o">=</span><span class="mf">2000.0</span><span class="p">,</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="n">final_temp</span><span class="o">=</span><span class="mf">0.001</span><span class="p">,</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="n">cooling_rate</span><span class="o">=</span><span class="mf">0.999</span><span class="p">,</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">20000</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="when-to-adjust-parameters">When to Adjust Parameters<a class="headerlink" href="#when-to-adjust-parameters" title="Permanent link">&para;</a></h3>
+<p><strong>Poor convergence (high JS divergence &gt; 0.3)</strong>:
+- Increase <code>initial_temp</code> to 1000-2000
+- Decrease <code>cooling_rate</code> to 0.998-0.999
+- Increase <code>max_iterations</code> to 15000-30000</p>
+<p><strong>Slow performance</strong>:
+- Decrease <code>max_iterations</code> to 3000-5000
+- Increase <code>cooling_rate</code> to 0.99-0.995
+- Increase <code>final_temp</code> to 0.1-1.0</p>
+<p><strong>Already good results but want refinement</strong>:
+- Keep <code>initial_temp</code> the same
+- Decrease <code>final_temp</code> to 0.001-0.01
+- Increase <code>max_iterations</code> by 50%</p>
+<hr />
+<h2 id="network-building-modes">Network Building Modes<a class="headerlink" href="#network-building-modes" title="Permanent link">&para;</a></h2>
+<p>Two modes for defining spatial connections:</p>
+<h3 id="contact-mode">Contact Mode<a class="headerlink" href="#contact-mode" title="Permanent link">&para;</a></h3>
+<p>Cells are connected if they're touching (intersecting):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Pros</strong>:
+- Captures direct physical contact
+- No parameter tuning needed
+- Biologically meaningful for contact-dependent interactions</p>
+<p><strong>Cons</strong>:
+- Sparse networks (fewer edges)
+- Sensitive to cell spacing
+- May miss nearby but non-touching cells</p>
+<p><strong>Best for</strong>:
+- Adherent cells (epithelial tissues)
+- Contact-dependent signaling
+- Tight cell packing</p>
+<h3 id="radius-mode">Radius Mode<a class="headerlink" href="#radius-mode" title="Permanent link">&para;</a></h3>
+<p>Cells are connected if their centers are within a distance threshold:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Pros</strong>:
+- Captures broader spatial relationships
+- Adjustable sensitivity via radius parameter
+- More robust to spacing variations</p>
+<p><strong>Cons</strong>:
+- Requires radius parameter tuning
+- May include spurious long-range connections</p>
+<p><strong>Best for</strong>:
+- Paracrine signaling
+- Diffusible factor interactions
+- Sparse tissues</p>
+<h3 id="choosing-the-radius">Choosing the Radius<a class="headerlink" href="#choosing-the-radius" title="Permanent link">&para;</a></h3>
+<p><strong>Small radius (20-40 μm)</strong>:
+- Immediate neighbors only
+- Local interactions
+- Similar to contact mode but more forgiving</p>
+<p><strong>Medium radius (40-60 μm)</strong>:
+- Neighborhood structure
+- 2-3 cell diameters
+- <strong>Recommended starting point</strong></p>
+<p><strong>Large radius (60-100 μm)</strong>:
+- Broader spatial patterns
+- Long-range organization
+- Risk of over-connection</p>
+<p><strong>Rule of thumb</strong>: Set radius to 2-3× the average cell diameter.</p>
+<hr />
+<h2 id="evaluation-metrics">Evaluation Metrics<a class="headerlink" href="#evaluation-metrics" title="Permanent link">&para;</a></h2>
+<p>The evaluation provides multiple metrics to assess quality:</p>
+<h3 id="1-jensen-shannon-divergence-js-divergence">1. Jensen-Shannon Divergence (JS Divergence)<a class="headerlink" href="#1-jensen-shannon-divergence-js-divergence" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Range</strong>: 0 to 1</li>
+<li><strong>Lower is better</strong>: 0 = perfect match</li>
+<li><strong>Interpretation</strong>:</li>
+<li>&lt; 0.1: Excellent match</li>
+<li>0.1 - 0.2: Good match</li>
+<li>0.2 - 0.3: Fair match</li>
+<li>
+<blockquote>
+<p>0.3: Poor match</p>
+</blockquote>
+</li>
+</ul>
+<h3 id="2-cosine-similarity">2. Cosine Similarity<a class="headerlink" href="#2-cosine-similarity" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Range</strong>: 0 to 1</li>
+<li><strong>Higher is better</strong>: 1 = perfect match</li>
+<li><strong>Interpretation</strong>:</li>
+<li>
+<blockquote>
+<p>0.95: Excellent</p>
+</blockquote>
+</li>
+<li>0.90 - 0.95: Good</li>
+<li>0.85 - 0.90: Fair</li>
+<li>&lt; 0.85: Poor</li>
+</ul>
+<h3 id="3-mean-absolute-error-mae">3. Mean Absolute Error (MAE)<a class="headerlink" href="#3-mean-absolute-error-mae" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Range</strong>: 0 to ∞</li>
+<li><strong>Lower is better</strong>: 0 = perfect match</li>
+<li><strong>Interpretation</strong>: Average absolute difference in edge counts</li>
+</ul>
+<h3 id="4-root-mean-squared-error-rmse">4. Root Mean Squared Error (RMSE)<a class="headerlink" href="#4-root-mean-squared-error-rmse" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Range</strong>: 0 to ∞</li>
+<li><strong>Lower is better</strong>: 0 = perfect match</li>
+<li><strong>Interpretation</strong>: Penalizes larger errors more than MAE</li>
+</ul>
+<h3 id="5-percent-differences">5. Percent Differences<a class="headerlink" href="#5-percent-differences" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Per edge type</strong>: Percent difference for each cell type pair</li>
+<li><strong>Average</strong>: Mean percent difference across all edge types</li>
+<li><strong>Interpretation</strong>:</li>
+<li>&lt; 10%: Excellent</li>
+<li>10-20%: Good</li>
+<li>20-30%: Fair</li>
+<li>
+<blockquote>
+<p>30%: Poor</p>
+</blockquote>
+</li>
+</ul>
+<h3 id="accessing-metrics">Accessing Metrics<a class="headerlink" href="#accessing-metrics" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">evaluation</span> <span class="o">=</span> <span class="n">evaluate_graph_coloring</span><span class="p">(</span><span class="n">target_stats</span><span class="p">,</span> <span class="n">final_stats</span><span class="p">)</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="c1"># Access individual metrics</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">js_div</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;js_divergence&#39;</span><span class="p">]</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">cos_sim</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;cosine_similarity&#39;</span><span class="p">]</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="n">mae</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;mean_absolute_error&#39;</span><span class="p">]</span>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="n">rmse</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;root_mean_squared_error&#39;</span><span class="p">]</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="n">avg_diff</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;avg_percent_difference&#39;</span><span class="p">]</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="n">max_diff</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;max_percent_difference&#39;</span><span class="p">]</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="c1"># Print comprehensive report</span>
+<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a><span class="n">print_evaluation_report</span><span class="p">(</span><span class="n">target_stats</span><span class="p">,</span> <span class="n">final_stats</span><span class="p">,</span> <span class="n">evaluation</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<h3 id="example-1-complete-workflow-with-tissuenetworkworkflow">Example 1: Complete Workflow with TissueNetworkWorkflow<a class="headerlink" href="#example-1-complete-workflow-with-tissuenetworkworkflow" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TissueSection</span><span class="p">,</span> <span class="n">SpherePacker</span><span class="p">,</span> <span class="n">TissueNetworkWorkflow</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="c1"># Create tissue</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="n">tissue</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">thickness</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="n">packer</span> <span class="o">=</span> <span class="n">SpherePacker</span><span class="p">(</span><span class="n">tissue</span><span class="p">)</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="n">packer</span><span class="o">.</span><span class="n">pack_cells</span><span class="p">(</span><span class="n">cell_types</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;placeholder&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">]},</span> <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1500</span><span class="p">)</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="c1"># Define target statistics</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>    <span class="s1">&#39;node_counts&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mi">40</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mi">35</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mi">25</span><span class="p">},</span>
+<a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>    <span class="s1">&#39;edge_counts&#39;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a>        <span class="s1">&#39;cancer-cancer&#39;</span><span class="p">:</span> <span class="mi">60</span><span class="p">,</span> <span class="s1">&#39;cancer-immune&#39;</span><span class="p">:</span> <span class="mi">45</span><span class="p">,</span> <span class="s1">&#39;cancer-stroma&#39;</span><span class="p">:</span> <span class="mi">30</span><span class="p">,</span>
+<a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a>        <span class="s1">&#39;immune-immune&#39;</span><span class="p">:</span> <span class="mi">25</span><span class="p">,</span> <span class="s1">&#39;immune-stroma&#39;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span> <span class="s1">&#39;stroma-stroma&#39;</span><span class="p">:</span> <span class="mi">15</span>
+<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>    <span class="p">},</span>
+<a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a>    <span class="s1">&#39;neighbor_dist&#39;</span><span class="p">:</span> <span class="p">{</span>
+<a id="__codelineno-20-16" name="__codelineno-20-16" href="#__codelineno-20-16"></a>        <span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mf">3.0</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mf">2.2</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">},</span>
+<a id="__codelineno-20-17" name="__codelineno-20-17" href="#__codelineno-20-17"></a>        <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mf">2.5</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mf">1.8</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mf">1.3</span><span class="p">},</span>
+<a id="__codelineno-20-18" name="__codelineno-20-18" href="#__codelineno-20-18"></a>        <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mf">2.0</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mf">1.5</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="mf">1.2</span><span class="p">}</span>
+<a id="__codelineno-20-19" name="__codelineno-20-19" href="#__codelineno-20-19"></a>    <span class="p">}</span>
+<a id="__codelineno-20-20" name="__codelineno-20-20" href="#__codelineno-20-20"></a><span class="p">}</span>
+<a id="__codelineno-20-21" name="__codelineno-20-21" href="#__codelineno-20-21"></a>
+<a id="__codelineno-20-22" name="__codelineno-20-22" href="#__codelineno-20-22"></a><span class="c1"># Run workflow (seed=42 makes the colorize step bit-reproducible)</span>
+<a id="__codelineno-20-23" name="__codelineno-20-23" href="#__codelineno-20-23"></a><span class="n">workflow</span> <span class="o">=</span> <span class="n">TissueNetworkWorkflow</span><span class="p">()</span>
+<a id="__codelineno-20-24" name="__codelineno-20-24" href="#__codelineno-20-24"></a><span class="n">evaluation</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">run_complete_workflow</span><span class="p">(</span>
+<a id="__codelineno-20-25" name="__codelineno-20-25" href="#__codelineno-20-25"></a>    <span class="n">tissue</span><span class="o">=</span><span class="n">tissue</span><span class="p">,</span>
+<a id="__codelineno-20-26" name="__codelineno-20-26" href="#__codelineno-20-26"></a>    <span class="n">z_position</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
+<a id="__codelineno-20-27" name="__codelineno-20-27" href="#__codelineno-20-27"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">,</span>
+<a id="__codelineno-20-28" name="__codelineno-20-28" href="#__codelineno-20-28"></a>    <span class="n">target_stats_dict</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-20-29" name="__codelineno-20-29" href="#__codelineno-20-29"></a>    <span class="n">cell_types</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">],</span>
+<a id="__codelineno-20-30" name="__codelineno-20-30" href="#__codelineno-20-30"></a>    <span class="n">annealing_params</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-20-31" name="__codelineno-20-31" href="#__codelineno-20-31"></a>        <span class="s1">&#39;initial_temp&#39;</span><span class="p">:</span> <span class="mf">1000.0</span><span class="p">,</span>
+<a id="__codelineno-20-32" name="__codelineno-20-32" href="#__codelineno-20-32"></a>        <span class="s1">&#39;final_temp&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span>
+<a id="__codelineno-20-33" name="__codelineno-20-33" href="#__codelineno-20-33"></a>        <span class="s1">&#39;cooling_rate&#39;</span><span class="p">:</span> <span class="mf">0.998</span><span class="p">,</span>
+<a id="__codelineno-20-34" name="__codelineno-20-34" href="#__codelineno-20-34"></a>        <span class="s1">&#39;max_iterations&#39;</span><span class="p">:</span> <span class="mi">10000</span>
+<a id="__codelineno-20-35" name="__codelineno-20-35" href="#__codelineno-20-35"></a>    <span class="p">},</span>
+<a id="__codelineno-20-36" name="__codelineno-20-36" href="#__codelineno-20-36"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+<a id="__codelineno-20-37" name="__codelineno-20-37" href="#__codelineno-20-37"></a>    <span class="n">export_dir</span><span class="o">=</span><span class="s2">&quot;results&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-38" name="__codelineno-20-38" href="#__codelineno-20-38"></a>    <span class="n">visualize</span><span class="o">=</span><span class="kc">True</span>
+<a id="__codelineno-20-39" name="__codelineno-20-39" href="#__codelineno-20-39"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="example-2-batch-processing-multiple-slices">Example 2: Batch Processing Multiple Slices<a class="headerlink" href="#example-2-batch-processing-multiple-slices" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TissueSection</span><span class="p">,</span> <span class="n">SpherePacker</span><span class="p">,</span> <span class="n">TissueNetworkWorkflow</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="c1"># Create tissue</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">tissue</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">thickness</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="n">packer</span> <span class="o">=</span> <span class="n">SpherePacker</span><span class="p">(</span><span class="n">tissue</span><span class="p">)</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="n">packer</span><span class="o">.</span><span class="n">pack_cells</span><span class="p">(</span><span class="n">cell_types</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;placeholder&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">]},</span> <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1500</span><span class="p">)</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="c1"># Process multiple slices</span>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="n">z_positions</span> <span class="o">=</span> <span class="p">[</span><span class="mi">20</span><span class="p">,</span> <span class="mi">40</span><span class="p">,</span> <span class="mi">60</span><span class="p">,</span> <span class="mi">80</span><span class="p">]</span>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="n">cell_types</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">,</span> <span class="s1">&#39;stroma&#39;</span><span class="p">]</span>
+<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a>
+<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">z_pos</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">z_positions</span><span class="p">):</span>
+<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing slice </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">z_positions</span><span class="p">)</span><span class="si">}</span><span class="s2"> at z=</span><span class="si">{</span><span class="n">z_pos</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a>
+<a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a>    <span class="n">workflow</span> <span class="o">=</span> <span class="n">TissueNetworkWorkflow</span><span class="p">()</span>
+<a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">set_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">)</span>
+<a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">create_slice</span><span class="p">(</span><span class="n">z_position</span><span class="o">=</span><span class="n">z_pos</span><span class="p">)</span>
+<a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
+<a id="__codelineno-21-19" name="__codelineno-21-19" href="#__codelineno-21-19"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">load_target_statistics</span><span class="p">(</span><span class="n">statistics</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span> <span class="n">cell_types</span><span class="o">=</span><span class="n">cell_types</span><span class="p">)</span>
+<a id="__codelineno-21-20" name="__codelineno-21-20" href="#__codelineno-21-20"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">assign_cell_types</span><span class="p">(</span><span class="n">max_iterations</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-21-21" name="__codelineno-21-21" href="#__codelineno-21-21"></a>
+<a id="__codelineno-21-22" name="__codelineno-21-22" href="#__codelineno-21-22"></a>    <span class="c1"># Export</span>
+<a id="__codelineno-21-23" name="__codelineno-21-23" href="#__codelineno-21-23"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">export_all</span><span class="p">(</span><span class="n">base_dir</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;results/slice_</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">prefix</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;slice_</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-21-24" name="__codelineno-21-24" href="#__codelineno-21-24"></a>
+<a id="__codelineno-21-25" name="__codelineno-21-25" href="#__codelineno-21-25"></a>    <span class="c1"># Evaluate</span>
+<a id="__codelineno-21-26" name="__codelineno-21-26" href="#__codelineno-21-26"></a>    <span class="n">evaluation</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">print_report</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-21-27" name="__codelineno-21-27" href="#__codelineno-21-27"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  JS Divergence: </span><span class="si">{</span><span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;js_divergence&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="example-3-comparing-network-modes">Example 3: Comparing Network Modes<a class="headerlink" href="#example-3-comparing-network-modes" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># Same tissue, different network modes</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">modes</span> <span class="o">=</span> <span class="p">[</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>    <span class="p">(</span><span class="s1">&#39;contact&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>    <span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="mf">30.0</span><span class="p">),</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>    <span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="mf">50.0</span><span class="p">),</span>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>    <span class="p">(</span><span class="s1">&#39;radius&#39;</span><span class="p">,</span> <span class="mf">70.0</span><span class="p">)</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="p">]</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="k">for</span> <span class="n">mode_type</span><span class="p">,</span> <span class="n">radius</span> <span class="ow">in</span> <span class="n">modes</span><span class="p">:</span>
+<a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Testing mode: </span><span class="si">{</span><span class="n">mode_type</span><span class="si">}</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="p">(</span><span class="sa">f</span><span class="s2">&quot; (radius=</span><span class="si">{</span><span class="n">radius</span><span class="si">}</span><span class="s2">)&quot;</span> <span class="k">if</span> <span class="n">radius</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">))</span>
+<a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>
+<a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a>    <span class="n">workflow</span> <span class="o">=</span> <span class="n">TissueNetworkWorkflow</span><span class="p">()</span>
+<a id="__codelineno-22-13" name="__codelineno-22-13" href="#__codelineno-22-13"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">set_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">)</span>
+<a id="__codelineno-22-14" name="__codelineno-22-14" href="#__codelineno-22-14"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">create_slice</span><span class="p">(</span><span class="n">z_position</span><span class="o">=</span><span class="mi">40</span><span class="p">)</span>
+<a id="__codelineno-22-15" name="__codelineno-22-15" href="#__codelineno-22-15"></a>
+<a id="__codelineno-22-16" name="__codelineno-22-16" href="#__codelineno-22-16"></a>    <span class="k">if</span> <span class="n">mode_type</span> <span class="o">==</span> <span class="s1">&#39;contact&#39;</span><span class="p">:</span>
+<a id="__codelineno-22-17" name="__codelineno-22-17" href="#__codelineno-22-17"></a>        <span class="n">workflow</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span><span class="p">)</span>
+<a id="__codelineno-22-18" name="__codelineno-22-18" href="#__codelineno-22-18"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-22-19" name="__codelineno-22-19" href="#__codelineno-22-19"></a>        <span class="n">workflow</span><span class="o">.</span><span class="n">build_network</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">radius</span><span class="p">)</span>
+<a id="__codelineno-22-20" name="__codelineno-22-20" href="#__codelineno-22-20"></a>
+<a id="__codelineno-22-21" name="__codelineno-22-21" href="#__codelineno-22-21"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">load_target_statistics</span><span class="p">(</span><span class="n">statistics</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span> <span class="n">cell_types</span><span class="o">=</span><span class="n">cell_types</span><span class="p">)</span>
+<a id="__codelineno-22-22" name="__codelineno-22-22" href="#__codelineno-22-22"></a>    <span class="n">workflow</span><span class="o">.</span><span class="n">assign_cell_types</span><span class="p">(</span><span class="n">max_iterations</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-22-23" name="__codelineno-22-23" href="#__codelineno-22-23"></a>
+<a id="__codelineno-22-24" name="__codelineno-22-24" href="#__codelineno-22-24"></a>    <span class="n">evaluation</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">print_report</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-22-25" name="__codelineno-22-25" href="#__codelineno-22-25"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Network edges: </span><span class="si">{</span><span class="n">workflow</span><span class="o">.</span><span class="n">graph</span><span class="o">.</span><span class="n">number_of_edges</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-22-26" name="__codelineno-22-26" href="#__codelineno-22-26"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;JS Divergence: </span><span class="si">{</span><span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;js_divergence&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="issue-high-js-divergence-03">Issue: High JS Divergence (&gt; 0.3)<a class="headerlink" href="#issue-high-js-divergence-03" title="Permanent link">&para;</a></h3>
+<p><strong>Possible causes</strong>:
+1. Target statistics are not achievable with the given network structure
+2. Insufficient optimization (too few iterations)
+3. Parameters cooling too quickly</p>
+<p><strong>Solutions</strong>:
+- Increase <code>max_iterations</code> to 20000-50000
+- Increase <code>initial_temp</code> to 1000-2000
+- Decrease <code>cooling_rate</code> to 0.998-0.999
+- Check that node counts in target match graph size
+- Try different network radius</p>
+<h3 id="issue-slow-performance">Issue: Slow Performance<a class="headerlink" href="#issue-slow-performance" title="Permanent link">&para;</a></h3>
+<p><strong>Possible causes</strong>:
+1. Too many iterations
+2. Large network (many nodes/edges)
+3. Slow cooling rate</p>
+<p><strong>Solutions</strong>:
+- Reduce <code>max_iterations</code> to 3000-5000
+- Use smaller network (smaller radius, fewer cells)
+- Increase <code>cooling_rate</code> to 0.99-0.995
+- Reduce tissue size</p>
+<h3 id="issue-poor-match-for-specific-cell-types">Issue: Poor Match for Specific Cell Types<a class="headerlink" href="#issue-poor-match-for-specific-cell-types" title="Permanent link">&para;</a></h3>
+<p><strong>Possible causes</strong>:
+1. Target statistics are imbalanced
+2. Network structure doesn't support desired patterns</p>
+<p><strong>Solutions</strong>:
+- Check that node counts are reasonable given network size
+- Verify edge counts are consistent with network connectivity
+- Try different network radius to get more/fewer edges
+- Adjust target statistics to be more achievable</p>
+<h3 id="issue-converges-quickly-but-poor-quality">Issue: Converges Quickly but Poor Quality<a class="headerlink" href="#issue-converges-quickly-but-poor-quality" title="Permanent link">&para;</a></h3>
+<p><strong>Possible causes</strong>:
+1. Cooling too fast
+2. Initial temperature too low
+3. Getting stuck in local minimum</p>
+<p><strong>Solutions</strong>:
+- Decrease <code>cooling_rate</code> to 0.998-0.999
+- Increase <code>initial_temp</code> to 1000-2000
+- Increase <code>max_iterations</code>
+- Run multiple times and take best result</p>
+<h3 id="issue-memory-errors-with-large-networks">Issue: Memory Errors with Large Networks<a class="headerlink" href="#issue-memory-errors-with-large-networks" title="Permanent link">&para;</a></h3>
+<p><strong>Possible causes</strong>:
+1. Network too large
+2. Statistics calculation too expensive</p>
+<p><strong>Solutions</strong>:
+- Process in smaller batches
+- Reduce network density (smaller radius)
+- Use smaller tissue sections
+- Reduce number of nodes</p>
+<hr />
+<h2 id="advanced-topics">Advanced Topics<a class="headerlink" href="#advanced-topics" title="Permanent link">&para;</a></h2>
+<h3 id="custom-color-palettes">Custom Color Palettes<a class="headerlink" href="#custom-color-palettes" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">color_palette</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    <span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="s1">&#39;#d62728&#39;</span><span class="p">,</span>   <span class="c1"># Red</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="s1">&#39;#1f77b4&#39;</span><span class="p">,</span>   <span class="c1"># Blue  </span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="s1">&#39;stroma&#39;</span><span class="p">:</span> <span class="s1">&#39;#2ca02c&#39;</span>    <span class="c1"># Green</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="p">}</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="n">visualize_colored_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">cell_type_assignment</span><span class="p">,</span> <span class="n">color_palette</span><span class="o">=</span><span class="n">color_palette</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="extracting-statistics-from-reference-tissue">Extracting Statistics from Reference Tissue<a class="headerlink" href="#extracting-statistics-from-reference-tissue" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">calculate_graph_statistics</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="c1"># Build network from reference tissue</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="n">ref_analyzer</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="n">ref_graph</span> <span class="o">=</span> <span class="n">ref_analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">ref_slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mf">50.0</span><span class="p">)</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="c1"># Get existing cell types</span>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a><span class="n">ref_coloring</span> <span class="o">=</span> <span class="p">{</span><span class="n">i</span><span class="p">:</span> <span class="n">cell</span><span class="o">.</span><span class="n">cell_type</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">cell</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ref_slicer</span><span class="o">.</span><span class="n">slice_cells</span><span class="p">)}</span>
+<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>
+<a id="__codelineno-24-10" name="__codelineno-24-10" href="#__codelineno-24-10"></a><span class="c1"># Calculate statistics</span>
+<a id="__codelineno-24-11" name="__codelineno-24-11" href="#__codelineno-24-11"></a><span class="n">ref_stats</span> <span class="o">=</span> <span class="n">calculate_graph_statistics</span><span class="p">(</span><span class="n">ref_graph</span><span class="p">,</span> <span class="n">ref_coloring</span><span class="p">,</span> <span class="n">cell_types</span><span class="p">)</span>
+<a id="__codelineno-24-12" name="__codelineno-24-12" href="#__codelineno-24-12"></a>
+<a id="__codelineno-24-13" name="__codelineno-24-13" href="#__codelineno-24-13"></a><span class="c1"># Use as target for new tissue</span>
+<a id="__codelineno-24-14" name="__codelineno-24-14" href="#__codelineno-24-14"></a><span class="c1"># (Convert format as needed)</span>
+</code></pre></div>
+<h3 id="parameter-sweep-to-find-optimal-settings">Parameter Sweep to Find Optimal Settings<a class="headerlink" href="#parameter-sweep-to-find-optimal-settings" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">param_grid</span> <span class="o">=</span> <span class="p">{</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>    <span class="s1">&#39;initial_temp&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mi">100</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">2000</span><span class="p">],</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>    <span class="s1">&#39;cooling_rate&#39;</span><span class="p">:</span> <span class="p">[</span><span class="mf">0.995</span><span class="p">,</span> <span class="mf">0.998</span><span class="p">,</span> <span class="mf">0.999</span><span class="p">]</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="p">}</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="n">best_params</span> <span class="o">=</span> <span class="kc">None</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a><span class="n">best_js_div</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="k">for</span> <span class="n">init_temp</span> <span class="ow">in</span> <span class="n">param_grid</span><span class="p">[</span><span class="s1">&#39;initial_temp&#39;</span><span class="p">]:</span>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>    <span class="k">for</span> <span class="n">cool_rate</span> <span class="ow">in</span> <span class="n">param_grid</span><span class="p">[</span><span class="s1">&#39;cooling_rate&#39;</span><span class="p">]:</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a>        <span class="c1"># Run workflow</span>
+<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a>        <span class="n">workflow</span> <span class="o">=</span> <span class="n">TissueNetworkWorkflow</span><span class="p">()</span>
+<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a>        <span class="c1"># ... setup ...</span>
+<a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a>        <span class="n">workflow</span><span class="o">.</span><span class="n">assign_cell_types</span><span class="p">(</span>
+<a id="__codelineno-25-15" name="__codelineno-25-15" href="#__codelineno-25-15"></a>            <span class="n">initial_temp</span><span class="o">=</span><span class="n">init_temp</span><span class="p">,</span>
+<a id="__codelineno-25-16" name="__codelineno-25-16" href="#__codelineno-25-16"></a>            <span class="n">cooling_rate</span><span class="o">=</span><span class="n">cool_rate</span><span class="p">,</span>
+<a id="__codelineno-25-17" name="__codelineno-25-17" href="#__codelineno-25-17"></a>            <span class="n">max_iterations</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>
+<a id="__codelineno-25-18" name="__codelineno-25-18" href="#__codelineno-25-18"></a>            <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span>
+<a id="__codelineno-25-19" name="__codelineno-25-19" href="#__codelineno-25-19"></a>        <span class="p">)</span>
+<a id="__codelineno-25-20" name="__codelineno-25-20" href="#__codelineno-25-20"></a>
+<a id="__codelineno-25-21" name="__codelineno-25-21" href="#__codelineno-25-21"></a>        <span class="n">evaluation</span> <span class="o">=</span> <span class="n">workflow</span><span class="o">.</span><span class="n">evaluate</span><span class="p">(</span><span class="n">print_report</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-25-22" name="__codelineno-25-22" href="#__codelineno-25-22"></a>        <span class="n">js_div</span> <span class="o">=</span> <span class="n">evaluation</span><span class="p">[</span><span class="s1">&#39;js_divergence&#39;</span><span class="p">]</span>
+<a id="__codelineno-25-23" name="__codelineno-25-23" href="#__codelineno-25-23"></a>
+<a id="__codelineno-25-24" name="__codelineno-25-24" href="#__codelineno-25-24"></a>        <span class="k">if</span> <span class="n">js_div</span> <span class="o">&lt;</span> <span class="n">best_js_div</span><span class="p">:</span>
+<a id="__codelineno-25-25" name="__codelineno-25-25" href="#__codelineno-25-25"></a>            <span class="n">best_js_div</span> <span class="o">=</span> <span class="n">js_div</span>
+<a id="__codelineno-25-26" name="__codelineno-25-26" href="#__codelineno-25-26"></a>            <span class="n">best_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;initial_temp&#39;</span><span class="p">:</span> <span class="n">init_temp</span><span class="p">,</span> <span class="s1">&#39;cooling_rate&#39;</span><span class="p">:</span> <span class="n">cool_rate</span><span class="p">}</span>
+<a id="__codelineno-25-27" name="__codelineno-25-27" href="#__codelineno-25-27"></a>
+<a id="__codelineno-25-28" name="__codelineno-25-28" href="#__codelineno-25-28"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Best parameters: </span><span class="si">{</span><span class="n">best_params</span><span class="si">}</span><span class="s2">, JS Divergence: </span><span class="si">{</span><span class="n">best_js_div</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<p>See also:
+- <code>examples/complete_graph_coloring_workflow.py</code>: Comprehensive examples
+- <code>tissue_simulator/tissue_workflow.py</code>: Workflow implementation
+- <code>tissue_simulator/graph_coloring.py</code>: Simulated annealing algorithm
+- <code>tissue_simulator/evaluation.py</code>: Evaluation metrics
+- <code>docs/api/graph-coloring.md</code>: Additional documentation</p>
+<hr />
+<p><strong>For questions or issues, please check the documentation or file an issue on the repository.</strong></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/emcramer/tissue_simulator" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "toc.follow", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit", "content.action.view"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

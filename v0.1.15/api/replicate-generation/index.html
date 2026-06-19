@@ -1,0 +1,3351 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="3D simulated biological tissue section generator with network-based spatial analysis and ABM-initialization workflows">
+      
+      
+      
+        <link rel="canonical" href="https://emcramer.github.io/tissue_simulator/v0.1.15/api/replicate-generation/">
+      
+      
+        <link rel="prev" href="../graph-coloring/">
+      
+      
+        <link rel="next" href="../convergence/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Replicate Generation - Tissue Simulator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#replicate-generation-documentation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Tissue Simulator" class="md-header__button md-logo" aria-label="Tissue Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tissue Simulator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Replicate Generation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/emcramer/tissue_simulator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    emcramer/tissue_simulator
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../quickstart/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quickstart
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/complete-workflow/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../core/" class="md-tabs__link">
+          
+  
+  
+  API Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/tissue/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../slides/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Tour
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Tissue Simulator" class="md-nav__button md-logo" aria-label="Tissue Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tissue Simulator
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/emcramer/tissue_simulator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    emcramer/tissue_simulator
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/complete-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Complete Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core (TissueSection / Cell / SpherePacker)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slicing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slicing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spatial-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../graph-coloring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph Coloring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Replicate Generation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Replicate Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Features
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generation-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generation methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Generation methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#methodradius_tuning-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        method="radius_tuning" (default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#methodgraph_coloring-recommended-for-interaction-targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        method="graph_coloring" (recommended for interaction targets)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measuring-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measuring consistency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-algorithm-families" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related algorithm families
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generate-from-existing-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate from Existing Tissue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-from-csv-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate from CSV File
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-from-a-coordinate-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate from a Coordinate CSV
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csv-format-for-target-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSV Format for Target Statistics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#targetstatistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TargetStatistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#replicategenerator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReplicateGenerator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReplicateGenerator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generate_single_replicate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_single_replicate()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate_replicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_replicates()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#replicatestatistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReplicateStatistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Export Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#export-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-tissues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Tissues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#algorithm-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm Details
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Algorithm Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimization-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization Process
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#divergence-metric" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Divergence Metric
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-adjustment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Adjustment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Optimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reproducibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproducibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#network-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MCP Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MCP Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-match-existing-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: Match Existing Tissue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-load-from-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: Load from CSV
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-batch-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: Batch Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generation-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generation Time
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimization-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization Tips
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpretation-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interpretation Guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interpretation Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#divergence-scores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Divergence Scores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-count-variation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cell Count Variation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interaction-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interaction Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issue-high-divergence-scores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: High Divergence Scores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-few-cells-generated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Few Cells Generated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-long-generation-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Long Generation Time
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-inconsistent-cell-type-proportions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Inconsistent Cell Type Proportions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../convergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Convergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../power-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Power Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../physicell/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PhysiCell Bridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tissue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tissue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/packing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    packing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/slicing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slicing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/spatial_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spatial_analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/graph_coloring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    graph_coloring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/replicate_generator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    replicate_generator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tissue_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tissue_workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/convergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    convergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/power_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    power_analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/physicell_export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    physicell_export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/physicell_reader/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    physicell_reader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mcp.server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tour
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Features
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#generation-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generation methods
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Generation methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#methodradius_tuning-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        method="radius_tuning" (default)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#methodgraph_coloring-recommended-for-interaction-targets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        method="graph_coloring" (recommended for interaction targets)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measuring-consistency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measuring consistency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#related-algorithm-families" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Related algorithm families
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick Start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generate-from-existing-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate from Existing Tissue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-from-csv-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate from CSV File
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate-from-a-coordinate-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate from a Coordinate CSV
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csv-format-for-target-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSV Format for Target Statistics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#targetstatistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TargetStatistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#replicategenerator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReplicateGenerator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ReplicateGenerator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generate_single_replicate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_single_replicate()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#generate_replicates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        generate_replicates()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#replicatestatistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ReplicateStatistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Export Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#export-statistics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Statistics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-tissues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Tissues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#algorithm-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm Details
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Algorithm Details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimization-process" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization Process
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#divergence-metric" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Divergence Metric
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parameter-adjustment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameter Adjustment
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Usage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Usage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Optimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reproducibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproducibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#network-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Network Modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mcp-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MCP Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="MCP Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-1-match-existing-tissue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: Match Existing Tissue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-2-load-from-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: Load from CSV
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-3-batch-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: Batch Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#generation-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generation Time
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#optimization-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization Tips
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Usage
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interpretation-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interpretation Guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interpretation Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#divergence-scores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Divergence Scores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cell-count-variation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cell Count Variation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interaction-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interaction Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issue-high-divergence-scores" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: High Divergence Scores
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-few-cells-generated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Few Cells Generated
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-long-generation-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Long Generation Time
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-inconsistent-cell-type-proportions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Issue: Inconsistent Cell Type Proportions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/emcramer/tissue_simulator/edit/main/docs/api/replicate-generation.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/emcramer/tissue_simulator/raw/main/docs/api/replicate-generation.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"/></svg>
+    </a>
+  
+
+
+<h1 id="replicate-generation-documentation">Replicate Generation Documentation<a class="headerlink" href="#replicate-generation-documentation" title="Permanent link">&para;</a></h1>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The replicate generation module allows you to generate multiple tissue samples that match specific spatial interaction patterns. This is useful for:</p>
+<ul>
+<li><strong>Statistical analysis</strong>: Generate multiple samples for robust statistical comparisons</li>
+<li><strong>Validation studies</strong>: Create control tissues with known properties</li>
+<li><strong>Hypothesis testing</strong>: Generate tissues matching theoretical interaction patterns</li>
+<li><strong>Simulation studies</strong>: Create ensembles of tissues for computational experiments</li>
+</ul>
+<blockquote>
+<p><strong>When to reach for <code>GraphColorizer</code> instead.</strong> <code>ReplicateGenerator</code> matches
+contact statistics and proportions through repacking; it does NOT perform
+simulated-annealing label assignment, and it will not converge on strongly
+structured multi-type targets (e.g. a tumor disc with a fibroblast ring or
+a CD8 annulus). For those, use the two-stage <code>TissueWorkflow</code> path —
+<code>generate_cells</code> for positions, then <code>assign_cell_types</code> for labels via
+<code>GraphColorizer</code>. See the "When to use what" section of
+<a href="../graph-coloring/#when-to-use-what"><code>graph-coloring.md</code></a>.</p>
+<p><strong>Geometric vs. colored replicates.</strong> <code>ReplicateGenerator</code> produces
+<em>geometric</em> replicates — each sample has a different cell packing. To instead
+hold one geometry fixed and draw several diverse <em>type labelings</em> of it, use
+<code>TissueNetworkWorkflow.generate_colored_replicates(n)</code>, documented under
+<a href="../graph-coloring/#generating-colored-replicates">Generating colored replicates</a>.</p>
+</blockquote>
+<h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Target-based generation</strong>: Generate tissues matching specified spatial statistics</li>
+<li><strong>Multiple sources</strong>: Load targets from CSV files or existing tissues</li>
+<li><strong>Iterative optimization</strong>: Automatically tunes parameters to match targets</li>
+<li><strong>Flexible constraints</strong>: Control cell types, proportions, and packing</li>
+<li><strong>Batch processing</strong>: Generate multiple replicates efficiently</li>
+<li><strong>Comprehensive export</strong>: Save tissues and statistics in multiple formats</li>
+<li><strong>MCP integration</strong>: Fully accessible via LLM coding assistant</li>
+</ul>
+<h2 id="generation-methods">Generation methods<a class="headerlink" href="#generation-methods" title="Permanent link">&para;</a></h2>
+<p><code>ReplicateGenerator</code> supports two strategies via the <code>method</code> argument:</p>
+<h3 id="methodradius_tuning-default"><code>method="radius_tuning"</code> (default)<a class="headerlink" href="#methodradius_tuning-default" title="Permanent link">&para;</a></h3>
+<p>The original approach: each replicate repacks a tissue and a heuristic nudges
+per-type radii to steer cell-type <strong>proportions</strong>. Because cell types are
+assigned at packing time and the only lever on spatial <strong>interaction</strong> patterns
+is an indirect radius proxy, this converges slowly and inconsistently for
+interaction targets. Kept as the default for backward compatibility and for
+cases where you specifically want to tune geometry/density.</p>
+<p>Two knobs improve it:</p>
+<ul>
+<li><code>radius_optimizer="differential_evolution"</code> replaces the sqrt-ratio heuristic
+  with a gradient-free SciPy optimizer over per-type radius multipliers against
+  a fixed-seed (deterministic) proportion objective. Gradient methods are
+  deliberately <em>not</em> offered — the radius→cell-count map is integer-valued and
+  stochastic, so finite-difference gradients are mostly zero. DE is more robust
+  but slower.</li>
+<li><code>patience=N</code> on <code>generate_replicates</code> / <code>generate_single_replicate</code> stops the
+  tuning loop early once the best divergence plateaus.</li>
+</ul>
+<h3 id="methodgraph_coloring-recommended-for-interaction-targets"><code>method="graph_coloring"</code> (recommended for interaction targets)<a class="headerlink" href="#methodgraph_coloring-recommended-for-interaction-targets" title="Permanent link">&para;</a></h3>
+<p>Matching interaction statistics is fundamentally a <strong>labeling</strong> problem on a
+fixed neighbor graph, not a geometry problem. This mode packs geometry <strong>once</strong>
+per replicate (fresh seed → geometric diversity), builds the neighbor graph,
+then assigns cell types with the simulated-annealing
+<a href="../graph-coloring/"><code>GraphColorizer</code></a> to match the target interaction
+statistics. Cell-type proportions are locked exactly (the SA swap-moves
+preserve node counts), and convergence is far more consistent.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">gen</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span> <span class="s1">&#39;fibroblast&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">10</span><span class="p">)},</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="n">network_radius</span><span class="o">=</span><span class="mf">30.0</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">method</span><span class="o">=</span><span class="s2">&quot;graph_coloring&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">n_restarts</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>                       <span class="c1"># keep best of 3 SA runs per replicate</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">coloring_params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;max_iterations&#39;</span><span class="p">:</span> <span class="mi">8000</span><span class="p">,</span> <span class="s1">&#39;patience&#39;</span><span class="p">:</span> <span class="mi">2000</span><span class="p">},</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">)</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<p>Supporting features:</p>
+<ul>
+<li><strong><code>n_restarts</code></strong>: run several independent SA colorings per replicate and keep
+  the lowest-cost one (hardens against bad local minima).</li>
+<li><strong>Adaptive stopping</strong>: pass <code>patience</code> inside <code>coloring_params</code> to stop SA once
+  the cost plateaus (uses the cost trajectory; see <code>colorize(return_history=True)</code>
+  and <code>convergence.find_convergence_time</code>).</li>
+<li><strong><code>parallel=True</code></strong>: replicates are independent and deterministically seeded,
+  so <code>generate_replicates(parallel=True)</code> runs them across processes with
+  identical results to the serial path.</li>
+</ul>
+<h3 id="measuring-consistency">Measuring consistency<a class="headerlink" href="#measuring-consistency" title="Permanent link">&para;</a></h3>
+<p><code>consistency_report</code> quantifies run-to-run variability and compares methods
+(via the <code>power_analysis</code> module), so you can <em>prove</em> an approach is more
+consistent:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">report</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">consistency_report</span><span class="p">({</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="s2">&quot;radius_tuning&quot;</span><span class="p">:</span> <span class="n">radius_replicates</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">&quot;graph_coloring&quot;</span><span class="p">:</span> <span class="n">colored_replicates</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="p">})</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># report[&quot;per_method&quot;][name] -&gt; {n, mean, std, cv};  report[&quot;pairwise&quot;] -&gt; Cohen&#39;s d, required N</span>
+</code></pre></div>
+<p>Note: the coefficient of variation is <code>std/|mean|</code> and inflates when the mean
+sits near zero (a method matching the target almost perfectly), so read <code>cv</code>
+alongside the absolute <code>std</code>/<code>mean</code>.</p>
+<h3 id="related-algorithm-families">Related algorithm families<a class="headerlink" href="#related-algorithm-families" title="Permanent link">&para;</a></h3>
+<p>Matching target spatial statistics is well-studied. For the <strong>labeling</strong>
+subproblem (used here) the relevant family is Potts/Markov-random-field models
+optimized by simulated annealing — which is what <code>GraphColorizer</code> implements,
+optionally hardened by parallel tempering / population annealing. For the
+<strong>geometry</strong> subproblem (if you need the point pattern itself to match spatial
+summary functions) the relevant families are Gibbs/Markov point processes
+(Strauss, area-interaction, multitype Gibbs via MCMC birth-death-move), SA
+reconstruction to pair-correlation <code>g(r)</code> / Ripley's K / nearest-neighbor
+distributions, and cluster processes (Matérn / Thomas / log-Gaussian Cox) for
+clustered arrangements.</p>
+<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
+<p>The replicate generator requires pandas and NetworkX:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>pandas<span class="w"> </span>networkx
+</code></pre></div>
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<h3 id="generate-from-existing-tissue">Generate from Existing Tissue<a class="headerlink" href="#generate-from-existing-tissue" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">TissueSection</span><span class="p">,</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">load_target_statistics_from_tissue</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">ReplicateGenerator</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">)</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Create reference tissue</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">reference</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> 
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>                         <span class="n">cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type_a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;type_b&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)})</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">reference</span><span class="o">.</span><span class="n">generate_cells</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1"># Extract spatial statistics</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_target_statistics_from_tissue</span><span class="p">(</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="n">reference</span><span class="p">,</span> 
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="p">)</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="c1"># Setup generator</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type_a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;type_b&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="p">)</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="c1"># Generate replicates</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="generate-from-csv-file">Generate from CSV File<a class="headerlink" href="#generate-from-csv-file" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">load_target_statistics_from_csv</span><span class="p">,</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">ReplicateGenerator</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1"># Load target statistics from CSV</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_target_statistics_from_csv</span><span class="p">(</span><span class="s2">&quot;statistics.csv&quot;</span><span class="p">)</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># Setup and generate</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type_a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;type_b&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="p">)</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="generate-from-a-coordinate-csv">Generate from a Coordinate CSV<a class="headerlink" href="#generate-from-a-coordinate-csv" title="Permanent link">&para;</a></h3>
+<p><code>load_target_statistics_from_csv</code> (above) expects a <em>precomputed interaction
+table</em> and leaves <code>cell_type_proportions</code> and <code>target_density</code> unset. When you
+instead have <strong>raw cell coordinates</strong> — a measured sample, or a layout exported
+from another tool to the <code>export_to_csv</code> schema (<code>x, y, z, radius, cell_type,
+is_boundary</code>) — use <code>load_target_statistics_from_coordinates</code>, which returns a
+<em>fully populated</em> <code>TargetStatistics</code> (interactions <strong>plus</strong> proportions and
+density). Added in v0.1.7.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">load_target_statistics_from_coordinates</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">ReplicateGenerator</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># Full statistics straight from a coordinate CSV.</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_target_statistics_from_coordinates</span><span class="p">(</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="s2">&quot;cells.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="p">)</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type_a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">&#39;type_b&#39;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="p">)</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</code></pre></div>
+<p>It is exactly equivalent to
+<code>load_target_statistics_from_tissue(load_tissue_from_csv(path), ...)</code>; reach for
+it when your source is coordinates rather than an interaction table. See
+<a href="../core/"><code>core.md</code></a> for <code>load_tissue_from_csv</code> and <code>TissueSection.from_cells</code>.</p>
+<h2 id="csv-format-for-target-statistics">CSV Format for Target Statistics<a class="headerlink" href="#csv-format-for-target-statistics" title="Permanent link">&para;</a></h2>
+<p>The CSV file should contain interaction statistics with these columns:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>type_a,type_b,num_interactions,normalized_interactions,avg_distance,median_distance
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cancer,cancer,45,0.12,0.0,0.0
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>cancer,immune,38,0.15,0.0,0.0
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>cancer,fibroblast,42,0.14,0.0,0.0
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>immune,immune,28,0.18,0.0,0.0
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>immune,fibroblast,35,0.16,0.0,0.0
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>fibroblast,fibroblast,30,0.11,0.0,0.0
+</code></pre></div>
+<p><strong>Required columns:</strong>
+- <code>type_a</code>: First cell type
+- <code>type_b</code>: Second cell type<br />
+- <code>normalized_interactions</code>: Normalized interaction frequency (0-1)</p>
+<p><strong>Optional columns:</strong>
+- <code>num_interactions</code>: Raw interaction count
+- <code>avg_distance</code>: Average interaction distance
+- <code>median_distance</code>: Median interaction distance</p>
+<blockquote>
+<p><strong>Two CSV shapes.</strong> This interaction-table format is what
+<code>load_target_statistics_from_csv</code> reads. A <em>coordinate</em> CSV
+(<code>x, y, z, radius, cell_type, is_boundary</code>, written by
+<code>TissueSection.export_to_csv</code>) is a different shape — load it with
+<code>load_target_statistics_from_coordinates</code> instead.</p>
+</blockquote>
+<h2 id="core-classes">Core Classes<a class="headerlink" href="#core-classes" title="Permanent link">&para;</a></h2>
+<h3 id="targetstatistics">TargetStatistics<a class="headerlink" href="#targetstatistics" title="Permanent link">&para;</a></h3>
+<p>Defines the spatial patterns to match:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TargetStatistics</span><span class="p">,</span> <span class="n">InteractionStatistics</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">target</span> <span class="o">=</span> <span class="n">TargetStatistics</span><span class="p">(</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">interaction_stats</span><span class="o">=</span><span class="p">[</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>        <span class="n">InteractionStatistics</span><span class="p">(</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>            <span class="n">type_a</span><span class="o">=</span><span class="s1">&#39;cancer&#39;</span><span class="p">,</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>            <span class="n">type_b</span><span class="o">=</span><span class="s1">&#39;immune&#39;</span><span class="p">,</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>            <span class="n">num_interactions</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>            <span class="n">normalized_interactions</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>            <span class="n">avg_distance</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>            <span class="n">median_distance</span><span class="o">=</span><span class="mf">0.0</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>        <span class="p">)</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>    <span class="p">],</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>    <span class="n">cell_type_proportions</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">},</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>    <span class="n">target_cell_count</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>    <span class="n">target_density</span><span class="o">=</span><span class="mf">0.45</span>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="p">)</span>
+</code></pre></div>
+<p><strong>Attributes:</strong>
+- <code>interaction_stats</code>: List of InteractionStatistics objects
+- <code>cell_type_proportions</code>: Dict of target proportions (optional)
+- <code>target_cell_count</code>: Target total cell count (optional)
+- <code>target_density</code>: Target packing fraction (optional)</p>
+<h3 id="replicategenerator">ReplicateGenerator<a class="headerlink" href="#replicategenerator" title="Permanent link">&para;</a></h3>
+<p>Main class for generating tissue replicates:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">thickness</span><span class="p">),</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;type_a&#39;</span><span class="p">:</span> <span class="p">(</span><span class="n">min_r</span><span class="p">,</span> <span class="n">max_r</span><span class="p">),</span> <span class="o">...</span><span class="p">},</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span><span class="p">,</span>  <span class="c1"># or &quot;radius&quot;</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>     <span class="c1"># required if mode=&quot;radius&quot;</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span>                <span class="c1"># for reproducibility</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="p">)</span>
+</code></pre></div>
+<p><strong>Key Methods:</strong></p>
+<h4 id="generate_single_replicate">generate_single_replicate()<a class="headerlink" href="#generate_single_replicate" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">tissue</span><span class="p">,</span> <span class="n">stats</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_single_replicate</span><span class="p">(</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">replicate_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="n">allow_boundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.15</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="p">)</span>
+</code></pre></div>
+<p>Generates a single replicate with iterative parameter adjustment.</p>
+<p><strong>Parameters:</strong>
+- <code>replicate_id</code>: Unique identifier
+- <code>max_attempts</code>: Max cell packing attempts
+- <code>min_spacing</code>: Minimum cell spacing (μm)
+- <code>allow_boundary</code>: Allow cells beyond bounds
+- <code>max_iterations</code>: Max optimization iterations
+- <code>tolerance</code>: Acceptable divergence threshold</p>
+<p><strong>Returns:</strong>
+- <code>tissue</code>: TissueSection object
+- <code>stats</code>: ReplicateStatistics object</p>
+<h4 id="generate_replicates">generate_replicates()<a class="headerlink" href="#generate_replicates" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">allow_boundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.15</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">)</span>
+</code></pre></div>
+<p>Generates multiple replicates.</p>
+<p><strong>Returns:</strong>
+- List of (TissueSection, ReplicateStatistics) tuples</p>
+<h3 id="replicatestatistics">ReplicateStatistics<a class="headerlink" href="#replicatestatistics" title="Permanent link">&para;</a></h3>
+<p>Contains statistics for a generated replicate:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">ReplicateStatistics</span><span class="p">(</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="n">replicate_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">num_cells</span><span class="o">=</span><span class="mi">195</span><span class="p">,</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">cell_type_counts</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;cancer&#39;</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span> <span class="s1">&#39;immune&#39;</span><span class="p">:</span> <span class="mi">75</span><span class="p">},</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="n">packing_fraction</span><span class="o">=</span><span class="mf">0.438</span><span class="p">,</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="n">interaction_stats</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="n">divergence_score</span><span class="o">=</span><span class="mf">0.083</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="p">)</span>
+</code></pre></div>
+<p><strong>Attributes:</strong>
+- <code>replicate_id</code>: Unique identifier
+- <code>num_cells</code>: Total cell count
+- <code>cell_type_counts</code>: Dict of counts per type
+- <code>packing_fraction</code>: Volume fraction
+- <code>interaction_stats</code>: Measured interactions
+- <code>divergence_score</code>: Divergence from target (lower = better)</p>
+<h2 id="export-functions">Export Functions<a class="headerlink" href="#export-functions" title="Permanent link">&para;</a></h2>
+<h3 id="export-statistics">Export Statistics<a class="headerlink" href="#export-statistics" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">generator</span><span class="o">.</span><span class="n">export_replicate_statistics</span><span class="p">(</span><span class="n">replicates</span><span class="p">,</span> <span class="s2">&quot;output/stats&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>Creates two CSV files:
+- <code>output/stats_summary.csv</code>: Overall replicate statistics
+- <code>output/stats_interactions.csv</code>: Detailed interaction data</p>
+<h3 id="export-tissues">Export Tissues<a class="headerlink" href="#export-tissues" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">generator</span><span class="o">.</span><span class="n">export_replicate_tissues</span><span class="p">(</span><span class="n">replicates</span><span class="p">,</span> <span class="s2">&quot;output/tissues&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>Creates individual CSV files:
+- <code>output/tissues/replicate_000_tissue.csv</code>
+- <code>output/tissues/replicate_001_tissue.csv</code>
+- etc.</p>
+<h2 id="algorithm-details">Algorithm Details<a class="headerlink" href="#algorithm-details" title="Permanent link">&para;</a></h2>
+<h3 id="optimization-process">Optimization Process<a class="headerlink" href="#optimization-process" title="Permanent link">&para;</a></h3>
+<p>The generator uses an iterative approach:</p>
+<ol>
+<li><strong>Initial Generation</strong>: Create tissue with base parameters</li>
+<li><strong>Analysis</strong>: Measure spatial interactions</li>
+<li><strong>Divergence Calculation</strong>: Compare to target statistics</li>
+<li><strong>Parameter Adjustment</strong>: Tune cell radii and proportions</li>
+<li><strong>Iteration</strong>: Repeat until tolerance met or max iterations reached</li>
+</ol>
+<h3 id="divergence-metric">Divergence Metric<a class="headerlink" href="#divergence-metric" title="Permanent link">&para;</a></h3>
+<p>Divergence is calculated as the mean relative difference in normalized interactions:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>divergence = mean(|measured - target| / target)
+</code></pre></div>
+<p>Lower values indicate better matches to target statistics.</p>
+<h3 id="parameter-adjustment">Parameter Adjustment<a class="headerlink" href="#parameter-adjustment" title="Permanent link">&para;</a></h3>
+<p>The generator adjusts:
+- <strong>Cell radii</strong>: Scaled to change cell type proportions
+- <strong>Sampling</strong>: Biased toward under-represented types</p>
+<h2 id="advanced-usage">Advanced Usage<a class="headerlink" href="#advanced-usage" title="Permanent link">&para;</a></h2>
+<h3 id="custom-optimization">Custom Optimization<a class="headerlink" href="#custom-optimization" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># More aggressive optimization</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">num_replicates</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>        <span class="c1"># More packing attempts</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>        <span class="c1"># More optimization steps</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>    <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.05</span>            <span class="c1"># Stricter tolerance</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="reproducibility">Reproducibility<a class="headerlink" href="#reproducibility" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Use seed for reproducible results</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="n">cell_radii</span><span class="p">,</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span><span class="p">,</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span>  <span class="c1"># Reproducible</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="network-modes">Network Modes<a class="headerlink" href="#network-modes" title="Permanent link">&para;</a></h3>
+<p><strong>Contact Mode</strong> (default):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span>
+</code></pre></div>
+- Connects cells that are touching
+- Best for direct cell-cell interactions
+- Faster computation</p>
+<p><strong>Radius Mode</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;radius&quot;</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">network_radius</span><span class="o">=</span><span class="mf">30.0</span>  <span class="c1"># micrometers</span>
+</code></pre></div>
+- Connects cells within distance
+- Captures proximity effects
+- Useful for paracrine signaling</p>
+<h2 id="mcp-integration">MCP Integration<a class="headerlink" href="#mcp-integration" title="Permanent link">&para;</a></h2>
+<p>All functionality is available through the MCP server for LLM assistants.</p>
+<h3 id="workflow">Workflow<a class="headerlink" href="#workflow" title="Permanent link">&para;</a></h3>
+<ol>
+<li>
+<p><strong>Load statistics</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>load_target_statistics(csv_filepath=&quot;stats.csv&quot;)
+</code></pre></div>
+or
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>load_target_statistics(use_current_tissue=True)
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Setup generator</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>setup_replicate_generator(
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>    height=400,
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>    width=400,
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>    thickness=100,
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    cell_radii={&quot;cancer&quot;: [8, 12], &quot;immune&quot;: [5, 8]}
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>)
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Generate replicates</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>generate_replicates(
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>    num_replicates=5,
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>    tolerance=0.15
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>)
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Export results</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>export_replicate_statistics(base_filename=&quot;output&quot;)
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>export_replicate_tissues(output_dir=&quot;tissues&quot;)
+</code></pre></div></p>
+</li>
+<li>
+<p><strong>Get summary</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>get_replicate_summary()
+</code></pre></div></p>
+</li>
+</ol>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<h3 id="example-1-match-existing-tissue">Example 1: Match Existing Tissue<a class="headerlink" href="#example-1-match-existing-tissue" title="Permanent link">&para;</a></h3>
+<p>See <code>examples/replicate_generation_example.py</code></p>
+<h3 id="example-2-load-from-csv">Example 2: Load from CSV<a class="headerlink" href="#example-2-load-from-csv" title="Permanent link">&para;</a></h3>
+<p>See <code>examples/replicate_from_csv_example.py</code></p>
+<h3 id="example-3-batch-analysis">Example 3: Batch Analysis<a class="headerlink" href="#example-3-batch-analysis" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># Generate multiple batches with different parameters</span>
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a><span class="k">for</span> <span class="n">tolerance</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.10</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.20</span><span class="p">]:</span>
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>    <span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>        <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>        <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>        <span class="n">base_cell_radii</span><span class="o">=</span><span class="n">cell_radii</span><span class="p">,</span>
+<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>        <span class="n">network_mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span>
+<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>    <span class="p">)</span>
+<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>
+<a id="__codelineno-25-10" name="__codelineno-25-10" href="#__codelineno-25-10"></a>    <span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span>
+<a id="__codelineno-25-11" name="__codelineno-25-11" href="#__codelineno-25-11"></a>        <span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<a id="__codelineno-25-12" name="__codelineno-25-12" href="#__codelineno-25-12"></a>        <span class="n">tolerance</span><span class="o">=</span><span class="n">tolerance</span>
+<a id="__codelineno-25-13" name="__codelineno-25-13" href="#__codelineno-25-13"></a>    <span class="p">)</span>
+<a id="__codelineno-25-14" name="__codelineno-25-14" href="#__codelineno-25-14"></a>
+<a id="__codelineno-25-15" name="__codelineno-25-15" href="#__codelineno-25-15"></a>    <span class="n">generator</span><span class="o">.</span><span class="n">export_replicate_statistics</span><span class="p">(</span>
+<a id="__codelineno-25-16" name="__codelineno-25-16" href="#__codelineno-25-16"></a>        <span class="n">replicates</span><span class="p">,</span> 
+<a id="__codelineno-25-17" name="__codelineno-25-17" href="#__codelineno-25-17"></a>        <span class="sa">f</span><span class="s2">&quot;output/tolerance_</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">tolerance</span><span class="o">*</span><span class="mi">100</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-25-18" name="__codelineno-25-18" href="#__codelineno-25-18"></a>    <span class="p">)</span>
+</code></pre></div>
+<h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
+<h3 id="generation-time">Generation Time<a class="headerlink" href="#generation-time" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Single replicate</strong>: 10-60 seconds</li>
+<li><strong>10 replicates</strong>: 2-10 minutes</li>
+<li><strong>Factors</strong>: Tissue size, cell count, tolerance</li>
+</ul>
+<h3 id="optimization-tips">Optimization Tips<a class="headerlink" href="#optimization-tips" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Start with relaxed tolerance</strong> (0.15-0.20)</li>
+<li><strong>Increase max_iterations</strong> if divergence is high</li>
+<li><strong>Use appropriate network mode</strong> (contact is faster)</li>
+<li><strong>Consider tissue size</strong> (smaller = faster)</li>
+</ol>
+<h3 id="memory-usage">Memory Usage<a class="headerlink" href="#memory-usage" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Each tissue: ~1-10 MB</li>
+<li>100 replicates: ~100-1000 MB</li>
+<li>Export regularly for large batches</li>
+</ul>
+<h2 id="interpretation-guide">Interpretation Guide<a class="headerlink" href="#interpretation-guide" title="Permanent link">&para;</a></h2>
+<h3 id="divergence-scores">Divergence Scores<a class="headerlink" href="#divergence-scores" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>&lt; 0.05</strong>: Excellent match</li>
+<li><strong>0.05 - 0.10</strong>: Good match</li>
+<li><strong>0.10 - 0.20</strong>: Acceptable match</li>
+<li><strong>&gt; 0.20</strong>: Poor match (increase iterations)</li>
+</ul>
+<h3 id="cell-count-variation">Cell Count Variation<a class="headerlink" href="#cell-count-variation" title="Permanent link">&para;</a></h3>
+<p>Expect ±10-20% variation in cell counts across replicates due to:
+- Random packing dynamics
+- Iterative optimization
+- Stochastic cell placement</p>
+<h3 id="interaction-patterns">Interaction Patterns<a class="headerlink" href="#interaction-patterns" title="Permanent link">&para;</a></h3>
+<p>Compare normalized interactions:
+- <strong>Within 5%</strong>: Very similar patterns
+- <strong>Within 10%</strong>: Similar patterns
+- <strong>Within 20%</strong>: Broadly similar
+- <strong>&gt; 20%</strong>: Different patterns</p>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="issue-high-divergence-scores">Issue: High Divergence Scores<a class="headerlink" href="#issue-high-divergence-scores" title="Permanent link">&para;</a></h3>
+<p><strong>Solutions:</strong>
+- Increase <code>max_iterations</code> (e.g., 10-15)
+- Increase <code>tolerance</code> (e.g., 0.20)
+- Check that cell types in target match generator config
+- Verify target statistics are achievable</p>
+<h3 id="issue-few-cells-generated">Issue: Few Cells Generated<a class="headerlink" href="#issue-few-cells-generated" title="Permanent link">&para;</a></h3>
+<p><strong>Solutions:</strong>
+- Increase <code>max_attempts</code> (e.g., 2000-3000)
+- Decrease <code>min_spacing</code> (e.g., 0.3-0.4)
+- Reduce cell radii ranges
+- Allow boundary cells</p>
+<h3 id="issue-long-generation-time">Issue: Long Generation Time<a class="headerlink" href="#issue-long-generation-time" title="Permanent link">&para;</a></h3>
+<p><strong>Solutions:</strong>
+- Reduce <code>max_iterations</code> (e.g., 3-5)
+- Use contact mode instead of radius
+- Reduce tissue dimensions
+- Generate fewer replicates per batch</p>
+<h3 id="issue-inconsistent-cell-type-proportions">Issue: Inconsistent Cell Type Proportions<a class="headerlink" href="#issue-inconsistent-cell-type-proportions" title="Permanent link">&para;</a></h3>
+<p><strong>Solutions:</strong>
+- Specify <code>cell_type_proportions</code> in TargetStatistics
+- Increase <code>max_iterations</code> for better tuning
+- Check that base cell radii are reasonable
+- Verify target proportions are achievable</p>
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Start Simple</strong>: Test with small tissues first</li>
+<li><strong>Validate Targets</strong>: Ensure target statistics are realistic</li>
+<li><strong>Monitor Progress</strong>: Check divergence scores during generation</li>
+<li><strong>Export Regularly</strong>: Save results incrementally</li>
+<li><strong>Use Seeds</strong>: Enable reproducibility when needed</li>
+<li><strong>Batch Processing</strong>: Generate replicates in manageable batches</li>
+<li><strong>Quality Control</strong>: Review divergence scores before analysis</li>
+</ol>
+<h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../spatial-analysis/">Spatial Analysis Documentation</a></li>
+<li><a href="../core/">Tissue Simulator Core API</a></li>
+<li><a href="../mcp/">MCP Integration Guide</a></li>
+<li>Example scripts in <code>examples/</code> directory</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/emcramer/tissue_simulator" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "toc.follow", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit", "content.action.view"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

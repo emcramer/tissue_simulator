@@ -1,0 +1,2366 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="3D simulated biological tissue section generator with network-based spatial analysis and ABM-initialization workflows">
+      
+      
+      
+        <link rel="canonical" href="https://emcramer.github.io/tissue_simulator/v0.1.15/api/physicell/">
+      
+      
+        <link rel="prev" href="../power-analysis/">
+      
+      
+        <link rel="next" href="../mcp/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>PhysiCell Bridge - Tissue Simulator</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#physicell-bridge-export-and-read" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Tissue Simulator" class="md-header__button md-logo" aria-label="Tissue Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Tissue Simulator
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              PhysiCell Bridge
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/emcramer/tissue_simulator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    emcramer/tissue_simulator
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../quickstart/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quickstart
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../guides/complete-workflow/" class="md-tabs__link">
+          
+  
+  
+  Guides
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../core/" class="md-tabs__link">
+          
+  
+  
+  API Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../reference/tissue/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../slides/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Tour
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../changelog/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Changelog
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Tissue Simulator" class="md-nav__button md-logo" aria-label="Tissue Simulator" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Tissue Simulator
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/emcramer/tissue_simulator" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    emcramer/tissue_simulator
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guides
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guides
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/complete-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Complete Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../core/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core (TissueSection / Cell / SpherePacker)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../slicing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slicing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../spatial-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spatial Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../graph-coloring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph Coloring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../replicate-generation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Replicate Generation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../convergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Convergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../power-analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Power Analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PhysiCell Bridge
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PhysiCell Bridge
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Export">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#physicellexporterdefault_formatmodern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PhysiCellExporter(default_format="modern")
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PhysiCellExporter(default_format=&#34;modern&#34;)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#export_tissuetissue-output_path-cell_type_mappingnone-include_volumetrue-formatmodern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_tissue(tissue, output_path, cell_type_mapping=None, include_volume=True, format="modern")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export_sliceslice_cells-output_path-geometry2d-z00-cell_type_mappingnone-include_volumetrue-formatmodern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_slice(slice_cells, output_path, geometry="2D", z=0.0, cell_type_mapping=None, include_volume=True, format="modern")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build_default_mappingcell_types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_default_mapping(cell_types)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export_to_physicelltissue_or_slice_cells-output_path-kwargs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_to_physicell(tissue_or_slice_cells, output_path, **kwargs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#legacy-format-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy-format example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slice-geometry-2d-vs-3d" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slice geometry: 2D vs 3D
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Read">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#physicellreaderdefault_radius8412710547954228" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PhysiCellReader(default_radius=8.412710547954228)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PhysiCellReader(default_radius=8.412710547954228)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#load_snapshot_csvcsv_path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_snapshot_csv(csv_path)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load_snapshot_matmat_path-xml_pathnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_snapshot_mat(mat_path, xml_path=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load_time_seriesoutput_dir-patternsnapshot_csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_time_series(output_dir, pattern="snapshot_*.csv")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute_spatial_statscells-modecontact-radius_thresholdnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_spatial_stats(cells, mode="contact", radius_threshold=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute_stats_time_seriestime_series-modecontact-radius_thresholdnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_stats_time_series(time_series, mode="contact", radius_threshold=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#read_physicell_outputpath-kwargs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_physicell_output(path, **kwargs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bridging-back-to-replicategenerator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bridging back to ReplicateGenerator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bridging back to ReplicateGenerator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stats_to_target_statisticsstats-target_cell_countnone-target_densitynone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stats_to_target_statistics(stats, target_cell_count=None, target_density=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP Server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tissue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tissue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/packing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    packing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/slicing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slicing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/spatial_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    spatial_analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/graph_coloring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    graph_coloring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/replicate_generator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    replicate_generator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/tissue_workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    tissue_workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/convergence/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    convergence
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/power_analysis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    power_analysis
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/physicell_export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    physicell_export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/physicell_reader/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    physicell_reader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/mcp_server/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    mcp.server
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../slides/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tour
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../changelog/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Changelog
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Export">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#physicellexporterdefault_formatmodern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PhysiCellExporter(default_format="modern")
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PhysiCellExporter(default_format=&#34;modern&#34;)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#export_tissuetissue-output_path-cell_type_mappingnone-include_volumetrue-formatmodern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_tissue(tissue, output_path, cell_type_mapping=None, include_volume=True, format="modern")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export_sliceslice_cells-output_path-geometry2d-z00-cell_type_mappingnone-include_volumetrue-formatmodern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_slice(slice_cells, output_path, geometry="2D", z=0.0, cell_type_mapping=None, include_volume=True, format="modern")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#build_default_mappingcell_types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        build_default_mapping(cell_types)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export_to_physicelltissue_or_slice_cells-output_path-kwargs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        export_to_physicell(tissue_or_slice_cells, output_path, **kwargs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#legacy-format-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy-format example
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slice-geometry-2d-vs-3d" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Slice geometry: 2D vs 3D
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#read" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Read">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#physicellreaderdefault_radius8412710547954228" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PhysiCellReader(default_radius=8.412710547954228)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PhysiCellReader(default_radius=8.412710547954228)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#load_snapshot_csvcsv_path" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_snapshot_csv(csv_path)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load_snapshot_matmat_path-xml_pathnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_snapshot_mat(mat_path, xml_path=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#load_time_seriesoutput_dir-patternsnapshot_csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        load_time_series(output_dir, pattern="snapshot_*.csv")
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute_spatial_statscells-modecontact-radius_thresholdnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_spatial_stats(cells, mode="contact", radius_threshold=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute_stats_time_seriestime_series-modecontact-radius_thresholdnone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_stats_time_series(time_series, mode="contact", radius_threshold=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#read_physicell_outputpath-kwargs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        read_physicell_output(path, **kwargs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bridging-back-to-replicategenerator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bridging back to ReplicateGenerator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bridging back to ReplicateGenerator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stats_to_target_statisticsstats-target_cell_countnone-target_densitynone" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        stats_to_target_statistics(stats, target_cell_count=None, target_density=None)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Worked example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        References
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/emcramer/tissue_simulator/edit/main/docs/api/physicell.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/emcramer/tissue_simulator/raw/main/docs/api/physicell.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"/></svg>
+    </a>
+  
+
+
+<h1 id="physicell-bridge-export-and-read">PhysiCell Bridge: Export and Read<a class="headerlink" href="#physicell-bridge-export-and-read" title="Permanent link">&para;</a></h1>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The PhysiCell bridge connects <code>tissue_simulator</code> to the
+<a href="http://physicell.org">PhysiCell</a> agent-based modeling framework in two
+directions: <strong>export</strong> serializes a <code>TissueSection</code> (or <code>SliceCell</code>
+list) to a PhysiCell initial-condition CSV that seeds an ABM run, and
+<strong>read</strong> parses PhysiCell snapshots (CSV or <code>.mat</code>) back into the schema
+consumed by <code>ReplicateGenerator</code>. The <code>.mat</code> reader delegates to the
+optional
+<a href="https://github.com/PhysiCell-Tools/python-loader">PhysiCell-Tools/python-loader</a>
+project (<code>pyMCDS</code> / <code>pcdl</code>, BSD-3-Clause) when importable; otherwise it
+uses a direct <code>scipy.io.loadmat</code> fallback parser based on the
+documented PhysiCell 1.10+ default cells-matrix layout. Neither
+<code>pyMCDS</code> nor <code>pcdl</code> is a required dependency. Added in v0.1.1. Public
+symbols on this page: <code>PhysiCellExporter</code>, <code>export_to_physicell</code>,
+<code>PhysiCellReader</code>, <code>read_physicell_output</code>,
+<code>stats_to_target_statistics</code>.</p>
+<h2 id="export">Export<a class="headerlink" href="#export" title="Permanent link">&para;</a></h2>
+<h3 id="physicellexporterdefault_formatmodern"><code>PhysiCellExporter(default_format="modern")</code><a class="headerlink" href="#physicellexporterdefault_formatmodern" title="Permanent link">&para;</a></h3>
+<p>PhysiCell historically accepts two IC CSV layouts:</p>
+<ul>
+<li><strong>modern</strong> (PhysiCell 1.10+, default): header row <code>x,y,z,type</code> with
+  <code>type</code> as the string name used in the PhysiCell XML config. An
+  optional <code>volume</code> column may follow.</li>
+<li><strong>legacy</strong>: headerless rows of <code>x,y,z,cell_type_id,volume</code>, where
+  <code>cell_type_id</code> is the integer ID PhysiCell uses to resolve the cell
+  definition in the XML. The <code>volume</code> column is mandatory.</li>
+</ul>
+<p>Volumes are derived from radii: <code>4/3 * pi * r^3</code> for 3D tissues and
+<code>pi * r^2</code> (disk area) for 2D slice exports.</p>
+<h4 id="export_tissuetissue-output_path-cell_type_mappingnone-include_volumetrue-formatmodern"><code>export_tissue(tissue, output_path, cell_type_mapping=None, include_volume=True, format="modern")</code><a class="headerlink" href="#export_tissuetissue-output_path-cell_type_mappingnone-include_volumetrue-formatmodern" title="Permanent link">&para;</a></h4>
+<p>Write every cell in <code>tissue.cells</code> to <code>output_path</code> and return the
+written path.</p>
+<ul>
+<li><code>cell_type_mapping</code>: dict mapping cell-type name to PhysiCell
+  integer ID. Required when <code>format="legacy"</code>. Optional but validated
+  for completeness when <code>format="modern"</code> (typos surface as
+  <code>ValueError</code>).</li>
+<li><code>include_volume</code>: append the <code>volume</code> column in modern format. In
+  legacy format the volume column is mandatory; <code>include_volume=False</code>
+  raises <code>ValueError</code> (tightened in v0.1.1).</li>
+<li><code>format</code>: <code>"modern"</code> or <code>"legacy"</code>.</li>
+</ul>
+<h4 id="export_sliceslice_cells-output_path-geometry2d-z00-cell_type_mappingnone-include_volumetrue-formatmodern"><code>export_slice(slice_cells, output_path, geometry="2D", z=0.0, cell_type_mapping=None, include_volume=True, format="modern")</code><a class="headerlink" href="#export_sliceslice_cells-output_path-geometry2d-z00-cell_type_mappingnone-include_volumetrue-formatmodern" title="Permanent link">&para;</a></h4>
+<p>Same arguments as <code>export_tissue</code>, but for an iterable of <code>SliceCell</code>
+from <code>TissueSlicer</code>. The <code>geometry</code> parameter selects between two
+modes (added in v0.1.13):</p>
+<ul>
+<li><strong><code>geometry="2D"</code></strong> (default) — slice-plane projection. Each row
+  uses the cell's 2D coordinates (<code>center_2d</code>), the supplied <code>z</code>
+  (PhysiCell 2D models conventionally use <code>z=0</code>), and a disk-area
+  volume <code>pi * intersection_radius^2</code>. Suited to PhysiCell 2D
+  simulations. This is byte-identical to the pre-v0.1.13 behavior.</li>
+<li><strong><code>geometry="3D"</code></strong> — original 3D positions. Each row uses the
+  cell's original <code>center_3d</code> (the position of the source 3D cell
+  whose surface intersected the slice plane) and a sphere volume
+  <code>4/3 * pi * radius^3</code> derived from the cell's original 3D radius.
+  Suited to PhysiCell 3D simulations where the slice was used as a
+  spatial filter (which cells to seed) rather than as a true 2D
+  projection. The <code>z</code> argument is ignored in this mode.</li>
+</ul>
+<h4 id="build_default_mappingcell_types"><code>build_default_mapping(cell_types)</code><a class="headerlink" href="#build_default_mappingcell_types" title="Permanent link">&para;</a></h4>
+<p>Static helper that builds a stable name-to-ID mapping (alphabetical,
+starting at 0) so legacy CSVs are reproducible regardless of input
+ordering.</p>
+<h3 id="export_to_physicelltissue_or_slice_cells-output_path-kwargs"><code>export_to_physicell(tissue_or_slice_cells, output_path, **kwargs)</code><a class="headerlink" href="#export_to_physicelltissue_or_slice_cells-output_path-kwargs" title="Permanent link">&para;</a></h3>
+<p>Module-level convenience dispatcher. A <code>TissueSection</code> is forwarded to
+<code>export_tissue</code>; any other iterable is treated as <code>SliceCell</code> rows and
+forwarded to <code>export_slice</code>. Accepts <code>cell_type_mapping</code>,
+<code>include_volume</code>, <code>format</code>, and (for slices) <code>z</code>.</p>
+<h3 id="legacy-format-example">Legacy-format example<a class="headerlink" href="#legacy-format-example" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">PhysiCellExporter</span><span class="p">,</span> <span class="n">TissueSection</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">tissue</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">height</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">thickness</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;tumor&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s2">&quot;immune&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">)</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">tissue</span><span class="o">.</span><span class="n">generate_cells</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">1500</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Legacy format requires an explicit name-to-id mapping.</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">mapping</span> <span class="o">=</span> <span class="n">PhysiCellExporter</span><span class="o">.</span><span class="n">build_default_mapping</span><span class="p">([</span><span class="s2">&quot;tumor&quot;</span><span class="p">,</span> <span class="s2">&quot;immune&quot;</span><span class="p">])</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">PhysiCellExporter</span><span class="p">()</span><span class="o">.</span><span class="n">export_tissue</span><span class="p">(</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">tissue</span><span class="p">,</span> <span class="s2">&quot;ic_legacy.csv&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">cell_type_mapping</span><span class="o">=</span><span class="n">mapping</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;legacy&quot;</span><span class="p">,</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">)</span>
+</code></pre></div>
+<p>Modern-format export is covered in the <a href="#worked-example">Worked example</a>
+below. The PhysiCell simulation domain must contain every cell; this
+exporter does not clip or shift coordinates. Align <code>tissue_simulator</code>
+bounds to PhysiCell's domain upstream of export.</p>
+<h3 id="slice-geometry-2d-vs-3d">Slice geometry: 2D vs 3D<a class="headerlink" href="#slice-geometry-2d-vs-3d" title="Permanent link">&para;</a></h3>
+<p>Both slice export modes operate on the same <code>slice_cells</code> list — the
+choice only changes the per-row coordinates and volume column:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># 2D PhysiCell sim — flatten the slice to z=0.</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">exporter</span><span class="o">.</span><span class="n">export_slice</span><span class="p">(</span><span class="n">slicer</span><span class="o">.</span><span class="n">slice_cells</span><span class="p">,</span> <span class="s2">&quot;slice_2d.csv&quot;</span><span class="p">,</span> <span class="n">geometry</span><span class="o">=</span><span class="s2">&quot;2D&quot;</span><span class="p">)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># 3D PhysiCell sim — preserve each cell&#39;s original 3D position.</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">exporter</span><span class="o">.</span><span class="n">export_slice</span><span class="p">(</span><span class="n">slicer</span><span class="o">.</span><span class="n">slice_cells</span><span class="p">,</span> <span class="s2">&quot;slice_3d.csv&quot;</span><span class="p">,</span> <span class="n">geometry</span><span class="o">=</span><span class="s2">&quot;3D&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p>The same operations are available via MCP — see
+<code>export_tissue_to_physicell</code> and <code>export_slice_to_physicell</code> in
+<a href="../mcp/"><code>mcp.md</code></a>.</p>
+<h2 id="read">Read<a class="headerlink" href="#read" title="Permanent link">&para;</a></h2>
+<h3 id="physicellreaderdefault_radius8412710547954228"><code>PhysiCellReader(default_radius=8.412710547954228)</code><a class="headerlink" href="#physicellreaderdefault_radius8412710547954228" title="Permanent link">&para;</a></h3>
+<p><code>default_radius</code> is used when a snapshot has neither a <code>radius</code> nor a
+<code>volume</code> column for a row (the default matches a PhysiCell
+2494 cubic-micrometer cell).</p>
+<h4 id="load_snapshot_csvcsv_path"><code>load_snapshot_csv(csv_path)</code><a class="headerlink" href="#load_snapshot_csvcsv_path" title="Permanent link">&para;</a></h4>
+<p>Parse a single PhysiCell CSV snapshot. Accepts column aliases
+(<code>position_x</code> for <code>x</code>, <code>total_volume</code> for <code>volume</code>, <code>cell_type</code> or
+<code>type</code> for the type column). At minimum <code>x</code>, <code>y</code>, and a cell-type
+column must be present; <code>z</code> defaults to <code>0</code> when absent. Returns a
+list of cell dicts with keys <code>x</code>, <code>y</code>, <code>z</code>, <code>radius</code>, <code>cell_type</code>,
+and optionally <code>id</code>, <code>volume</code>, <code>timestep</code>. When only <code>volume</code> is
+present, <code>radius</code> is back-computed from the inverse sphere-volume
+formula.</p>
+<h4 id="load_snapshot_matmat_path-xml_pathnone"><code>load_snapshot_mat(mat_path, xml_path=None)</code><a class="headerlink" href="#load_snapshot_matmat_path-xml_pathnone" title="Permanent link">&para;</a></h4>
+<p>Parse a <code>.mat</code> snapshot. Two backends are attempted in order:</p>
+<ol>
+<li><strong>pyMCDS / pcdl</strong> when importable <em>and</em> <code>xml_path</code> is supplied
+   (pyMCDS needs the matching <code>output*.xml</code> to recover the
+   cell-definition mapping).</li>
+<li><strong>Direct <code>scipy.io.loadmat</code> fallback</strong> otherwise.</li>
+</ol>
+<p>The fallback parser assumes the documented PhysiCell 1.10+ default
+cells-matrix column layout:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>ID</td>
+</tr>
+<tr>
+<td>1</td>
+<td>position x</td>
+</tr>
+<tr>
+<td>2</td>
+<td>position y</td>
+</tr>
+<tr>
+<td>3</td>
+<td>position z</td>
+</tr>
+<tr>
+<td>4</td>
+<td>total_volume</td>
+</tr>
+<tr>
+<td>5</td>
+<td>cell_type (integer ID)</td>
+</tr>
+</tbody>
+</table>
+<p>PhysiCell stores the matrix as <code>(n_signals, n_cells)</code>. The reader
+selects the cells matrix by name first (<code>cells</code>, <code>cell</code>, or <code>Cells</code>)
+and only falls back to a shape-aware heuristic when none of those
+names resolve to a 2-D ndarray. The heuristic prefers elongated
+candidates whose minor axis is in the plausible PhysiCell signal-count
+range <code>[6, 250]</code>; if the top two candidates score within 10% of each
+other the call raises <code>ValueError</code> rather than silently picking the
+wrong array (shape-aware ambiguity check, v0.1.3). If axis 0 has fewer
+than the six signals required by the documented layout, the parser
+raises — non-standard transposed exports that earlier versions
+mis-decoded are no longer silently accepted (v0.1.2).</p>
+<p>Without an <code>xml_path</code> (or when pyMCDS is unavailable), <code>cell_type</code>
+values are stringified integer IDs and a <code>UserWarning</code> is emitted.</p>
+<h4 id="load_time_seriesoutput_dir-patternsnapshot_csv"><code>load_time_series(output_dir, pattern="snapshot_*.csv")</code><a class="headerlink" href="#load_time_seriesoutput_dir-patternsnapshot_csv" title="Permanent link">&para;</a></h4>
+<p>Walk a directory of snapshot CSVs and return a list of
+<code>(timestep, cells)</code> tuples sorted by the numeric token in each
+filename (e.g. <code>snapshot_00010.csv</code> -&gt; 10.0). Filename is the
+tiebreaker when two snapshots share the same numeric token.</p>
+<h4 id="compute_spatial_statscells-modecontact-radius_thresholdnone"><code>compute_spatial_stats(cells, mode="contact", radius_threshold=None)</code><a class="headerlink" href="#compute_spatial_statscells-modecontact-radius_thresholdnone" title="Permanent link">&para;</a></h4>
+<p>Compute the <code>node_counts</code> / <code>edge_counts</code> / <code>neighbor_dist</code> triple
+consumed internally by <code>GraphColorizer</code>. <code>mode="contact"</code> connects
+cells whose surfaces touch (<code>distance &lt;= r_i + r_j</code> with the same 1%
+tolerance used by <code>SpatialNetworkAnalyzer</code>); <code>mode="radius"</code> connects
+cells whose centers lie within <code>radius_threshold</code>.
+<code>neighbor_dist[type_a][type_b]</code> is the average number of <code>type_b</code>
+neighbors per <code>type_a</code> cell. Requires <code>scipy</code> (uses <code>KDTree</code>).</p>
+<h4 id="compute_stats_time_seriestime_series-modecontact-radius_thresholdnone"><code>compute_stats_time_series(time_series, mode="contact", radius_threshold=None)</code><a class="headerlink" href="#compute_stats_time_seriestime_series-modecontact-radius_thresholdnone" title="Permanent link">&para;</a></h4>
+<p>Apply <code>compute_spatial_stats</code> over the output of <code>load_time_series</code>,
+returning <code>[(timestep, stats), ...]</code>.</p>
+<h3 id="read_physicell_outputpath-kwargs"><code>read_physicell_output(path, **kwargs)</code><a class="headerlink" href="#read_physicell_outputpath-kwargs" title="Permanent link">&para;</a></h3>
+<p>Module-level dispatcher: a directory routes to <code>load_time_series</code>
+(accepts <code>pattern</code>); a <code>.csv</code> to <code>load_snapshot_csv</code>; a <code>.mat</code> to
+<code>load_snapshot_mat</code> (accepts <code>xml_path</code>). <code>default_radius</code> may also
+be passed and is forwarded to the underlying <code>PhysiCellReader</code>.</p>
+<h2 id="bridging-back-to-replicategenerator">Bridging back to <code>ReplicateGenerator</code><a class="headerlink" href="#bridging-back-to-replicategenerator" title="Permanent link">&para;</a></h2>
+<h3 id="stats_to_target_statisticsstats-target_cell_countnone-target_densitynone"><code>stats_to_target_statistics(stats, target_cell_count=None, target_density=None)</code><a class="headerlink" href="#stats_to_target_statisticsstats-target_cell_countnone-target_densitynone" title="Permanent link">&para;</a></h3>
+<p>The reader emits a flat dict (<code>node_counts</code>, <code>edge_counts</code>,
+<code>neighbor_dist</code>) matching <code>GraphColorizer</code>'s internal schema.
+<code>ReplicateGenerator</code> expects the richer
+<a href="../replicate-generation/"><code>TargetStatistics</code></a> dataclass with a list of
+<code>InteractionStatistics</code> plus cell-type proportions; this adapter does
+the conversion. <code>avg_distance</code> and <code>median_distance</code> are not in the
+reader's output and are set to <code>0.0</code> on the synthesized records —
+compute them separately if needed. <code>target_cell_count</code> defaults to
+<code>sum(node_counts.values())</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">cells</span> <span class="o">=</span> <span class="n">read_physicell_output</span><span class="p">(</span><span class="s2">&quot;output/&quot;</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">compute_stats_time_series</span><span class="p">(</span><span class="n">cells</span><span class="p">)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">target</span> <span class="o">=</span> <span class="n">stats_to_target_statistics</span><span class="p">(</span><span class="n">stats</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>  <span class="c1"># last timestep</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">gen</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span><span class="n">target_stats</span><span class="o">=</span><span class="n">target</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="worked-example">Worked example<a class="headerlink" href="#worked-example" title="Permanent link">&para;</a></h2>
+<p>Generates a small 3-cell-type tissue, exports it to the modern
+PhysiCell IC CSV layout in a temp directory, reads it back, computes
+contact-mode statistics, and confirms <code>TargetStatistics.validate()</code>
+succeeds. Runs end-to-end in a few seconds.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">PhysiCellReader</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">TissueSection</span><span class="p">,</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">export_to_physicell</span><span class="p">,</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">read_physicell_output</span><span class="p">,</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="n">stats_to_target_statistics</span><span class="p">,</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="p">)</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1"># Step 1: generate a small 3-cell-type tissue (seeded for reproducibility).</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">tissue</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="n">height</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span> <span class="n">thickness</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="n">cell_radii</span><span class="o">=</span><span class="p">{</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>        <span class="s2">&quot;tumor&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">8.0</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">),</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>        <span class="s2">&quot;immune&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">5.0</span><span class="p">,</span> <span class="mf">8.0</span><span class="p">),</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>        <span class="s2">&quot;stroma&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mf">6.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">),</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    <span class="p">},</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">20260515</span><span class="p">,</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="p">)</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="n">n_cells</span> <span class="o">=</span> <span class="n">tissue</span><span class="o">.</span><span class="n">generate_cells</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">1500</span><span class="p">,</span> <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="n">n_cells</span><span class="si">}</span><span class="s2"> cells&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="c1"># Step 2: export to PhysiCell&#39;s modern IC CSV format (header + volume col).</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">()</span> <span class="k">as</span> <span class="n">tmp</span><span class="p">:</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>    <span class="n">ic_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="s2">&quot;physicell_ic.csv&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>    <span class="n">export_to_physicell</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">ic_path</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;modern&quot;</span><span class="p">,</span> <span class="n">include_volume</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>
+<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>    <span class="c1"># Step 3: read it back as if it were a PhysiCell snapshot.</span>
+<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>    <span class="n">reader</span> <span class="o">=</span> <span class="n">PhysiCellReader</span><span class="p">()</span>
+<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>    <span class="n">cells</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">load_snapshot_csv</span><span class="p">(</span><span class="n">ic_path</span><span class="p">)</span>
+<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>    <span class="n">cells_via_dispatcher</span> <span class="o">=</span> <span class="n">read_physicell_output</span><span class="p">(</span><span class="n">ic_path</span><span class="p">)</span>
+<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">cells</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">cells_via_dispatcher</span><span class="p">)</span> <span class="o">==</span> <span class="n">n_cells</span>
+<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a>
+<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a>    <span class="c1"># Step 4: compute contact-mode spatial statistics on the snapshot.</span>
+<a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a>    <span class="n">stats</span> <span class="o">=</span> <span class="n">reader</span><span class="o">.</span><span class="n">compute_spatial_stats</span><span class="p">(</span><span class="n">cells</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;contact&quot;</span><span class="p">)</span>
+<a id="__codelineno-3-38" name="__codelineno-3-38" href="#__codelineno-3-38"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;node_counts:&quot;</span><span class="p">,</span> <span class="n">stats</span><span class="p">[</span><span class="s2">&quot;node_counts&quot;</span><span class="p">])</span>
+<a id="__codelineno-3-39" name="__codelineno-3-39" href="#__codelineno-3-39"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;edge_count_total:&quot;</span><span class="p">,</span> <span class="nb">sum</span><span class="p">(</span><span class="n">stats</span><span class="p">[</span><span class="s2">&quot;edge_counts&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
+<a id="__codelineno-3-40" name="__codelineno-3-40" href="#__codelineno-3-40"></a>
+<a id="__codelineno-3-41" name="__codelineno-3-41" href="#__codelineno-3-41"></a>    <span class="c1"># Step 5: convert to a ReplicateGenerator-ready TargetStatistics.</span>
+<a id="__codelineno-3-42" name="__codelineno-3-42" href="#__codelineno-3-42"></a>    <span class="n">target</span> <span class="o">=</span> <span class="n">stats_to_target_statistics</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span>
+<a id="__codelineno-3-43" name="__codelineno-3-43" href="#__codelineno-3-43"></a>    <span class="n">target</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>  <span class="c1"># raises if malformed; succeeds here.</span>
+<a id="__codelineno-3-44" name="__codelineno-3-44" href="#__codelineno-3-44"></a>    <span class="nb">print</span><span class="p">(</span>
+<a id="__codelineno-3-45" name="__codelineno-3-45" href="#__codelineno-3-45"></a>        <span class="sa">f</span><span class="s2">&quot;TargetStatistics OK: &quot;</span>
+<a id="__codelineno-3-46" name="__codelineno-3-46" href="#__codelineno-3-46"></a>        <span class="sa">f</span><span class="s2">&quot;target_cell_count=</span><span class="si">{</span><span class="n">target</span><span class="o">.</span><span class="n">target_cell_count</span><span class="si">}</span><span class="s2">, &quot;</span>
+<a id="__codelineno-3-47" name="__codelineno-3-47" href="#__codelineno-3-47"></a>        <span class="sa">f</span><span class="s2">&quot;n_pairs=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">interaction_stats</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-3-48" name="__codelineno-3-48" href="#__codelineno-3-48"></a>    <span class="p">)</span>
+</code></pre></div>
+<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<ul>
+<li>PhysiCell: http://physicell.org</li>
+<li>PhysiCell-Tools <code>python-loader</code> (pyMCDS / pcdl), BSD-3-Clause:
+  https://github.com/PhysiCell-Tools/python-loader</li>
+<li><a href="../replicate-generation/"><code>replicate-generation.md</code></a> -
+  <code>TargetStatistics</code> / <code>ReplicateGenerator</code> reference.</li>
+<li><a href="../spatial-analysis/"><code>spatial-analysis.md</code></a> -
+  <code>InteractionStatistics</code> and contact / radius edge semantics shared
+  with the reader.</li>
+<li><a href="https://github.com/emcramer/tissue_simulator/blob/main/tissue_simulator/physicell_export.py"><code>tissue_simulator/physicell_export.py</code></a>
+  and
+  <a href="https://github.com/emcramer/tissue_simulator/blob/main/tissue_simulator/physicell_reader.py"><code>tissue_simulator/physicell_reader.py</code></a>
+  for the implementations.</li>
+<li><a href="../../changelog/">Changelog</a> - v0.1.1 (bridge),
+  v0.1.2 (pyMCDS attribution + non-standard-shape rejection),
+  v0.1.3 (shape-aware <code>.mat</code> selection).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/emcramer/tissue_simulator" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "toc.follow", "search.highlight", "search.suggest", "content.code.copy", "content.action.edit", "content.action.view"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
