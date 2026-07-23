@@ -2,118 +2,122 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/changelog/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/quickstart/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/api/convergence/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/api/core/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/api/graph-coloring/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/api/mcp/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/api/physicell/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/api/power-analysis/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/api/replicate-generation/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/api/slicing/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/api/spatial-analysis/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/guides/complete-workflow/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/guides/mcp/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/notes/plot-surface-bug/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
+    </url>
+    <url>
+         <loc>https://emcramer.github.io/tissue_simulator/main/notes/releasing/</loc>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/convergence/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/evaluation/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/graph_coloring/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/mcp_server/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/packing/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/physicell_export/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/physicell_reader/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/power_analysis/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/replicate_generator/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/slicing/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/spatial_analysis/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/tissue/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/reference/tissue_workflow/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
     <url>
          <loc>https://emcramer.github.io/tissue_simulator/main/slides/</loc>
-         <lastmod>2026-06-19</lastmod>
+         <lastmod>2026-07-23</lastmod>
     </url>
 </urlset>

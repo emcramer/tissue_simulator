@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://emcramer.github.io/tissue_simulator/main/notes/plot-surface-bug/">
+        <link rel="canonical" href="https://emcramer.github.io/tissue_simulator/main/notes/releasing/">
       
       
       
@@ -23,7 +23,7 @@
     
     
       
-        <title>Bug Fix: Matplotlib plot_surface Color Error - Tissue Simulator</title>
+        <title>Release checklist - Tissue Simulator</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#bug-fix-matplotlib-plot_surface-color-error" class="md-skip">
+        <a href="#release-checklist" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Bug Fix: Matplotlib plot_surface Color Error
+              Release checklist
             
           </span>
         </div>
@@ -1392,10 +1392,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#problem" class="md-nav__link">
+  <a href="#the-version-sync-criterion" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Problem
+        The version-sync criterion
       
     </span>
   </a>
@@ -1403,10 +1403,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#root-cause" class="md-nav__link">
+  <a href="#cutting-a-release" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Root Cause
+        Cutting a release
       
     </span>
   </a>
@@ -1414,49 +1414,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#solution" class="md-nav__link">
+  <a href="#not-on-pypi" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Solution
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Solution">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#before-caused-error" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Before (Caused Error):
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#after-fixed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        After (Fixed):
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-changed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What Changed
+        Not on PyPI
       
     </span>
   </a>
@@ -1464,32 +1425,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#files-updated" class="md-nav__link">
+  <a href="#citation-metadata" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Files Updated
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#testing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Testing
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compatibility" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compatibility
+        Citation metadata
       
     </span>
   </a>
@@ -1513,7 +1452,7 @@
 
 
   
-    <a href="https://github.com/emcramer/tissue_simulator/edit/main/docs/notes/plot-surface-bug.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/emcramer/tissue_simulator/edit/main/docs/notes/releasing.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1522,61 +1461,101 @@
     
       
     
-    <a href="https://github.com/emcramer/tissue_simulator/raw/main/docs/notes/plot-surface-bug.md" title="View source of this page" class="md-content__button md-icon">
+    <a href="https://github.com/emcramer/tissue_simulator/raw/main/docs/notes/releasing.md" title="View source of this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"/></svg>
     </a>
   
 
 
-<h1 id="bug-fix-matplotlib-plot_surface-color-error">Bug Fix: Matplotlib plot_surface Color Error<a class="headerlink" href="#bug-fix-matplotlib-plot_surface-color-error" title="Permanent link">&para;</a></h1>
-<h2 id="problem">Problem<a class="headerlink" href="#problem" title="Permanent link">&para;</a></h2>
-<p>When running the examples, you encountered this error:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>ValueError: operands could not be broadcast together with shapes (361,1) (0,4)
-</code></pre></div></p>
-<h2 id="root-cause">Root Cause<a class="headerlink" href="#root-cause" title="Permanent link">&para;</a></h2>
-<p>The error occurred in matplotlib's <code>plot_surface()</code> function when using the <code>color</code> parameter with newer versions of matplotlib. The <code>color</code> parameter expects a specific format that wasn't being provided correctly, causing a broadcasting error in the shading calculations.</p>
-<h2 id="solution">Solution<a class="headerlink" href="#solution" title="Permanent link">&para;</a></h2>
-<p>Changed from using <code>color</code> parameter to <code>facecolors</code> parameter with properly formatted color arrays.</p>
-<h3 id="before-caused-error">Before (Caused Error):<a class="headerlink" href="#before-caused-error" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">ax</span><span class="o">.</span><span class="n">plot_surface</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> 
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>               <span class="n">edgecolors</span><span class="o">=</span><span class="s1">&#39;none&#39;</span><span class="p">,</span> <span class="n">shade</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<h1 id="release-checklist">Release checklist<a class="headerlink" href="#release-checklist" title="Permanent link">&para;</a></h1>
+<p>Maintainer-facing. Not part of the published docs site.</p>
+<h2 id="the-version-sync-criterion">The version-sync criterion<a class="headerlink" href="#the-version-sync-criterion" title="Permanent link">&para;</a></h2>
+<p>The version number appears in five files. Only one of them is imported by
+anything, so the other four drift silently and nobody notices until a user
+cites the wrong version or <code>pip show</code> disagrees with <code>__version__</code>:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Form</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CHANGELOG.md</code></td>
+<td><code>## [X.Y.Z] - YYYY-MM-DD</code> <strong>(source of truth)</strong></td>
+</tr>
+<tr>
+<td><code>pyproject.toml</code></td>
+<td><code>version = "X.Y.Z"</code></td>
+</tr>
+<tr>
+<td><code>tissue_simulator/__init__.py</code></td>
+<td><code>__version__ = "X.Y.Z"</code></td>
+</tr>
+<tr>
+<td><code>CITATION.cff</code></td>
+<td><code>version: X.Y.Z</code> and <code>date-released: "YYYY-MM-DD"</code></td>
+</tr>
+<tr>
+<td><code>README.md</code></td>
+<td>BibTeX <code>version = {X.Y.Z}</code> and <code>year = {YYYY}</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Never edit these by hand.</strong> The topmost <code>## [version] - date</code> heading in
+<code>CHANGELOG.md</code> is authoritative; <code>scripts/release.py</code> syncs everything else to
+it, so the release notes and the version bump can't disagree.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python<span class="w"> </span>scripts/release.py<span class="w"> </span>check<span class="w">          </span><span class="c1"># verify sync — exit 1 if drifted</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python<span class="w"> </span>scripts/release.py<span class="w"> </span>bump<span class="w"> </span><span class="m">0</span>.1.16<span class="w">    </span><span class="c1"># set the version everywhere</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>python<span class="w"> </span>scripts/release.py<span class="w"> </span>bump<span class="w"> </span><span class="m">0</span>.1.16<span class="w"> </span>--dry-run
 </code></pre></div>
-<h3 id="after-fixed">After (Fixed):<a class="headerlink" href="#after-fixed" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">ax</span><span class="o">.</span><span class="n">plot_surface</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">,</span> <span class="n">facecolors</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">color</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)),</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>               <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">antialiased</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">shade</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-</code></pre></div>
-<h2 id="what-changed">What Changed<a class="headerlink" href="#what-changed" title="Permanent link">&para;</a></h2>
-<p>The fix tiles the color array to match the shape of the surface mesh:
-- <code>np.tile(color, x.shape + (1,))</code> creates an array where each face of the sphere surface gets the same color
-- <code>facecolors</code> expects per-face colors rather than a single color
-- <code>linewidth=0</code> removes edge lines
-- <code>shade=False</code> prevents the shading calculations that caused the error</p>
-<h2 id="files-updated">Files Updated<a class="headerlink" href="#files-updated" title="Permanent link">&para;</a></h2>
+<p><code>check</code> is cheap and side-effect free. Run it after any change that touches
+version strings, packaging metadata, or citation metadata.</p>
+<h2 id="cutting-a-release">Cutting a release<a class="headerlink" href="#cutting-a-release" title="Permanent link">&para;</a></h2>
 <ol>
-<li><code>tissue_simulator/tissue.py</code> - Main visualize() method</li>
-<li><code>tissue_simulator/gui.py</code> - GUI 3D viewer</li>
-<li><code>examples/advanced_visualization.py</code> - Example script with multiple views</li>
+<li><strong>Write the release notes.</strong> Add a <code>## [X.Y.Z] - YYYY-MM-DD</code> section at the
+   top of <code>CHANGELOG.md</code> describing what changed and <em>why</em> — the existing
+   entries explain rationale, not just diffs. Match that depth.</li>
+<li><strong>Bump.</strong> <code>python scripts/release.py bump X.Y.Z</code> — from a clean working tree
+   (the script refuses otherwise, so the bump lands as its own reviewable
+   commit). This also appends the <code>[X.Y.Z]: …/compare/…</code> link reference.</li>
+<li><strong>Test.</strong> <code>pytest tests/ -v</code></li>
+<li><strong>Verify.</strong> <code>python scripts/release.py check</code></li>
+<li><strong>Commit and open a PR.</strong> Work lands on <code>main</code> through a pull request, as
+   with #13/#14/#15:</li>
 </ol>
-<h2 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h2>
-<p>The fix has been applied to all visualization functions. To verify:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>/Users/cramere/tissue_simulator
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Test basic example</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>python<span class="w"> </span>examples/simple_example.py
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c1"># Test GUI</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>python<span class="w"> </span>-m<span class="w"> </span>tissue_simulator.gui
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Test advanced visualization</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>python<span class="w"> </span>examples/advanced_visualization.py
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>commit<span class="w"> </span>-am<span class="w"> </span><span class="s2">&quot;Release vX.Y.Z&quot;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>&lt;branch&gt;
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>gh<span class="w"> </span>pr<span class="w"> </span>create<span class="w"> </span>--base<span class="w"> </span>main
 </code></pre></div>
-<h2 id="compatibility">Compatibility<a class="headerlink" href="#compatibility" title="Permanent link">&para;</a></h2>
-<p>This fix is compatible with:
-- matplotlib &gt;= 3.3.0
-- numpy &gt;= 1.20.0
-- Python 3.8+</p>
-<p>The visualization should now work correctly without broadcasting errors.</p>
+<ol>
+<li><strong>Tag the merge commit on <code>main</code>,</strong> after the PR merges:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>main<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>pull
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>git<span class="w"> </span>tag<span class="w"> </span>vX.Y.Z<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>push<span class="w"> </span>--tags
+</code></pre></div>
+<p>Tags are <code>vX.Y.Z</code>, matching every existing tag. Push the tag: Zenodo is
+   wired to GitHub releases, and a missing tag breaks both the archive and the
+   changelog compare link — <code>v0.1.7</code> was never tagged, which is why <code>0.1.8</code>'s
+   link spans <code>v0.1.6...v0.1.8</code>. Note that <code>v0.1.15</code> and earlier point at
+   <em>pre-merge branch commits</em>; tagging the merge commit on <code>main</code> is the
+   intended convention going forward.
+7. <strong>Check Zenodo</strong> minted a version DOI for the new tag. The <em>concept</em> DOI in
+   <code>CITATION.cff</code> (<code>10.5281/zenodo.17465675</code>) always resolves to the latest
+   release and does <strong>not</strong> change per release — leave it alone.</p>
+<h2 id="not-on-pypi">Not on PyPI<a class="headerlink" href="#not-on-pypi" title="Permanent link">&para;</a></h2>
+<p><code>tissue_simulator</code> is <strong>not published to PyPI</strong>, so there is no build/upload
+step. Users install from source. If that ever changes, add
+<code>python -m build &amp;&amp; twine upload dist/*</code> between the tag and the Zenodo check,
+and note that a published version number can never be reused — a botched
+upload burns that version.</p>
+<h2 id="citation-metadata">Citation metadata<a class="headerlink" href="#citation-metadata" title="Permanent link">&para;</a></h2>
+<p><code>CITATION.cff</code> drives GitHub's "Cite this repository" button and the BibTeX
+block in the README. If you change the author list, license, or DOI, change it
+in <code>CITATION.cff</code> and <code>pyproject.toml</code> together — <code>release.py check</code> only
+validates the version and date, not the other fields.</p>
 
 
 
