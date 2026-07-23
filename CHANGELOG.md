@@ -5,6 +5,49 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.16] - 2026-07-23
+
+No library code changed in this release — it is packaging, citation, and
+release-process metadata only.
+
+### Added
+
+- **`CITATION.cff`** so the repository is citable. GitHub renders a "Cite this
+  repository" button from it and generates APA/BibTeX on demand. Metadata is
+  drawn from existing sources rather than restated: author and keywords from
+  `pyproject.toml`, the concept DOI (`10.5281/zenodo.17465675`) already
+  declared under `[project.urls]`, and the release date from this file.
+- **Citation section in `README.md`** with a BibTeX block, plus a note that the
+  concept DOI always resolves to the latest release while Zenodo also mints a
+  version-specific DOI per release.
+- **`scripts/release.py`** — the version string lives in five files, four of
+  which nothing imports, so they drift silently. The script treats the topmost
+  `## [X.Y.Z] - YYYY-MM-DD` heading in this file as the source of truth and
+  syncs `pyproject.toml`, `tissue_simulator/__init__.py`, `CITATION.cff`
+  (`version` + `date-released`), and the README BibTeX (`version` + `year`) to
+  it. `check` verifies and exits non-zero on drift; `bump X.Y.Z` sets. Each
+  pattern must match exactly once, so an upstream reformat fails loudly rather
+  than silently skipping a file, and `bump` refuses to run on a dirty tree so
+  the bump lands as its own reviewable commit.
+- **`docs/notes/releasing.md`** — maintainer release checklist covering the
+  version-sync criterion, tagging, PyPI upload, and Zenodo DOI handling.
+- **Version-sync rules for AI agents** in `CLAUDE.md` and
+  `.github/copilot-instructions.md`: never hand-edit a version string, run
+  `release.py check` after touching packaging or citation metadata, and never
+  bump as a side effect of a feature change.
+
+### Fixed
+
+- **License holder.** `LICENSE` claimed "Copyright (c) 2024 Tissue Simulator
+  Contributors", which matched neither the author declared in
+  `pyproject.toml` nor the project's actual start year — `0.1.0` was released
+  2025-10-28. Now "Copyright (c) 2025 Eric Cramer".
+- **Changelog compare links.** Link references had not been maintained since
+  `0.1.4`, leaving versions `0.1.5`–`0.1.15` rendering as literal `[0.1.x]`
+  text. Backfilled for every tagged release. `v0.1.7` was never tagged, so it
+  has no link and `0.1.8` spans `v0.1.6...v0.1.8`; `release.py check` reports
+  the gap rather than hiding it.
+
 ## [0.1.15] - 2026-06-19
 
 ### Added
@@ -547,6 +590,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   integration via Model Context Protocol.
 - Examples, tests, MIT license, and documentation.
 
+[0.1.15]: https://github.com/emcramer/tissue_simulator/compare/v0.1.14...v0.1.15
+[0.1.14]: https://github.com/emcramer/tissue_simulator/compare/v0.1.13...v0.1.14
+[0.1.13]: https://github.com/emcramer/tissue_simulator/compare/v0.1.12...v0.1.13
+[0.1.12]: https://github.com/emcramer/tissue_simulator/compare/v0.1.11...v0.1.12
+[0.1.11]: https://github.com/emcramer/tissue_simulator/compare/v0.1.10...v0.1.11
+[0.1.10]: https://github.com/emcramer/tissue_simulator/compare/v0.1.9...v0.1.10
+[0.1.9]: https://github.com/emcramer/tissue_simulator/compare/v0.1.8...v0.1.9
+[0.1.8]: https://github.com/emcramer/tissue_simulator/compare/v0.1.6...v0.1.8
+[0.1.6]: https://github.com/emcramer/tissue_simulator/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/emcramer/tissue_simulator/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/emcramer/tissue_simulator/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/emcramer/tissue_simulator/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/emcramer/tissue_simulator/compare/v0.1.1...v0.1.2

@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+title: "Tissue Simulator: 3D simulated biological tissue section generator with network-based spatial analysis"
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+authors:
+  - given-names: Eric
+    family-names: Cramer
+    email: ericscrum@gmail.com
+repository-code: "https://github.com/emcramer/tissue_simulator"
+url: "https://emcramer.github.io/tissue_simulator/"
+abstract: >-
+  Tissue Simulator is a Python package for generating 3D simulated biological
+  tissue sections using random sphere packing algorithms. It supports 2D
+  sectioning, network-based spatial analysis, graph-based cell type assignment
+  via simulated annealing, tissue replicate generation matching target spatial
+  statistics, and export to agent-based modeling frameworks such as PhysiCell.
+keywords:
+  - tissue simulation
+  - sphere packing
+  - spatial analysis
+  - histology
+  - agent-based modeling
+  - physicell
+  - bioinformatics
+license: MIT
+version: 0.1.15
+date-released: "2026-06-19"
+doi: 10.5281/zenodo.17465675

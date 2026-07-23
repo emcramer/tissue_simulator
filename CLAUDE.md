@@ -274,7 +274,35 @@ Network Statistics (3 files):
 - `docs/guides/complete-workflow.md`: End-to-end tutorial
 - `docs/guides/mcp.md`: MCP 5-minute quickstart
 - `docs/notes/`: Maintainer notes (e.g., known-issue regressions)
+- `docs/notes/releasing.md`: Release checklist and version-sync rules
 - `docs/design/`: Research / paper-track artifacts
+
+## Versioning and Releases
+
+The version string lives in **five** files: `CHANGELOG.md` (the source of
+truth), `pyproject.toml`, `tissue_simulator/__init__.py`, `CITATION.cff`
+(`version` + `date-released`), and the BibTeX block in `README.md`
+(`version` + `year`). Four of them are imported by nothing, so they drift
+silently.
+
+**Never hand-edit a version string.** Use the script:
+
+```bash
+python scripts/release.py check        # verify sync; exit 1 if drifted
+python scripts/release.py bump 0.1.16  # set it everywhere, from CHANGELOG.md
+```
+
+Rules for anyone (human or agent) working in this repo:
+
+- Run `python scripts/release.py check` after touching packaging metadata,
+  citation metadata, or anything version-related. It is fast and read-only.
+- To release: write the `## [X.Y.Z] - YYYY-MM-DD` section in `CHANGELOG.md`
+  first, then run `bump` — it syncs the other four files to that heading.
+  Full procedure in `docs/notes/releasing.md`.
+- Do not bump the version as a side effect of a feature change. Version bumps
+  are their own commit, and only when the user asks for a release.
+- The concept DOI in `CITATION.cff` (`10.5281/zenodo.17465675`) resolves to the
+  latest release and never changes per release. Leave it alone.
 
 ## Special Considerations
 
