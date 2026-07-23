@@ -550,6 +550,27 @@ Performance tips:
 - Smaller cell radii = more cells = longer generation time
 - Enable boundary cells for higher packing efficiency
 
+## 📚 Citation
+
+If you use `tissue_simulator` in your research, please cite it. GitHub's
+"Cite this repository" button (top right of the repo page) generates APA and
+BibTeX from [CITATION.cff](CITATION.cff). BibTeX:
+
+```bibtex
+@software{cramer_tissue_simulator,
+  author    = {Cramer, Eric},
+  title     = {Tissue Simulator: 3D simulated biological tissue section
+               generator with network-based spatial analysis},
+  year      = {2026},
+  version   = {0.1.16},
+  doi       = {10.5281/zenodo.17465675},
+  url       = {https://github.com/emcramer/tissue_simulator}
+}
+```
+
+The DOI above always resolves to the latest release; Zenodo also mints a
+version-specific DOI for each release if you need to cite an exact version.
+
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
