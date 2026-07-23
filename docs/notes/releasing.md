@@ -39,19 +39,39 @@ version strings, packaging metadata, or citation metadata.
    commit). This also appends the `[X.Y.Z]: …/compare/…` link reference.
 3. **Test.** `pytest tests/ -v`
 4. **Verify.** `python scripts/release.py check`
-5. **Commit and tag.** Tags are `vX.Y.Z`, matching every existing tag:
+5. **Commit and open a PR.** Work lands on `main` through a pull request, as
+   with #13/#14/#15:
+
    ```bash
    git commit -am "Release vX.Y.Z"
-   git tag vX.Y.Z
-   git push && git push --tags
+   git push -u origin <branch>
+   gh pr create --base main
    ```
-   Push the tag. Zenodo is wired to GitHub releases, and a missing tag breaks
-   both the archive and the changelog compare link — `v0.1.7` was never tagged,
-   which is why `0.1.8`'s link spans `v0.1.6...v0.1.8`.
-6. **Publish.** `python -m build && twine upload dist/*`
+
+6. **Tag the merge commit on `main`,** after the PR merges:
+
+   ```bash
+   git checkout main && git pull
+   git tag vX.Y.Z && git push --tags
+   ```
+
+   Tags are `vX.Y.Z`, matching every existing tag. Push the tag: Zenodo is
+   wired to GitHub releases, and a missing tag breaks both the archive and the
+   changelog compare link — `v0.1.7` was never tagged, which is why `0.1.8`'s
+   link spans `v0.1.6...v0.1.8`. Note that `v0.1.15` and earlier point at
+   *pre-merge branch commits*; tagging the merge commit on `main` is the
+   intended convention going forward.
 7. **Check Zenodo** minted a version DOI for the new tag. The *concept* DOI in
    `CITATION.cff` (`10.5281/zenodo.17465675`) always resolves to the latest
    release and does **not** change per release — leave it alone.
+
+## Not on PyPI
+
+`tissue_simulator` is **not published to PyPI**, so there is no build/upload
+step. Users install from source. If that ever changes, add
+`python -m build && twine upload dist/*` between the tag and the Zenodo check,
+and note that a published version number can never be reused — a botched
+upload burns that version.
 
 ## Citation metadata
 

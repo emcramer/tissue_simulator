@@ -30,7 +30,8 @@ release-process metadata only.
   than silently skipping a file, and `bump` refuses to run on a dirty tree so
   the bump lands as its own reviewable commit.
 - **`docs/notes/releasing.md`** — maintainer release checklist covering the
-  version-sync criterion, tagging, PyPI upload, and Zenodo DOI handling.
+  version-sync criterion, the PR-then-tag flow, and Zenodo DOI handling. Records
+  that this package is not published to PyPI, so there is no build/upload step.
 - **Version-sync rules for AI agents** in `CLAUDE.md` and
   `.github/copilot-instructions.md`: never hand-edit a version string, run
   `release.py check` after touching packaging or citation metadata, and never

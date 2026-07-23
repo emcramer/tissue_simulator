@@ -268,11 +268,13 @@ def cmd_bump(args: argparse.Namespace) -> int:
         f"  1. Fill in / review the CHANGELOG.md section for {version}.\n"
         f"  2. pytest tests/ -v\n"
         f"  3. python scripts/release.py check\n"
-        f"  4. git commit -am 'Release v{version}' && git tag v{version}\n"
-        f"  5. git push && git push --tags\n"
-        f"  6. python -m build && twine upload dist/*\n"
+        f"  4. git commit -am 'Release v{version}'\n"
+        f"  5. Open a PR against main and merge it.\n"
+        f"  6. Tag the merge commit on main: git tag v{version} && git push --tags\n"
         f"  7. Confirm Zenodo minted a DOI for the new tag "
         f"(the concept DOI in CITATION.cff stays the same).\n"
+        f"\nNot on PyPI: this package is not published there, so there is no\n"
+        f"build/upload step. See docs/notes/releasing.md if that changes.\n"
     )
     return 0
 
