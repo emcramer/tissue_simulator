@@ -99,9 +99,10 @@ Container for a 3D tissue section and its packed cells.
 
 Return tissue dimensions as `(height, width, thickness)`.
 
-#### `generate_cells(max_attempts=1000, min_spacing=0.5, allow_boundary_cells=True, seed=None)`
+#### `generate_cells(max_attempts=1000, min_spacing=0.5, allow_boundary_cells=True, seed=None, layout=None, packing_params=None)`
 
-Generate cells via random sphere packing.
+Generate cells via random sphere packing. With `layout`, cells follow a
+density layout instead (see [`InhomogeneousPacker`](#inhomogeneouspacker)).
 
 **Parameters:**
 
@@ -116,6 +117,12 @@ Generate cells via random sphere packing.
   propagated to the underlying `SpherePacker`, making generation
   bit-reproducible. When `None` (default), `self.seed` is used (which
   may itself be `None` for unseeded behavior). Added in v0.1.2.
+- `layout` (`Layout`, optional): density layout from
+  `DensityModel.sample_layout`. The cell count is the layout's, and
+  `max_attempts`/`min_spacing` are unused. The packing report is stored on
+  `tissue.packing_report`.
+- `packing_params` (dict, optional): extra keyword arguments for
+  `InhomogeneousPacker`.
 
 **Returns:** number of cells placed (int).
 
@@ -251,6 +258,52 @@ exits after `max_attempts` *consecutive* failed placements.
 
 Identical to `pack` but invokes `callback(cells_placed, total_attempts)`
 every ten successful placements. Used by the GUI for progress bars.
+
+Collision checks use a spatial hash grid, so packing scales close to
+linearly in the number of cells; seeded results are identical to the
+original exhaustive check.
+
+### `DensityModel`
+
+`tissue_simulator.density.DensityModel` describes where a source region is
+dense or sparse and which cell types dominate where, and samples a `Layout`
+(target density, composition and compartment maps) for each replicate.
+
+```python
+from tissue_simulator import DensityModel, TissueSection
+
+model = DensityModel.fit(x, y, radius, cell_type, bounds=(0, 0, 400, 400), seed=0)
+layout = model.sample_layout(rng=1, layout="resample")   # or layout="copy"
+tissue = TissueSection(400, 400, 1.0, {"cell": (3.5, 5.0)})
+tissue.generate_cells(layout=layout, seed=1)
+print(tissue.packing_report.bin_correlation)
+```
+
+Key attributes: `bandwidth`, `compartment_fractions`,
+`compartment_composition`, `patch_length`, `patch_smoothness`, `kappa`,
+`homogeneous` (the region is not more heterogeneous than a uniform packing,
+so layouts are uniform) and `flags` (`"trend"` or
+`"patch_length_at_upper_bound"` mean resampling may not resemble the region;
+use `layout="copy"`). See
+[Replicate Generation](replicate-generation.md#density-aware-scaffolds) for
+the replicate workflow.
+
+### `InhomogeneousPacker`
+
+`InhomogeneousPacker(bounds, layout, allow_boundary_cells=True, seed=None, bin_size=None, max_failures=100, insertion_candidates=20, max_relax_iterations=100, displacement_cap=None)`
+places exactly `layout.n_target` cells:
+
+1. Square bins get quotas proportional to the layout intensity they cover.
+2. Cells are added at random inside their bins, with radii drawn from the
+   layout's density-conditioned marks and hard core
+   `layout.kappa * (r_i + r_j)`.
+3. Where addition saturates, remaining cells are inserted at the best of
+   several positions and overlaps are relaxed by soft-sphere pushes, with no
+   cell moving more than `displacement_cap` (default half the median radius).
+
+`packer.report` (`PackingReport`) records target and achieved cells per bin
+(`bin_correlation`), inserted and relaxed cells, the largest displacement and
+the final overlap fraction.
 
 ### `load_tissue_from_csv`
 

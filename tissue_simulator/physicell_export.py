@@ -35,8 +35,12 @@ from __future__ import annotations
 
 import csv
 import math
+import warnings
 from dataclasses import dataclass
 from typing import Dict, Iterable, Optional, Sequence, Union
+
+import numpy as np
+from scipy.spatial import cKDTree
 
 from .slicing import SliceCell
 from .tissue import Cell, TissueSection
@@ -158,6 +162,7 @@ class PhysiCellExporter:
             )
             for cell in tissue.cells
         ]
+        _warn_if_overlapping(tissue.cells)
         self._write(rows, output_path, cell_type_mapping, include_volume, fmt)
         return output_path
 
@@ -349,6 +354,53 @@ class PhysiCellExporter:
                     row.volume,
                 ]
             )
+
+
+def overlap_report(cells: Iterable[Cell], factor: float = 0.5) -> Dict[str, float]:
+    """Summarize how strongly cells overlap before export.
+
+    Density-aware scaffolds reproduce the tight spacing of dense tissue, where
+    circle-equivalent radii from segmentation overlap. PhysiCell's mechanics
+    push overlapping cells apart in the first time steps, so heavy overlap
+    changes the initial condition that is actually simulated.
+
+    Args:
+        cells: Cells with ``center`` and ``radius`` (e.g. ``tissue.cells``).
+        factor: A pair counts as overlapping when its center distance is
+            below ``factor * (r_i + r_j)``.
+
+    Returns:
+        dict with ``n_cells``, ``overlap_fraction`` (fraction of cells with at
+        least one overlapping neighbor) and ``min_distance_ratio`` (smallest
+        ``d / (r_i + r_j)`` among neighbors closer than two maximum radii;
+        ``inf`` if there are none).
+    """
+    cells = list(cells)
+    empty = {"n_cells": len(cells), "overlap_fraction": 0.0, "min_distance_ratio": math.inf}
+    if len(cells) < 2:
+        return empty
+    centers = np.array([c.center for c in cells], dtype=float)
+    radii = np.array([c.radius for c in cells], dtype=float)
+    pairs = cKDTree(centers).query_pairs(2.0 * radii.max(), output_type="ndarray")
+    if pairs.size == 0:
+        return empty
+    i, j = pairs[:, 0], pairs[:, 1]
+    ratio = np.linalg.norm(centers[i] - centers[j], axis=1) / (radii[i] + radii[j])
+    overlapping = np.zeros(len(cells), dtype=bool)
+    close = ratio < factor
+    overlapping[i[close]] = True
+    overlapping[j[close]] = True
+    return {"n_cells": len(cells), "overlap_fraction": float(overlapping.mean()),
+            "min_distance_ratio": float(ratio.min())}
+
+
+def _warn_if_overlapping(cells: Iterable[Cell], limit: float = 0.05) -> None:
+    report = overlap_report(cells)
+    if report["overlap_fraction"] > limit:
+        warnings.warn(
+            f"{report['overlap_fraction']:.0%} of exported cells overlap by more than half "
+            "their summed radii; PhysiCell's mechanics will push them apart at t = 0 "
+            "(see physicell_export.overlap_report).", stacklevel=3)
 
 
 def export_to_physicell(

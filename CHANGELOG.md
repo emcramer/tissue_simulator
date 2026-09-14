@@ -5,6 +5,59 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Replicate scaffolds no longer erase tissue density heterogeneity.** The
+  uniform random-sequential-addition scaffold spread cells evenly, so
+  replicates of real regions lost dense tumor nests, sparse stroma and immune
+  margins (mean degree of the 20 µm graph about 0.79 of the region's, and
+  cross-type L diverging beyond the graph radius). Replicates built from a
+  source region can now use a density-aware scaffold (below). The uniform
+  scaffold is unchanged and remains the default when no source coordinates
+  are available.
+
+### Added
+
+- **`tissue_simulator.density`.** `DensityModel` fits per-type kernel
+  intensity maps; compartments (k-means on per-type intensities, with each
+  compartment's density and composition taken from the cells inside it and
+  profiled by distance to the compartment edge);
+  patch structure (latent Gaussian fields calibrated by simulation to the
+  region's same-compartment probability by distance); density-conditioned
+  radius marks; and a hard core from nearest-neighbor spacing. A Monte Carlo
+  test against uniform packings marks homogeneous regions, and trends or
+  window-sized patches are flagged. `sample_layout(layout="resample")` draws
+  a new arrangement of compartments per replicate, and `layout="copy"` reuses
+  the region's maps. Models round-trip through `to_dict`/`from_dict`;
+  `pooled_patch_prior` pools patch structure across a cohort.
+- **`InhomogeneousPacker` and `PackingReport`** (`packing.py`). Fills a layout
+  with its exact cell count by per-bin random sequential addition,
+  best-clearance insertion, and bounded soft-sphere relaxation where addition
+  saturates. `TissueSection.generate_cells(layout=...)` routes to it.
+- **Density-aware replicates.** `ReplicateGenerator` accepts
+  `density_model`, `layout`, `composition_weight` (default 4.0) and
+  `composition_bin` (default 40 µm) with `method="graph_coloring"`, and
+  `ReplicateGenerator.from_coordinates()` fits targets and the density model
+  from a coordinate CSV. `GraphColorizer` takes an optional
+  `target_statistics["spatial_composition"]` term with O(1) incremental
+  updates, and `cost_terms()` reports per-term residuals.
+  `ReplicateStatistics` gains `packing_report`, `composition_error` and
+  `layout_flags`. `fit_density_model_from_coordinates()` complements
+  `load_target_statistics_from_coordinates()`.
+- **`overlap_report()`** in `physicell_export`; `export_tissue` warns when
+  more than 5% of cells overlap by more than half their summed radii.
+- **MCP.** `setup_replicate_generator` accepts `density_layout`
+  (`none`, `resample` or `copy`).
+- `examples/density_aware_replicates.py` benchmark and
+  `docs/notes/density-aware-packing.md` design notes.
+
+### Changed
+
+- `SpherePacker` checks collisions through a spatial hash grid (about 16x
+  faster at 850 cells). Seeded packings are bit-identical to before.
+
 ## [0.1.16] - 2026-07-23
 
 No library code changed in this release — it is packaging, citation, and

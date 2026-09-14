@@ -92,6 +92,51 @@ Supporting features:
   so `generate_replicates(parallel=True)` runs them across processes with
   identical results to the serial path.
 
+### Density-aware scaffolds
+
+The uniform scaffold spreads cells evenly, so replicates of a real region
+lose its dense tumor nests, sparse stroma and immune margins. When the source
+region's coordinates are available, fit a
+[`DensityModel`](core.md#densitymodel) and pass it to the generator: each
+replicate is then packed on its own density layout, and the annealer also
+matches the layout's expected composition in 40 µm bins.
+
+```python
+from tissue_simulator import ReplicateGenerator
+
+# Fits target statistics and the density model from one coordinate CSV.
+gen = ReplicateGenerator.from_coordinates(
+    "region.csv", network_mode="radius", network_radius=20.0,
+    seed=42, layout="resample",
+)
+replicates = gen.generate_replicates(num_replicates=30, parallel=True)
+tissue, stats = replicates[0]
+print(stats.composition_error, stats.packing_report["bin_correlation"], stats.layout_flags)
+```
+
+Or build the pieces yourself with
+`DensityModel.from_tissue(region)` / `fit_density_model_from_coordinates(path)`
+and `ReplicateGenerator(..., method="graph_coloring", density_model=model)`.
+
+- **`layout="resample"`** (default) draws a new arrangement of compartments
+  per replicate, with the region's compartment areas, within-compartment
+  density distribution, composition and patch structure. Replicates differ
+  in where the nests are, so the ensemble keeps initial-condition variance.
+- **`layout="copy"`** reuses the region's own maps; replicates differ only
+  below the smoothing bandwidth. Use it for regions flagged `"trend"` or
+  `"patch_length_at_upper_bound"`, where resampling assumes a stationarity
+  the region does not have.
+- **`composition_weight`** (default 4.0) scales the composition term, which is
+  multiplied by the squared mean degree of each replicate graph. Larger values
+  trade pair-fraction accuracy for composition accuracy.
+- Regions that are no more heterogeneous than a uniform packing
+  (`model.homogeneous`) get uniform layouts.
+- For a 2D source, use a thin slab (thickness about 1 µm) so replicate graphs
+  stay planar.
+
+Design, ablations and known limits are in
+[the design notes](../notes/density-aware-packing.md).
+
 ### Measuring consistency
 
 `consistency_report` quantifies run-to-run variability and compares methods

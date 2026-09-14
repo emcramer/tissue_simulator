@@ -110,6 +110,8 @@ class TissueSection:
 
         self.cells: List[Cell] = []
         self.seed = seed
+        # Set by generate_cells when cells follow a density layout.
+        self.packing_report = None
 
     def get_bounds(self) -> Tuple[float, float, float]:
         """Return tissue dimensions as (height, width, thickness)."""
@@ -118,7 +120,9 @@ class TissueSection:
     def generate_cells(self, max_attempts: int = 1000,
                       min_spacing: float = 0.5,
                       allow_boundary_cells: bool = True,
-                      seed: Optional[int] = None) -> int:
+                      seed: Optional[int] = None,
+                      layout=None,
+                      packing_params: Optional[Dict] = None) -> int:
         """
         Generate cells using random sphere packing.
 
@@ -132,6 +136,13 @@ class TissueSection:
                 the internal SpherePacker, making generation bit-reproducible.
                 When None (default), ``self.seed`` is used (which itself may
                 be None for unseeded behavior).
+            layout: Optional :class:`~tissue_simulator.density.Layout`. When
+                given, cells follow its density map through
+                :class:`~tissue_simulator.packing.InhomogeneousPacker`, the cell
+                count is the layout's, and ``max_attempts``/``min_spacing`` are
+                unused (spacing comes from the layout's hard core). The
+                packer's report is stored on ``self.packing_report``.
+            packing_params: Extra keyword arguments for ``InhomogeneousPacker``.
 
         Returns:
             Number of cells successfully placed
@@ -144,6 +155,20 @@ class TissueSection:
         if seed is not None:
             self.seed = seed
         effective_seed = self.seed
+
+        if layout is not None:
+            from .packing import InhomogeneousPacker
+
+            packer = InhomogeneousPacker(
+                self.get_bounds(), layout,
+                allow_boundary_cells=allow_boundary_cells,
+                seed=effective_seed,
+                placeholder_type=next(iter(self.cell_radii)),
+                **(packing_params or {}),
+            )
+            self.cells = packer.pack()
+            self.packing_report = packer.report
+            return len(self.cells)
 
         packer = SpherePacker(
             bounds=self.get_bounds(),
@@ -189,7 +214,8 @@ class TissueSection:
         # Volume calculations
         tissue_volume = self.height * self.width * self.thickness
         cell_volume = sum((4/3) * np.pi * c.radius**3 for c in self.cells)
-        stats["packing_fraction"] = cell_volume / tissue_volume
+        stats["packing_fraction"] = (cell_volume / tissue_volume
+                                     if tissue_volume > 0 else float("nan"))
         
         return stats
     

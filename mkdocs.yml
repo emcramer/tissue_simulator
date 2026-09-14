@@ -70,6 +70,7 @@ validation:
 
 not_in_nav: |
   notes/plot-surface-bug.md
+  notes/density-aware-packing.md
   slides/tour.html
 
 hooks:

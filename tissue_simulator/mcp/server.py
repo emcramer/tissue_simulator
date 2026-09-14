@@ -32,6 +32,7 @@ from ..replicate_generator import (ReplicateGenerator, TargetStatistics,
                                      load_target_statistics_from_tissue,
                                      load_target_statistics_from_coordinates)
 from ..physicell_export import PhysiCellExporter
+from ..density import DensityModel
 
 
 class TissueSimulatorMCPServer:
@@ -51,6 +52,8 @@ class TissueSimulatorMCPServer:
         self.current_slicer: Optional[TissueSlicer] = None
         self.replicate_generator: Optional[ReplicateGenerator] = None
         self.generated_replicates: List[Tuple[TissueSection, Any]] = []
+        # Tissue the loaded target statistics came from (for density_layout).
+        self.target_source_tissue: Optional[TissueSection] = None
         self.temp_dir = tempfile.mkdtemp(prefix="tissue_sim_")
         
         # Register tools
@@ -780,6 +783,20 @@ class TissueSimulatorMCPServer:
                                     "robust)."
                                 ),
                                 "default": "heuristic"
+                            },
+                            "density_layout": {
+                                "type": "string",
+                                "enum": ["none", "resample", "copy"],
+                                "description": (
+                                    "For 'graph_coloring': pack replicates on a density-aware "
+                                    "scaffold fitted to the tissue the target statistics came from "
+                                    "(load_target_statistics_from_coordinates, or "
+                                    "load_target_statistics with use_current_tissue). 'resample' "
+                                    "draws a new arrangement of dense and sparse compartments per "
+                                    "replicate, 'copy' reuses the source layout, 'none' keeps the "
+                                    "uniform scaffold."
+                                ),
+                                "default": "none"
                             }
                         },
                         "required": ["height", "width", "thickness", "cell_radii"]
@@ -1230,11 +1247,13 @@ class TissueSimulatorMCPServer:
         network_radius = args.get("network_radius")
 
         try:
-            self.target_stats = load_target_statistics_from_coordinates(
-                filepath,
+            source_tissue = load_tissue_from_csv(filepath)
+            self.target_stats = load_target_statistics_from_tissue(
+                source_tissue,
                 network_mode=network_mode,
                 network_radius=network_radius
             )
+            self.target_source_tissue = source_tissue
 
             # Store network mode for replicate generator
             self.network_mode = network_mode
@@ -1741,6 +1760,7 @@ class TissueSimulatorMCPServer:
             if csv_filepath:
                 # Load from CSV
                 self.target_stats = load_target_statistics_from_csv(csv_filepath)
+                self.target_source_tissue = None
                 result = {
                     "status": "success",
                     "source": "csv_file",
@@ -1764,6 +1784,7 @@ class TissueSimulatorMCPServer:
                     network_mode=network_mode,
                     network_radius=network_radius
                 )
+                self.target_source_tissue = self.current_tissue
                 
                 result = {
                     "status": "success",
@@ -1812,6 +1833,7 @@ class TissueSimulatorMCPServer:
         method = args.get("method", "radius_tuning")
         n_restarts = args.get("n_restarts", 1)
         radius_optimizer = args.get("radius_optimizer", "heuristic")
+        density_layout = args.get("density_layout", "none")
 
         # Convert cell_radii dict to proper format
         cell_radii = {
@@ -1820,6 +1842,19 @@ class TissueSimulatorMCPServer:
         }
 
         try:
+            density_model = None
+            if density_layout != "none":
+                source = self.target_source_tissue
+                if source is None or not source.cells:
+                    return [TextContent(
+                        type="text",
+                        text=json.dumps({"error": (
+                            "density_layout needs the tissue the target statistics came from: "
+                            "load them with load_target_statistics_from_coordinates or "
+                            "load_target_statistics(use_current_tissue=True).")})
+                    )]
+                density_model = DensityModel.from_tissue(source, seed=seed)
+
             self.replicate_generator = ReplicateGenerator(
                 target_stats=self.target_stats,
                 tissue_dimensions=(height, width, thickness),
@@ -1830,6 +1865,8 @@ class TissueSimulatorMCPServer:
                 method=method,
                 n_restarts=n_restarts,
                 radius_optimizer=radius_optimizer,
+                density_model=density_model,
+                layout="copy" if density_layout == "copy" else "resample",
             )
 
             result = {
@@ -1843,6 +1880,15 @@ class TissueSimulatorMCPServer:
                 "network_mode": self.network_mode,
                 "seed": seed,
                 "method": method,
+                "density_layout": density_layout,
+                "density_model": None if density_model is None else {
+                    "n_compartments": density_model.n_compartments,
+                    "compartment_fractions": [round(float(f), 3)
+                                              for f in density_model.compartment_fractions],
+                    "patch_length_um": round(density_model.patch_length, 1),
+                    "homogeneous": density_model.homogeneous,
+                    "flags": list(density_model.flags),
+                },
                 "ready_to_generate": True
             }
             

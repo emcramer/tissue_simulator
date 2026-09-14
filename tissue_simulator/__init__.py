@@ -7,7 +7,8 @@ random sphere packing algorithms, with network-based cell type assignment.
 """
 
 from .tissue import TissueSection, Cell, load_tissue_from_csv
-from .packing import SpherePacker
+from .packing import SpherePacker, InhomogeneousPacker, PackingReport
+from .density import DensityModel, Layout, RadiusMarks, pooled_patch_prior
 from .slicing import TissueSlicer, SliceCell, create_standard_slices
 from .spatial_analysis import (
     SpatialNetworkAnalyzer,
@@ -23,7 +24,8 @@ from .replicate_generator import (
     ReplicateStatistics,
     load_target_statistics_from_csv as load_replicate_stats_csv,
     load_target_statistics_from_tissue,
-    load_target_statistics_from_coordinates
+    load_target_statistics_from_coordinates,
+    fit_density_model_from_coordinates,
 )
 from .graph_coloring import (
     GraphColorizer,
@@ -49,6 +51,7 @@ from .tissue_workflow import (
 from .physicell_export import (
     PhysiCellExporter,
     export_to_physicell,
+    overlap_report,
 )
 from .physicell_reader import (
     PhysiCellReader,
@@ -75,6 +78,9 @@ __version__ = "0.1.16"
 __all__ = [
     # Core tissue simulation
     "TissueSection", "Cell", "SpherePacker", "load_tissue_from_csv",
+    # Density-aware scaffolds
+    "DensityModel", "Layout", "RadiusMarks", "pooled_patch_prior",
+    "InhomogeneousPacker", "PackingReport", "fit_density_model_from_coordinates",
     # Slicing
     "TissueSlicer", "SliceCell", "create_standard_slices",
     # Spatial analysis
@@ -95,7 +101,7 @@ __all__ = [
     # Workflow
     "TissueNetworkWorkflow", "quick_workflow",
     # PhysiCell ABM bridge (v0.1.1)
-    "PhysiCellExporter", "export_to_physicell",
+    "PhysiCellExporter", "export_to_physicell", "overlap_report",
     "PhysiCellReader", "read_physicell_output", "stats_to_target_statistics",
     # Convergence diagnostics (v0.1.1)
     "adf_test", "mann_kendall_test", "rolling_cv",
