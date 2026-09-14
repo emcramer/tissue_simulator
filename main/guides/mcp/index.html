@@ -2222,10 +2222,10 @@
 <p>Edit your Claude Desktop config file and add:</p>
 <p><strong>macOS</strong>: <code>~/Library/Application Support/Claude/claude_desktop_config.json</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">&quot;tissue-simulator&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;python&quot;</span><span class="p">,</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/Users/cramere/tissue_simulator/run_mcp_server.py&quot;</span><span class="p">]</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">"mcpServers"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">"tissue-simulator"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span><span class="nt">"command"</span><span class="p">:</span><span class="w"> </span><span class="s2">"python"</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">      </span><span class="nt">"args"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"/Users/cramere/tissue_simulator/run_mcp_server.py"</span><span class="p">]</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p">}</span>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">  </span><span class="p">}</span>
 <a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">}</span>
@@ -2236,13 +2236,13 @@
 <h3 id="generate-and-analyze-tissue">Generate and Analyze Tissue<a class="headerlink" href="#generate-and-analyze-tissue" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>You: Can you create a simulated tissue section with epithelial and stromal cells?
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>Claude: I&#39;ll create a tissue simulation for you.
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>Claude: I'll create a tissue simulation for you.
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>[Uses create_tissue tool]
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>[Uses generate_cells tool]
 <a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>[Uses get_tissue_statistics tool]
 <a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>I&#39;ve created a 400x400x100 μm tissue with:
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>I've created a 400x400x100 μm tissue with:
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>- 152 epithelial cells (radius: 6-10 μm)
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>- 82 stromal cells (radius: 8-15 μm)
 <a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>- Packing fraction: 0.312
@@ -2253,7 +2253,7 @@
 <h3 id="create-serial-sections">Create Serial Sections<a class="headerlink" href="#create-serial-sections" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>You: Create 5 serial sections through the tissue and analyze the cell distribution.
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>Claude: I&#39;ll create serial sections and analyze them.
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>Claude: I'll create serial sections and analyze them.
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>[Uses create_serial_slices tool]
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>[Uses get_slice_statistics for each]
@@ -2271,7 +2271,7 @@
 <h3 id="export-and-visualize">Export and Visualize<a class="headerlink" href="#export-and-visualize" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>You: Export the data and create visualizations.
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Claude: I&#39;ll export the data and generate visualizations.
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Claude: I'll export the data and generate visualizations.
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>[Uses export_tissue_csv tool]
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>[Uses export_slice_csv tool]
@@ -2304,8 +2304,8 @@
 </ol>
 <h2 id="use-cases-with-llms">Use Cases with LLMs<a class="headerlink" href="#use-cases-with-llms" title="Permanent link">&para;</a></h2>
 <h3 id="1-exploratory-analysis">1. Exploratory Analysis<a class="headerlink" href="#1-exploratory-analysis" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>&quot;Generate tissues with different cell type ratios and compare 
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>their packing efficiencies.&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>"Generate tissues with different cell type ratios and compare 
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>their packing efficiencies."
 </code></pre></div>
 <p>The LLM will:
 - Create multiple tissues
@@ -2313,8 +2313,8 @@
 - Compare statistics
 - Provide insights</p>
 <h3 id="2-histology-simulation">2. Histology Simulation<a class="headerlink" href="#2-histology-simulation" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>&quot;Create a tissue and generate serial sections like in real 
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>histology. Analyze how cell counts vary across sections.&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>"Create a tissue and generate serial sections like in real 
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>histology. Analyze how cell counts vary across sections."
 </code></pre></div>
 <p>The LLM will:
 - Create tissue
@@ -2322,8 +2322,8 @@
 - Analyze each section
 - Identify patterns</p>
 <h3 id="3-parameter-optimization">3. Parameter Optimization<a class="headerlink" href="#3-parameter-optimization" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>&quot;Find the optimal max_attempts parameter to achieve a packing 
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>fraction of at least 0.35.&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>"Find the optimal max_attempts parameter to achieve a packing 
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>fraction of at least 0.35."
 </code></pre></div>
 <p>The LLM will:
 - Try different parameters
@@ -2331,8 +2331,8 @@
 - Converge on optimal value
 - Explain the results</p>
 <h3 id="4-educational-demonstrations">4. Educational Demonstrations<a class="headerlink" href="#4-educational-demonstrations" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>&quot;Explain how tissue slicing works and demonstrate it with 
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>visualizations at different angles.&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>"Explain how tissue slicing works and demonstrate it with 
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>visualizations at different angles."
 </code></pre></div>
 <p>The LLM will:
 - Create tissue
@@ -2354,12 +2354,12 @@
 <a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="mf">7.</span> <span class="n">provide</span> <span class="n">comprehensive</span> <span class="n">report</span>
 </code></pre></div>
 <h3 id="comparative-studies">Comparative Studies<a class="headerlink" href="#comparative-studies" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>&quot;Compare tissues with 2 cell types vs 4 cell types. Which has 
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>better packing efficiency?&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>"Compare tissues with 2 cell types vs 4 cell types. Which has 
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>better packing efficiency?"
 </code></pre></div>
 <p>The LLM will design and execute a comparative study.</p>
 <h3 id="data-analysis">Data Analysis<a class="headerlink" href="#data-analysis" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>&quot;Analyze how cell density varies with depth in the tissue.&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>"Analyze how cell density varies with depth in the tissue."
 </code></pre></div>
 <p>The LLM will:
 - Create serial sections
@@ -2372,16 +2372,16 @@
 <p>Prefer concrete prompts like "Create a 500x500x100 μm tissue with epithelial cells (7-11 μm) and stromal cells (9-15 μm)".</p>
 <h3 id="sequential-requests">Sequential Requests<a class="headerlink" href="#sequential-requests" title="Permanent link">&para;</a></h3>
 <p>The tools maintain state, so you can build on previous actions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>1. &quot;Create a tissue with 3 cell types&quot;
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>2. &quot;Now create a slice at z=50&quot;
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>3. &quot;Export that slice data&quot;
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>4. &quot;Create another slice at 45 degrees&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>1. "Create a tissue with 3 cell types"
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>2. "Now create a slice at z=50"
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>3. "Export that slice data"
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>4. "Create another slice at 45 degrees"
 </code></pre></div>
 <h3 id="ask-for-analysis">Ask for Analysis<a class="headerlink" href="#ask-for-analysis" title="Permanent link">&para;</a></h3>
 <p>The LLM can interpret the results:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>&quot;What does a packing fraction of 0.35 mean? Is that good?&quot;
-<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>&quot;Why are there fewer cells in the edge slices?&quot;
-<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>&quot;How does the min_spacing parameter affect the results?&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>"What does a packing fraction of 0.35 mean? Is that good?"
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>"Why are there fewer cells in the edge slices?"
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>"How does the min_spacing parameter affect the results?"
 </code></pre></div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="tools-not-showing-up">Tools Not Showing Up<a class="headerlink" href="#tools-not-showing-up" title="Permanent link">&para;</a></h3>

@@ -799,10 +799,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#generate_cellsmax_attempts1000-min_spacing05-allow_boundary_cellstrue-seednone" class="md-nav__link">
+  <a href="#generate_cellsmax_attempts1000-min_spacing05-allow_boundary_cellstrue-seednone-layoutnone-packing_paramsnone" class="md-nav__link">
     <span class="md-ellipsis">
       
-        generate_cells(max_attempts=1000, min_spacing=0.5, allow_boundary_cells=True, seed=None)
+        generate_cells(max_attempts=1000, min_spacing=0.5, allow_boundary_cells=True, seed=None, layout=None, packing_params=None)
       
     </span>
   </a>
@@ -955,6 +955,28 @@
         
       </ul>
     </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#densitymodel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DensityModel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inhomogeneouspacker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InhomogeneousPacker
+      
+    </span>
+  </a>
   
 </li>
         
@@ -1877,10 +1899,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#generate_cellsmax_attempts1000-min_spacing05-allow_boundary_cellstrue-seednone" class="md-nav__link">
+  <a href="#generate_cellsmax_attempts1000-min_spacing05-allow_boundary_cellstrue-seednone-layoutnone-packing_paramsnone" class="md-nav__link">
     <span class="md-ellipsis">
       
-        generate_cells(max_attempts=1000, min_spacing=0.5, allow_boundary_cells=True, seed=None)
+        generate_cells(max_attempts=1000, min_spacing=0.5, allow_boundary_cells=True, seed=None, layout=None, packing_params=None)
       
     </span>
   </a>
@@ -2037,6 +2059,28 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#densitymodel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DensityModel
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inhomogeneouspacker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        InhomogeneousPacker
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#load_tissue_from_csv" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2163,16 +2207,16 @@ see <a href="../../quickstart/"><code>../quickstart.md</code></a>.</p>
 <ol>
 <li><strong>Uniform cells</strong> - single radius range:</li>
 </ol>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">cell_radii</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">)</span>  <span class="c1"># all cells between 5-15 um, type &quot;default&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">cell_radii</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">)</span>  <span class="c1"># all cells between 5-15 um, type "default"</span>
 </code></pre></div>
 <ol>
 <li><strong>Multiple cell types</strong> - dict mapping type name to a <code>(min, max)</code>
    radius range:</li>
 </ol>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">cell_radii</span><span class="o">=</span><span class="p">{</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="s2">&quot;epithelial&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">&quot;stromal&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">15</span><span class="p">),</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="s2">&quot;immune&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="s2">"epithelial"</span><span class="p">:</span> <span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">"stromal"</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">15</span><span class="p">),</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="s2">"immune"</span><span class="p">:</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="p">}</span>
 </code></pre></div>
 <p>A bare tuple is internally normalized to <code>{"default": (min, max)}</code>.</p>
@@ -2228,8 +2272,9 @@ real histological samples.</p>
 </ul>
 <h4 id="get_bounds"><code>get_bounds()</code><a class="headerlink" href="#get_bounds" title="Permanent link">&para;</a></h4>
 <p>Return tissue dimensions as <code>(height, width, thickness)</code>.</p>
-<h4 id="generate_cellsmax_attempts1000-min_spacing05-allow_boundary_cellstrue-seednone"><code>generate_cells(max_attempts=1000, min_spacing=0.5, allow_boundary_cells=True, seed=None)</code><a class="headerlink" href="#generate_cellsmax_attempts1000-min_spacing05-allow_boundary_cellstrue-seednone" title="Permanent link">&para;</a></h4>
-<p>Generate cells via random sphere packing.</p>
+<h4 id="generate_cellsmax_attempts1000-min_spacing05-allow_boundary_cellstrue-seednone-layoutnone-packing_paramsnone"><code>generate_cells(max_attempts=1000, min_spacing=0.5, allow_boundary_cells=True, seed=None, layout=None, packing_params=None)</code><a class="headerlink" href="#generate_cellsmax_attempts1000-min_spacing05-allow_boundary_cellstrue-seednone-layoutnone-packing_paramsnone" title="Permanent link">&para;</a></h4>
+<p>Generate cells via random sphere packing. With <code>layout</code>, cells follow a
+density layout instead (see <a href="#inhomogeneouspacker"><code>InhomogeneousPacker</code></a>).</p>
 <p><strong>Parameters:</strong></p>
 <ul>
 <li><code>max_attempts</code> (int): maximum <em>consecutive</em> failed-placement attempts
@@ -2243,6 +2288,12 @@ real histological samples.</p>
   propagated to the underlying <code>SpherePacker</code>, making generation
   bit-reproducible. When <code>None</code> (default), <code>self.seed</code> is used (which
   may itself be <code>None</code> for unseeded behavior). Added in v0.1.2.</li>
+<li><code>layout</code> (<code>Layout</code>, optional): density layout from
+  <code>DensityModel.sample_layout</code>. The cell count is the layout's, and
+  <code>max_attempts</code>/<code>min_spacing</code> are unused. The packing report is stored on
+  <code>tissue.packing_report</code>.</li>
+<li><code>packing_params</code> (dict, optional): extra keyword arguments for
+  <code>InhomogeneousPacker</code>.</li>
 </ul>
 <p><strong>Returns:</strong> number of cells placed (int).</p>
 <h4 id="get_cell_statistics"><code>get_cell_statistics()</code><a class="headerlink" href="#get_cell_statistics" title="Permanent link">&para;</a></h4>
@@ -2298,7 +2349,7 @@ interpreter's <code>PYTHONHASHSEED</code>. Added in v0.1.12.</p>
 <h4 id="clear_cells"><code>clear_cells()</code><a class="headerlink" href="#clear_cells" title="Permanent link">&para;</a></h4>
 <p>Remove all cells from the tissue (does not reset <code>seed</code>).</p>
 <h3 id="cell"><code>Cell</code><a class="headerlink" href="#cell" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">Cell</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">cell_type</span><span class="o">=</span><span class="s2">&quot;default&quot;</span><span class="p">,</span> <span class="n">is_boundary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">Cell</span><span class="p">(</span><span class="n">center</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">cell_type</span><span class="o">=</span><span class="s2">"default"</span><span class="p">,</span> <span class="n">is_boundary</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </code></pre></div>
 <p>A single cell.</p>
 <p><strong>Attributes:</strong></p>
@@ -2344,10 +2395,48 @@ exits after <code>max_attempts</code> <em>consecutive</em> failed placements.</p
 <h4 id="pack_with_progressmax_attempts1000-callbacknone"><code>pack_with_progress(max_attempts=1000, callback=None)</code><a class="headerlink" href="#pack_with_progressmax_attempts1000-callbacknone" title="Permanent link">&para;</a></h4>
 <p>Identical to <code>pack</code> but invokes <code>callback(cells_placed, total_attempts)</code>
 every ten successful placements. Used by the GUI for progress bars.</p>
-<h3 id="load_tissue_from_csv"><code>load_tissue_from_csv</code><a class="headerlink" href="#load_tissue_from_csv" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_tissue_from_csv</span>
+<p>Collision checks use a spatial hash grid, so packing scales close to
+linearly in the number of cells; seeded results are identical to the
+original exhaustive check.</p>
+<h3 id="densitymodel"><code>DensityModel</code><a class="headerlink" href="#densitymodel" title="Permanent link">&para;</a></h3>
+<p><code>tissue_simulator.density.DensityModel</code> describes where a source region is
+dense or sparse and which cell types dominate where, and samples a <code>Layout</code>
+(target density, composition and compartment maps) for each replicate.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">DensityModel</span><span class="p">,</span> <span class="n">TissueSection</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">tissue</span> <span class="o">=</span> <span class="n">load_tissue_from_csv</span><span class="p">(</span><span class="s2">&quot;cells.csv&quot;</span><span class="p">)</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">model</span> <span class="o">=</span> <span class="n">DensityModel</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">radius</span><span class="p">,</span> <span class="n">cell_type</span><span class="p">,</span> <span class="n">bounds</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">),</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">layout</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">sample_layout</span><span class="p">(</span><span class="n">rng</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">"resample"</span><span class="p">)</span>   <span class="c1"># or layout="copy"</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">tissue</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="p">{</span><span class="s2">"cell"</span><span class="p">:</span> <span class="p">(</span><span class="mf">3.5</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">)})</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">tissue</span><span class="o">.</span><span class="n">generate_cells</span><span class="p">(</span><span class="n">layout</span><span class="o">=</span><span class="n">layout</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="nb">print</span><span class="p">(</span><span class="n">tissue</span><span class="o">.</span><span class="n">packing_report</span><span class="o">.</span><span class="n">bin_correlation</span><span class="p">)</span>
+</code></pre></div>
+<p>Key attributes: <code>bandwidth</code>, <code>compartment_fractions</code>,
+<code>compartment_composition</code>, <code>patch_length</code>, <code>patch_smoothness</code>, <code>kappa</code>,
+<code>homogeneous</code> (the region is not more heterogeneous than a uniform packing,
+so layouts are uniform) and <code>flags</code> (<code>"trend"</code> or
+<code>"patch_length_at_upper_bound"</code> mean resampling may not resemble the region;
+use <code>layout="copy"</code>). See
+<a href="../replicate-generation/#density-aware-scaffolds">Replicate Generation</a> for
+the replicate workflow.</p>
+<h3 id="inhomogeneouspacker"><code>InhomogeneousPacker</code><a class="headerlink" href="#inhomogeneouspacker" title="Permanent link">&para;</a></h3>
+<p><code>InhomogeneousPacker(bounds, layout, allow_boundary_cells=True, seed=None, bin_size=None, max_failures=100, insertion_candidates=20, max_relax_iterations=100, displacement_cap=None)</code>
+places exactly <code>layout.n_target</code> cells:</p>
+<ol>
+<li>Square bins get quotas proportional to the layout intensity they cover.</li>
+<li>Cells are added at random inside their bins, with radii drawn from the
+   layout's density-conditioned marks and hard core
+   <code>layout.kappa * (r_i + r_j)</code>.</li>
+<li>Where addition saturates, remaining cells are inserted at the best of
+   several positions and overlaps are relaxed by soft-sphere pushes, with no
+   cell moving more than <code>displacement_cap</code> (default half the median radius).</li>
+</ol>
+<p><code>packer.report</code> (<code>PackingReport</code>) records target and achieved cells per bin
+(<code>bin_correlation</code>), inserted and relaxed cells, the largest displacement and
+the final overlap fraction.</p>
+<h3 id="load_tissue_from_csv"><code>load_tissue_from_csv</code><a class="headerlink" href="#load_tissue_from_csv" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_tissue_from_csv</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">tissue</span> <span class="o">=</span> <span class="n">load_tissue_from_csv</span><span class="p">(</span><span class="s2">"cells.csv"</span><span class="p">)</span>
 </code></pre></div>
 <p>Module-level function that loads a <code>TissueSection</code> from a CSV written by
 <code>TissueSection.export_to_csv</code> — the exact inverse of that method, built on
@@ -2371,38 +2460,38 @@ straight from a coordinate CSV, see <code>load_target_statistics_from_coordinate
 in <a href="../replicate-generation/"><code>replicate-generation.md</code></a>.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <h3 id="direct-spherepacker-usage">Direct <code>SpherePacker</code> usage<a class="headerlink" href="#direct-spherepacker-usage" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">SpherePacker</span>
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">packer</span> <span class="o">=</span> <span class="n">SpherePacker</span><span class="p">(</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">bounds</span><span class="o">=</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>    <span class="n">cell_radii_config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;type_a&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="s2">&quot;type_b&quot;</span><span class="p">:</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">)},</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">allow_boundary_cells</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
-<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="p">)</span>
-<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="n">cells</span> <span class="o">=</span> <span class="n">packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">2000</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">SpherePacker</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">packer</span> <span class="o">=</span> <span class="n">SpherePacker</span><span class="p">(</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">bounds</span><span class="o">=</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">cell_radii_config</span><span class="o">=</span><span class="p">{</span><span class="s2">"type_a"</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="s2">"type_b"</span><span class="p">:</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">7</span><span class="p">)},</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">allow_boundary_cells</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="p">)</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="n">cells</span> <span class="o">=</span> <span class="n">packer</span><span class="o">.</span><span class="n">pack</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">2000</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="cell-position-analysis">Cell position analysis<a class="headerlink" href="#cell-position-analysis" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">scipy.spatial.distance</span><span class="w"> </span><span class="kn">import</span> <span class="n">cdist</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">cell</span><span class="o">.</span><span class="n">center</span> <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">tissue</span><span class="o">.</span><span class="n">cells</span><span class="p">])</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">distances</span> <span class="o">=</span> <span class="n">cdist</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">positions</span><span class="p">)</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">distances</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mean nearest-neighbor distance: </span><span class="si">{</span><span class="n">distances</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> um&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">scipy.spatial.distance</span><span class="w"> </span><span class="kn">import</span> <span class="n">cdist</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">positions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">cell</span><span class="o">.</span><span class="n">center</span> <span class="k">for</span> <span class="n">cell</span> <span class="ow">in</span> <span class="n">tissue</span><span class="o">.</span><span class="n">cells</span><span class="p">])</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">distances</span> <span class="o">=</span> <span class="n">cdist</span><span class="p">(</span><span class="n">positions</span><span class="p">,</span> <span class="n">positions</span><span class="p">)</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="n">np</span><span class="o">.</span><span class="n">fill_diagonal</span><span class="p">(</span><span class="n">distances</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Mean nearest-neighbor distance: </span><span class="si">{</span><span class="n">distances</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> um"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="batch-generation-for-ensemble-statistics">Batch generation for ensemble statistics<a class="headerlink" href="#batch-generation-for-ensemble-statistics" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TissueSection</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">sections</span> <span class="o">=</span> <span class="p">[]</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="n">tissue</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="n">cell_radii</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">),</span> <span class="n">seed</span><span class="o">=</span><span class="n">i</span><span class="p">)</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="n">tissue</span><span class="o">.</span><span class="n">generate_cells</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">1500</span><span class="p">)</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="n">sections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tissue</span><span class="p">)</span>
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="n">fractions</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">get_cell_statistics</span><span class="p">()[</span><span class="s2">&quot;packing_fraction&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">sections</span><span class="p">]</span>
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Mean packing fraction: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">fractions</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> +/- </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">fractions</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TissueSection</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">sections</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">tissue</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span><span class="mi">500</span><span class="p">,</span> <span class="mi">500</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> <span class="n">cell_radii</span><span class="o">=</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">15</span><span class="p">),</span> <span class="n">seed</span><span class="o">=</span><span class="n">i</span><span class="p">)</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">tissue</span><span class="o">.</span><span class="n">generate_cells</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">1500</span><span class="p">)</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="n">sections</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tissue</span><span class="p">)</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="n">fractions</span> <span class="o">=</span> <span class="p">[</span><span class="n">t</span><span class="o">.</span><span class="n">get_cell_statistics</span><span class="p">()[</span><span class="s2">"packing_fraction"</span><span class="p">]</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">sections</span><span class="p">]</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Mean packing fraction: </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">fractions</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2"> +/- </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">fractions</span><span class="p">)</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
 <p>For target-statistics-driven batch generation, see
 <a href="../replicate-generation/"><code>replicate-generation.md</code></a> rather than rolling
