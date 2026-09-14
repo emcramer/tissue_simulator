@@ -119,6 +119,12 @@ python test_mcp_client.py
 - `quick_workflow()`: Convenience function for full workflow
 - Integrates: tissue generation → slicing → network building → cell type assignment → evaluation
 
+**density.py** - Density-aware layouts (replicates that keep tissue architecture)
+- `DensityModel.fit()` / `from_tissue()`: intensity maps, compartments, patch structure, radius marks, hard core
+- `sample_layout(layout="resample"|"copy")`: per-replicate `Layout`, filled by `InhomogeneousPacker` (packing.py)
+- Used by `ReplicateGenerator(density_model=...)` and `ReplicateGenerator.from_coordinates()`
+- Design, ablations and known limits: `docs/notes/density-aware-packing.md`
+
 **evaluation.py** - Comparison metrics
 - `js_divergence()`: Jensen-Shannon divergence (lower = better match)
 - `cosine_similarity()`: Vector similarity (higher = better match)
@@ -275,6 +281,7 @@ Network Statistics (3 files):
 - `docs/guides/mcp.md`: MCP 5-minute quickstart
 - `docs/notes/`: Maintainer notes (e.g., known-issue regressions)
 - `docs/notes/releasing.md`: Release checklist and version-sync rules
+- `docs/notes/density-aware-packing.md`: Density-aware scaffold design, ablations, known limits
 - `docs/design/`: Research / paper-track artifacts
 
 ## Versioning and Releases

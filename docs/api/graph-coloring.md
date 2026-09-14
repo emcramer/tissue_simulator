@@ -126,6 +126,13 @@ target_stats = {
 }
 ```
 
+Density-aware replicates add an optional spatial-composition target:
+`'spatial_composition': {'node_bin': {node: bin_id}, 'expected': {bin_id: {color: expected_count}}, 'weight': w}`.
+The annealer then also minimizes `w * sum((count - expected) ** 2)` over bins
+and colors, updated in constant time per swap.
+`GraphColorizer.cost_terms(stats)` reports the edge, neighbor and spatial parts
+of the cost separately.
+
 #### Option B: Load from CSV
 
 Create a CSV file with columns like:

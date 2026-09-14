@@ -335,6 +335,7 @@ Generate multiple tissue samples matching specific spatial interaction patterns:
 
 - **Target-based generation**: Match spatial statistics from existing tissues or CSV
 - **Iterative optimization**: Automatically tunes parameters to achieve targets
+- **Density-aware scaffolds**: Replicates of a real region keep its dense and sparse areas and immune margins (`ReplicateGenerator.from_coordinates`)
 - **Batch processing**: Generate multiple replicates efficiently
 - **Statistical validation**: Track divergence from target patterns
 - **Full MCP support**: Accessible to LLM coding assistants
@@ -393,6 +394,21 @@ generator = ReplicateGenerator(
 replicates = generator.generate_replicates(num_replicates=10)
 ```
 
+### Density-Aware Replicates of a Real Region
+
+```python
+from tissue_simulator import ReplicateGenerator
+
+# Fits target statistics and a density model from one coordinate CSV; each
+# replicate gets a new arrangement of the region's dense and sparse compartments.
+generator = ReplicateGenerator.from_coordinates(
+    "region.csv", network_mode="radius", network_radius=20.0, seed=42
+)
+replicates = generator.generate_replicates(num_replicates=30, parallel=True)
+```
+
+See [Density-aware scaffolds](docs/api/replicate-generation.md#density-aware-scaffolds).
+
 ## 🤖 LLM Integration (MCP)
 
 The Tissue Simulator can be used as a tool by Large Language Models through the Model Context Protocol (MCP).
@@ -448,7 +464,7 @@ Claude: [Uses create_tissue, generate_cells, create_serial_slices tools]
 
 #### Replicate Generation (New!)
 - **load_target_statistics** - Load target spatial statistics from CSV or current tissue
-- **setup_replicate_generator** - Configure replicate generator
+- **setup_replicate_generator** - Configure replicate generator (`density_layout` for density-aware scaffolds)
 - **generate_replicates** - Generate multiple replicates matching targets
 - **get_replicate_summary** - Get statistics across all replicates
 - **export_replicate_statistics** - Export replicate statistics to CSV
@@ -562,7 +578,7 @@ BibTeX from [CITATION.cff](CITATION.cff). BibTeX:
   title     = {Tissue Simulator: 3D simulated biological tissue section
                generator with network-based spatial analysis},
   year      = {2026},
-  version   = {0.1.16},
+  version   = {0.1.17},
   doi       = {10.5281/zenodo.17465675},
   url       = {https://github.com/emcramer/tissue_simulator}
 }

@@ -17,6 +17,7 @@ from pathlib import Path
 
 from .tissue import TissueSection, Cell, load_tissue_from_csv
 from .packing import SpherePacker
+from .density import DensityModel
 from .spatial_analysis import SpatialNetworkAnalyzer, InteractionStatistics
 from .graph_coloring import GraphColorizer, color_graph_to_targets
 from .power_analysis import compare_initialization_variance
@@ -75,6 +76,10 @@ class ReplicateStatistics:
     packing_fraction: float
     interaction_stats: List[InteractionStatistics]
     divergence_score: float
+    # Density-aware replicates only (None otherwise).
+    packing_report: Optional[Dict] = None
+    composition_error: Optional[float] = None
+    layout_flags: Optional[List[str]] = None
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
@@ -103,7 +108,12 @@ class ReplicateGenerator:
                  coloring_params: Optional[Dict] = None,
                  n_restarts: int = 1,
                  radius_optimizer: str = "heuristic",
-                 de_params: Optional[Dict] = None):
+                 de_params: Optional[Dict] = None,
+                 density_model: Optional[DensityModel] = None,
+                 layout: str = "resample",
+                 composition_weight: float = 4.0,
+                 composition_bin: float = 40.0,
+                 packing_params: Optional[Dict] = None):
         """
         Initialize replicate generator.
 
@@ -139,6 +149,25 @@ class ReplicateGenerator:
                 ``method="graph_coloring"``.
             de_params: Optional overrides for ``differential_evolution`` (e.g.
                 ``maxiter``, ``popsize``, ``tol``).
+            density_model: Optional :class:`~tissue_simulator.density.DensityModel`
+                fitted to the source region. When given (``method`` must be
+                ``"graph_coloring"``), every replicate is packed on a
+                density-aware layout sampled from it, and the annealer also
+                matches the layout's expected composition in square bins of
+                ``composition_bin`` µm. ``max_attempts`` and ``min_spacing``
+                are then unused.
+            layout: ``"resample"`` (a new arrangement of dense and sparse
+                compartments per replicate) or ``"copy"`` (the region's own
+                maps). Used only with ``density_model``.
+            composition_weight: Weight of the spatial-composition term. It is
+                multiplied by the squared mean degree of each replicate graph,
+                which keeps its pull comparable to the edge-count term across
+                graph sizes. The default 4.0 was chosen by ablation on
+                synthetic nest processes (larger values trade pair-fraction
+                accuracy for composition accuracy).
+            composition_bin: Side in µm of the composition bins.
+            packing_params: Extra keyword arguments for
+                :class:`~tissue_simulator.packing.InhomogeneousPacker`.
         """
         if not NETWORKX_AVAILABLE:
             raise ImportError("NetworkX required for replicate generation")
@@ -154,6 +183,10 @@ class ReplicateGenerator:
                 "radius_optimizer must be 'heuristic' or 'differential_evolution', "
                 f"got {radius_optimizer!r}."
             )
+        if density_model is not None and method != "graph_coloring":
+            raise ValueError("density_model requires method='graph_coloring'.")
+        if layout not in ("resample", "copy"):
+            raise ValueError(f"layout must be 'resample' or 'copy', got {layout!r}.")
 
         self.target_stats = target_stats
         self.tissue_dimensions = tissue_dimensions
@@ -164,6 +197,11 @@ class ReplicateGenerator:
         self.method = method
         self.n_restarts = max(1, int(n_restarts))
         self.radius_optimizer = radius_optimizer
+        self.density_model = density_model
+        self.layout = layout
+        self.composition_weight = float(composition_weight)
+        self.composition_bin = float(composition_bin)
+        self.packing_params = dict(packing_params or {})
         self.de_params = {'maxiter': 15, 'popsize': 10, 'tol': 0.01, 'polish': False}
         if de_params:
             self.de_params.update(de_params)
@@ -209,7 +247,55 @@ class ReplicateGenerator:
         missing = set(self.cell_types) - config_types
         if missing:
             raise ValueError(f"Cell types in target stats not in radii config: {missing}")
+        if density_model is not None and not set(density_model.cell_types) & set(self.cell_types):
+            raise ValueError("density_model shares no cell types with the target statistics.")
     
+    @classmethod
+    def from_coordinates(cls, filepath: str,
+                         network_mode: str = "radius",
+                         network_radius: Optional[float] = 20.0,
+                         tissue_dimensions: Optional[Tuple[float, float, float]] = None,
+                         layout: str = "resample",
+                         density_kwargs: Optional[Dict] = None,
+                         **kwargs) -> 'ReplicateGenerator':
+        """Replicate generator fitted to a coordinate CSV (the recommended path).
+
+        Reads the source region with
+        :func:`~tissue_simulator.tissue.load_tissue_from_csv`, extracts its
+        target statistics, fits a :class:`~tissue_simulator.density.DensityModel`
+        to it, and returns a ``method="graph_coloring"`` generator that packs
+        every replicate on a density-aware layout.
+
+        Args:
+            filepath: Coordinate CSV of the source region.
+            network_mode: Neighbor graph mode for targets and replicates.
+            network_radius: Graph radius in µm for ``"radius"`` mode.
+            tissue_dimensions: (height, width, thickness) of the replicates;
+                defaults to the source region's.
+            layout: ``"resample"`` (default) or ``"copy"``.
+            density_kwargs: Keyword arguments for :meth:`DensityModel.fit`.
+            **kwargs: Other :class:`ReplicateGenerator` arguments (``seed``,
+                ``coloring_params``, ``composition_weight``, ...).
+        """
+        tissue = load_tissue_from_csv(filepath)
+        target_stats = load_target_statistics_from_tissue(
+            tissue, network_mode=network_mode, network_radius=network_radius)
+        if target_stats.target_density is not None and not 0 < target_stats.target_density < 1:
+            # A thin slab around a 2D section has no meaningful 3D packing
+            # fraction, and density-aware replicates do not use it.
+            target_stats.target_density = None
+        density_model = DensityModel.from_tissue(tissue, **(density_kwargs or {}))
+        radii: Dict[str, Tuple[float, float]] = {}
+        for cell in tissue.cells:
+            lo, hi = radii.get(cell.cell_type, (cell.radius, cell.radius))
+            radii[cell.cell_type] = (min(lo, cell.radius), max(hi, cell.radius))
+        if tissue_dimensions is None:
+            tissue_dimensions = (tissue.height, tissue.width, tissue.thickness)
+        kwargs.setdefault("method", "graph_coloring")
+        return cls(target_stats, tissue_dimensions, radii,
+                   network_mode=network_mode, network_radius=network_radius,
+                   density_model=density_model, layout=layout, **kwargs)
+
     def _compute_interaction_divergence(self,
                                        measured: List[InteractionStatistics],
                                        target: List[InteractionStatistics]) -> float:
@@ -424,6 +510,9 @@ class ReplicateGenerator:
         simulated-annealing labeling is what gets optimized, which converges far
         more consistently.
         """
+        if self.density_model is not None:
+            return self._generate_single_replicate_density(replicate_id, allow_boundary)
+
         # Per-replicate seed: identical convention to the radius-tuning path.
         if self.seed is not None:
             replicate_seed = int(
@@ -508,6 +597,158 @@ class ReplicateGenerator:
             packing_fraction=tissue_stats['packing_fraction'],
             interaction_stats=measured,
             divergence_score=divergence,
+        )
+        return tissue, replicate_stats
+
+    def _spatial_composition_target(self, tissue: TissueSection, layout,
+                                    node_counts: Dict[str, int],
+                                    mean_degree: float,
+                                    rng: np.random.Generator) -> Tuple[Dict, Dict[int, str]]:
+        """Per-bin expected type counts from the layout, plus a warm-start coloring.
+
+        Each cell's type probabilities are the layout composition at its
+        position, rescaled (Sinkhorn) so the expected type totals equal
+        ``node_counts``. Bins are squares of ``composition_bin`` µm. The term's
+        weight is ``composition_weight * mean_degree ** 2``.
+
+        Returns:
+            ``(spatial_target, initial_coloring)`` where ``spatial_target`` is
+            the ``target_statistics['spatial_composition']`` dict for
+            :class:`~tissue_simulator.graph_coloring.GraphColorizer`.
+        """
+        colors = list(self.cell_types)
+        n = len(tissue.cells)
+        height, width = self.tissue_dimensions[0], self.tissue_dimensions[1]
+        size = self.composition_bin
+        cols = max(1, int(np.ceil(width / size)))
+        rows = max(1, int(np.ceil(height / size)))
+        layout_index = {t: i for i, t in enumerate(layout.cell_types)}
+        targets = np.array([node_counts.get(c, 0) for c in colors], dtype=float)
+
+        probs = np.zeros((n, len(colors)))
+        node_bin: Dict[int, int] = {}
+        for i, cell in enumerate(tissue.cells):
+            x, y = float(cell.center[0]), float(cell.center[1])
+            node_bin[i] = (min(max(int(y // size), 0), rows - 1) * cols
+                           + min(max(int(x // size), 0), cols - 1))
+            comp = layout.composition_at(x, y)
+            probs[i] = [comp[layout_index[c]] if c in layout_index else 0.0 for c in colors]
+        probs[:, targets == 0] = 0.0
+        empty = probs.sum(axis=1) <= 0
+        probs[empty] = targets / max(targets.sum(), 1.0)
+        for _ in range(100):
+            column = probs.sum(axis=0)
+            probs *= np.where(column > 0, targets / np.maximum(column, 1e-300), 0.0)
+            probs /= np.maximum(probs.sum(axis=1, keepdims=True), 1e-300)
+
+        expected: Dict[int, Dict[str, float]] = {}
+        for i, b in node_bin.items():
+            bucket = expected.setdefault(b, {})
+            for j, color in enumerate(colors):
+                if probs[i, j] > 0:
+                    bucket[color] = bucket.get(color, 0.0) + float(probs[i, j])
+
+        remaining = targets.astype(int)
+        initial: Dict[int, str] = {}
+        for i in rng.permutation(n):
+            weights = probs[i] * (remaining > 0)
+            if weights.sum() <= 0:
+                weights = (remaining > 0).astype(float)
+            if weights.sum() <= 0:
+                weights = np.ones(len(colors))
+            j = int(rng.choice(len(colors), p=weights / weights.sum()))
+            initial[int(i)] = colors[j]
+            remaining[j] -= 1
+
+        spatial = {'node_bin': node_bin, 'expected': expected,
+                   'weight': self.composition_weight * mean_degree ** 2}
+        return spatial, initial
+
+    @staticmethod
+    def _composition_error(coloring: Dict[int, str], spatial: Dict) -> float:
+        """Fraction of cells whose type would have to move bins to match the target."""
+        counts: Dict[int, Dict[str, int]] = {}
+        for node, color in coloring.items():
+            b = spatial['node_bin'].get(node)
+            if b is not None:
+                bucket = counts.setdefault(b, {})
+                bucket[color] = bucket.get(color, 0) + 1
+        total = 0.0
+        for b in set(counts) | set(spatial['expected']):
+            expected, observed = spatial['expected'].get(b, {}), counts.get(b, {})
+            for color in set(expected) | set(observed):
+                total += abs(observed.get(color, 0) - expected.get(color, 0.0))
+        return 0.5 * total / max(len(coloring), 1)
+
+    def _generate_single_replicate_density(self, replicate_id: int,
+                                           allow_boundary: bool = True) -> Tuple[TissueSection, ReplicateStatistics]:
+        """Graph-coloring replicate on a density-aware scaffold.
+
+        The layout, packing, warm start and annealing each draw from their own
+        stream spawned from ``SeedSequence([seed, replicate_id])``.
+        """
+        entropy = [self.seed, replicate_id] if self.seed is not None else None
+        layout_ss, pack_ss, warm_ss, anneal_ss = np.random.SeedSequence(entropy).spawn(4)
+        height, width, thickness = self.tissue_dimensions
+
+        layout = self.density_model.sample_layout(
+            rng=np.random.default_rng(layout_ss), width=width, height=height,
+            layout=self.layout)
+        tissue = TissueSection(height=height, width=width, thickness=thickness,
+                               cell_radii=self.base_cell_radii)
+        tissue.generate_cells(allow_boundary_cells=allow_boundary,
+                              seed=int(pack_ss.generate_state(1)[0]),
+                              layout=layout, packing_params=self.packing_params)
+        if not tissue.cells:
+            raise RuntimeError(f"Replicate {replicate_id}: packing produced no cells")
+
+        analyzer = SpatialNetworkAnalyzer()
+        graph = analyzer.build_network_from_tissue(
+            tissue, mode=self.network_mode, radius=self.network_radius
+        )
+        targets = self._build_colorizer_targets(graph)
+        mean_degree = 2.0 * graph.number_of_edges() / max(graph.number_of_nodes(), 1)
+        spatial, initial = self._spatial_composition_target(
+            tissue, layout, targets['node_counts'], mean_degree,
+            np.random.default_rng(warm_ss))
+        targets['spatial_composition'] = spatial
+
+        best_coloring, best_cost = None, float('inf')
+        for restart in anneal_ss.spawn(self.n_restarts):
+            coloring, cost = color_graph_to_targets(
+                graph,
+                list(self.cell_types),
+                targets,
+                seed=int(restart.generate_state(1)[0]),
+                initial_coloring=initial,
+                return_cost=True,
+                verbose=False,
+                **self.coloring_params,
+            )
+            if cost < best_cost:
+                best_coloring, best_cost = coloring, cost
+
+        for i, cell in enumerate(tissue.cells):
+            if i in best_coloring:
+                cell.cell_type = best_coloring[i]
+        for node, color in best_coloring.items():
+            graph.nodes[node]['cell_type'] = color
+
+        measured = analyzer.compute_interaction_statistics()
+        divergence = self._compute_interaction_divergence(
+            measured, self.target_stats.interaction_stats
+        )
+        tissue_stats = tissue.get_cell_statistics()
+        replicate_stats = ReplicateStatistics(
+            replicate_id=replicate_id,
+            num_cells=tissue_stats['total_cells'],
+            cell_type_counts=tissue_stats['cell_types'],
+            packing_fraction=tissue_stats['packing_fraction'],
+            interaction_stats=measured,
+            divergence_score=divergence,
+            packing_report=tissue.packing_report.to_dict(),
+            composition_error=self._composition_error(best_coloring, spatial),
+            layout_flags=[f"mode:{layout.mode}", *layout.flags],
         )
         return tissue, replicate_stats
 
@@ -1052,3 +1293,12 @@ def load_target_statistics_from_coordinates(filepath: str,
         network_mode=network_mode,
         network_radius=network_radius,
     )
+
+
+def fit_density_model_from_coordinates(filepath: str, **kwargs) -> DensityModel:
+    """Fit a :class:`~tissue_simulator.density.DensityModel` to a coordinate CSV.
+
+    The companion of :func:`load_target_statistics_from_coordinates`;
+    equivalent to ``DensityModel.from_tissue(load_tissue_from_csv(filepath), **kwargs)``.
+    """
+    return DensityModel.from_tissue(load_tissue_from_csv(filepath), **kwargs)

@@ -74,10 +74,20 @@ class GraphColorizer:
         self.colors = colors if colors is not None else []
         self.color_map = {color: i for i, color in enumerate(self.colors)}
 
+        # Optional spatial-composition target (density-aware replicates): the
+        # expected number of nodes of each color in each spatial bin.
+        spatial = (target_statistics or {}).get('spatial_composition')
+        self._node_bin = dict(spatial['node_bin']) if spatial else None
+        self._expected_bins = ({b: dict(v) for b, v in spatial['expected'].items()}
+                               if spatial else {})
+        self._spatial_weight = float(spatial.get('weight', 1.0)) if spatial else 0.0
+
         # Get target statistics either from source graph or directly
         if target_statistics is not None:
             print("Using provided target statistics...")
-            self.target_stats = target_statistics
+            self.target_stats = (target_statistics if spatial is None else
+                                 {k: v for k, v in target_statistics.items()
+                                  if k != 'spatial_composition'})
         elif source_graph is not None:
             if not nx.get_node_attributes(source_graph, 'color'):
                 raise ValueError("Source graph nodes must have a 'color' attribute.")
@@ -138,6 +148,17 @@ class GraphColorizer:
                     # Avg number of c2 neighbors for a c1 node
                     stats['neighbor_dist'][c1][c2] = neighbor_counts[c1][c2] / total_nodes_of_c1
 
+        if self._node_bin is not None:
+            bin_counts = {}
+            for node in graph.nodes():
+                color = coloring.get(node)
+                b = self._node_bin.get(node)
+                if color and b is not None:
+                    counts = bin_counts.setdefault(b, {})
+                    counts[color] = counts.get(color, 0) + 1
+            stats['bin_counts'] = bin_counts
+            stats['spatial_sse'] = self._spatial_sse(bin_counts)
+
         return stats, neighbor_counts
 
     def _update_statistics_incremental(self, node1, node2, current_coloring, stats, neighbor_counts):
@@ -162,6 +183,10 @@ class GraphColorizer:
             'neighbor_dist': defaultdict(lambda: defaultdict(float))
         }
         
+        if 'bin_counts' in stats:
+            new_stats['bin_counts'] = stats['bin_counts']
+            new_stats['spatial_sse'] = stats['spatial_sse']
+
         # Deep copy neighbor counts
         new_neighbor_counts = defaultdict(lambda: defaultdict(int))
         for c1, counts in neighbor_counts.items():
@@ -222,6 +247,9 @@ class GraphColorizer:
             if total_nodes_of_c1 > 0:
                 for c2 in self.colors:
                     new_stats['neighbor_dist'][c1][c2] = new_neighbor_counts[c1][c2] / total_nodes_of_c1
+
+        if 'bin_counts' in stats:
+            self._swap_bin_counts(node1, node2, c1_old, c2_old, new_stats)
                     
         return new_stats, new_neighbor_counts
 
@@ -241,8 +269,56 @@ class GraphColorizer:
                 current_val = current_stats['neighbor_dist'].get(c1, {}).get(c2, 0)
                 cost += ((current_val - target_val) ** 2) * 2.0  # Weight 2.0 (often more sensitive)
 
+        # Spatial composition error, in the same squared-count units as edges
+        if self._spatial_weight and 'spatial_sse' in current_stats:
+            cost += self._spatial_weight * current_stats['spatial_sse']
+
         return cost
         
+    def _spatial_sse(self, bin_counts: dict) -> float:
+        """Squared error of per-bin color counts against the spatial target."""
+        sse = 0.0
+        for b in sorted(set(self._expected_bins) | set(bin_counts)):
+            expected = self._expected_bins.get(b, {})
+            counts = bin_counts.get(b, {})
+            for color in sorted(set(expected) | set(counts)):
+                sse += (counts.get(color, 0) - expected.get(color, 0.0)) ** 2
+        return sse
+
+    def _swap_bin_counts(self, node1, node2, c1_old, c2_old, new_stats: dict) -> None:
+        """Apply a label swap to the per-bin counts and their squared error in O(1)."""
+        b1, b2 = self._node_bin.get(node1), self._node_bin.get(node2)
+        if b1 == b2:
+            return
+        bin_counts = dict(new_stats['bin_counts'])
+        sse = new_stats['spatial_sse']
+        for b, leaving, arriving in ((b1, c1_old, c2_old), (b2, c2_old, c1_old)):
+            if b is None:
+                continue
+            counts = dict(bin_counts.get(b, {}))
+            expected = self._expected_bins.get(b, {})
+            for color, delta in ((leaving, -1), (arriving, 1)):
+                n = counts.get(color, 0)
+                sse += 2 * delta * (n - expected.get(color, 0.0)) + 1
+                counts[color] = n + delta
+            bin_counts[b] = counts
+        new_stats['bin_counts'] = bin_counts
+        new_stats['spatial_sse'] = sse
+
+    def cost_terms(self, stats: dict) -> Dict[str, float]:
+        """Unweighted squared-error components of the cost for ``stats``.
+
+        Keys: ``edge`` (edge counts), ``neighbor`` (mean neighbor counts) and
+        ``spatial`` (per-bin color counts; 0 without a spatial target).
+        """
+        edge = sum((stats['edge_counts'].get(key, 0) - target) ** 2
+                   for key, target in self.target_stats['edge_counts'].items())
+        neighbor = sum((stats['neighbor_dist'].get(c1, {}).get(c2, 0) - target) ** 2
+                       for c1, dist in self.target_stats['neighbor_dist'].items()
+                       for c2, target in dist.items())
+        return {'edge': float(edge), 'neighbor': float(neighbor),
+                'spatial': float(stats.get('spatial_sse', 0.0))}
+
     def colorize(self, initial_temp=100.0, final_temp=0.1, cooling_rate=0.995,
                  max_iterations=100000, verbose=True,
                  initial_coloring=None,

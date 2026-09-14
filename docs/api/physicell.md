@@ -73,6 +73,16 @@ Static helper that builds a stable name-to-ID mapping (alphabetical,
 starting at 0) so legacy CSVs are reproducible regardless of input
 ordering.
 
+### `overlap_report(cells, factor=0.5)`
+
+Summarizes how strongly cells overlap before export: `n_cells`,
+`overlap_fraction` (cells with a neighbor closer than
+`factor * (r_i + r_j)`) and `min_distance_ratio`. Density-aware scaffolds
+reproduce the tight spacing of dense tissue, where circle-equivalent radii
+from segmentation overlap, and PhysiCell's mechanics push overlapping cells
+apart in the first time steps. `export_tissue` warns when more than 5% of
+cells overlap at `factor=0.5`.
+
 ### `export_to_physicell(tissue_or_slice_cells, output_path, **kwargs)`
 
 Module-level convenience dispatcher. A `TissueSection` is forwarded to
