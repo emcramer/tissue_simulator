@@ -972,6 +972,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#overlap_reportcells-factor05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        overlap_report(cells, factor=0.5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#export_to_physicelltissue_or_slice_cells-output_path-kwargs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1782,6 +1793,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#overlap_reportcells-factor05" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        overlap_report(cells, factor=0.5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#export_to_physicelltissue_or_slice_cells-output_path-kwargs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2067,6 +2089,14 @@ modes (added in v0.1.13):</p>
 <p>Static helper that builds a stable name-to-ID mapping (alphabetical,
 starting at 0) so legacy CSVs are reproducible regardless of input
 ordering.</p>
+<h3 id="overlap_reportcells-factor05"><code>overlap_report(cells, factor=0.5)</code><a class="headerlink" href="#overlap_reportcells-factor05" title="Permanent link">&para;</a></h3>
+<p>Summarizes how strongly cells overlap before export: <code>n_cells</code>,
+<code>overlap_fraction</code> (cells with a neighbor closer than
+<code>factor * (r_i + r_j)</code>) and <code>min_distance_ratio</code>. Density-aware scaffolds
+reproduce the tight spacing of dense tissue, where circle-equivalent radii
+from segmentation overlap, and PhysiCell's mechanics push overlapping cells
+apart in the first time steps. <code>export_tissue</code> warns when more than 5% of
+cells overlap at <code>factor=0.5</code>.</p>
 <h3 id="export_to_physicelltissue_or_slice_cells-output_path-kwargs"><code>export_to_physicell(tissue_or_slice_cells, output_path, **kwargs)</code><a class="headerlink" href="#export_to_physicelltissue_or_slice_cells-output_path-kwargs" title="Permanent link">&para;</a></h3>
 <p>Module-level convenience dispatcher. A <code>TissueSection</code> is forwarded to
 <code>export_tissue</code>; any other iterable is treated as <code>SliceCell</code> rows and

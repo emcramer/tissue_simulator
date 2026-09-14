@@ -3324,6 +3324,14 @@ faster-converging for interaction targets. For the colored method, <code>n_resta
 keeps the best of several SA runs per replicate; for radius-tuning,
 <code>radius_optimizer="differential_evolution"</code> swaps the heuristic for a
 gradient-free SciPy optimizer.</p>
+<p>With <code>method="graph_coloring"</code>, <code>density_layout="resample"</code> packs each
+replicate on a density-aware scaffold fitted to the tissue the target
+statistics came from, so replicates keep the source's dense and sparse regions
+and immune margins; <code>"copy"</code> reuses the source layout, and <code>"none"</code> (default)
+keeps the uniform scaffold. The source tissue is recorded by
+<code>load_target_statistics_from_coordinates</code> and by <code>load_target_statistics</code> with
+<code>use_current_tissue=True</code>. The response summarizes the fitted density model
+(compartments, patch length, flags).</p>
 <h2 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
 <p>All tools return JSON with either:
 - <code>"status": "success"</code> with results

@@ -10,13 +10,9 @@
       
       
       
-        <link rel="canonical" href="https://emcramer.github.io/tissue_simulator/v0.1.17/reference/mcp_server/">
+        <link rel="canonical" href="https://emcramer.github.io/tissue_simulator/v0.1.17/notes/density-aware-packing/">
       
       
-        <link rel="prev" href="../physicell_reader/">
-      
-      
-        <link rel="next" href="../../slides/">
       
       
         
@@ -27,7 +23,7 @@
     
     
       
-        <title>mcp.server - Tissue Simulator</title>
+        <title>Density-aware scaffolds: design notes - Tissue Simulator</title>
       
     
     
@@ -80,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#mcpserver" class="md-skip">
+        <a href="#density-aware-scaffolds-design-notes" class="md-skip">
           Skip to content
         </a>
       
@@ -118,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              mcp.server
+              Density-aware scaffolds: design notes
             
           </span>
         </div>
@@ -307,13 +303,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../tissue/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../reference/tissue/" class="md-tabs__link">
           
   
   
@@ -896,31 +890,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
@@ -938,7 +929,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -956,7 +947,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tissue/" class="md-nav__link">
+      <a href="../../reference/tissue/" class="md-nav__link">
         
   
   
@@ -984,7 +975,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../packing/" class="md-nav__link">
+      <a href="../../reference/packing/" class="md-nav__link">
         
   
   
@@ -1012,7 +1003,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../slicing/" class="md-nav__link">
+      <a href="../../reference/slicing/" class="md-nav__link">
         
   
   
@@ -1040,7 +1031,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../spatial_analysis/" class="md-nav__link">
+      <a href="../../reference/spatial_analysis/" class="md-nav__link">
         
   
   
@@ -1068,7 +1059,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../graph_coloring/" class="md-nav__link">
+      <a href="../../reference/graph_coloring/" class="md-nav__link">
         
   
   
@@ -1096,7 +1087,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../replicate_generator/" class="md-nav__link">
+      <a href="../../reference/replicate_generator/" class="md-nav__link">
         
   
   
@@ -1124,7 +1115,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tissue_workflow/" class="md-nav__link">
+      <a href="../../reference/tissue_workflow/" class="md-nav__link">
         
   
   
@@ -1152,7 +1143,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../evaluation/" class="md-nav__link">
+      <a href="../../reference/evaluation/" class="md-nav__link">
         
   
   
@@ -1180,7 +1171,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../convergence/" class="md-nav__link">
+      <a href="../../reference/convergence/" class="md-nav__link">
         
   
   
@@ -1208,7 +1199,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../power_analysis/" class="md-nav__link">
+      <a href="../../reference/power_analysis/" class="md-nav__link">
         
   
   
@@ -1236,7 +1227,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../physicell_export/" class="md-nav__link">
+      <a href="../../reference/physicell_export/" class="md-nav__link">
         
   
   
@@ -1264,7 +1255,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../physicell_reader/" class="md-nav__link">
+      <a href="../../reference/physicell_reader/" class="md-nav__link">
         
   
   
@@ -1289,37 +1280,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    mcp.server
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../reference/mcp_server/" class="md-nav__link">
         
   
   
@@ -1335,82 +1299,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#tissue_simulator.mcp.server" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        server
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="server">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#tissue_simulator.mcp.server.TissueSimulatorMCPServer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        TissueSimulatorMCPServer
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="TissueSimulatorMCPServer">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#tissue_simulator.mcp.server.TissueSimulatorMCPServer.run" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        run
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tissue_simulator.mcp.server.main" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        main
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1504,58 +1392,68 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#tissue_simulator.mcp.server" class="md-nav__link">
+  <a href="#why" class="md-nav__link">
     <span class="md-ellipsis">
       
-        server
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="server">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#tissue_simulator.mcp.server.TissueSimulatorMCPServer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        TissueSimulatorMCPServer
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="TissueSimulatorMCPServer">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#tissue_simulator.mcp.server.TissueSimulatorMCPServer.run" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        run
+        Why
       
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tissue_simulator.mcp.server.main" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#method" class="md-nav__link">
     <span class="md-ellipsis">
       
-        main
+        Method
       
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#decisions-and-rejected-alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decisions and rejected alternatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#review-checkpoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Review checkpoint
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#known-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known limits
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1576,7 +1474,7 @@
 
 
   
-    <a href="https://github.com/emcramer/tissue_simulator/edit/main/docs/reference/mcp_server.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/emcramer/tissue_simulator/edit/main/docs/notes/density-aware-packing.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -1585,228 +1483,348 @@
     
       
     
-    <a href="https://github.com/emcramer/tissue_simulator/raw/main/docs/reference/mcp_server.md" title="View source of this page" class="md-content__button md-icon">
+    <a href="https://github.com/emcramer/tissue_simulator/raw/main/docs/notes/density-aware-packing.md" title="View source of this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17 18c.56 0 1 .44 1 1s-.44 1-1 1-1-.44-1-1 .44-1 1-1m0-3c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5a2.5 2.5 0 0 1-2.5-2.5 2.5 2.5 0 0 1 2.5-2.5 2.5 2.5 0 0 1 2.5 2.5 2.5 2.5 0 0 1-2.5 2.5M9.27 20H6V4h7v5h5v4.07c.7.08 1.36.25 2 .49V8l-6-6H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h4.5a8.2 8.2 0 0 1-1.23-2"/></svg>
     </a>
   
 
 
-<h1 id="mcpserver">mcp.server<a class="headerlink" href="#mcpserver" title="Permanent link">&para;</a></h1>
-
-
-<div class="doc doc-object doc-module">
-
-
-
-<h2 id="tissue_simulator.mcp.server" class="doc doc-heading">
-            <span class="doc doc-object-name doc-module-name">tissue_simulator.mcp.server</span>
-
-
-<a href="#tissue_simulator.mcp.server" class="headerlink" title="Permanent link">&para;</a></h2>
-
-    <div class="doc doc-contents first">
-
-        <p>Model Context Protocol (MCP) server for Tissue Simulator.</p>
-<p>This module exposes tissue simulation functionality as MCP tools that can be
-called by Large Language Models (LLMs) through the MCP protocol.</p>
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-class">
-
-
-
-<h3 id="tissue_simulator.mcp.server.TissueSimulatorMCPServer" class="doc doc-heading">
-            <span class="doc doc-object-name doc-class-name">TissueSimulatorMCPServer</span>
-
-
-<a href="#tissue_simulator.mcp.server.TissueSimulatorMCPServer" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">TissueSimulatorMCPServer</span><span class="p">()</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-
-
-        <p>MCP Server for Tissue Simulator.</p>
-<p>Exposes tissue generation, slicing, and analysis capabilities as MCP tools.</p>
-
-        <p>Initialize the MCP server.</p>
-
-
-
-
-
-
-
-
-                  <details class="mkdocstrings-source">
-                    <summary>Source code in <code>tissue_simulator/mcp/server.py</code></summary>
-                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-45">45</a></span>
-<span class="normal"><a href="#__codelineno-0-46">46</a></span>
-<span class="normal"><a href="#__codelineno-0-47">47</a></span>
-<span class="normal"><a href="#__codelineno-0-48">48</a></span>
-<span class="normal"><a href="#__codelineno-0-49">49</a></span>
-<span class="normal"><a href="#__codelineno-0-50">50</a></span>
-<span class="normal"><a href="#__codelineno-0-51">51</a></span>
-<span class="normal"><a href="#__codelineno-0-52">52</a></span>
-<span class="normal"><a href="#__codelineno-0-53">53</a></span>
-<span class="normal"><a href="#__codelineno-0-54">54</a></span>
-<span class="normal"><a href="#__codelineno-0-55">55</a></span>
-<span class="normal"><a href="#__codelineno-0-56">56</a></span>
-<span class="normal"><a href="#__codelineno-0-57">57</a></span>
-<span class="normal"><a href="#__codelineno-0-58">58</a></span>
-<span class="normal"><a href="#__codelineno-0-59">59</a></span>
-<span class="normal"><a href="#__codelineno-0-60">60</a></span>
-<span class="normal"><a href="#__codelineno-0-61">61</a></span>
-<span class="normal"><a href="#__codelineno-0-62">62</a></span>
-<span class="normal"><a href="#__codelineno-0-63">63</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-45" name="__codelineno-0-45"></a><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-46" name="__codelineno-0-46"></a><span class="w">    </span><span class="sd">"""Initialize the MCP server."""</span>
-<a id="__codelineno-0-47" name="__codelineno-0-47"></a>    <span class="k">if</span> <span class="ow">not</span> <span class="n">MCP_AVAILABLE</span><span class="p">:</span>
-<a id="__codelineno-0-48" name="__codelineno-0-48"></a>        <span class="k">raise</span> <span class="ne">ImportError</span><span class="p">(</span><span class="s2">"MCP library not installed. Install with: pip install mcp"</span><span class="p">)</span>
-<a id="__codelineno-0-49" name="__codelineno-0-49"></a>
-<a id="__codelineno-0-50" name="__codelineno-0-50"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="n">Server</span><span class="p">(</span><span class="s2">"tissue-simulator"</span><span class="p">)</span>
-<a id="__codelineno-0-51" name="__codelineno-0-51"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">current_tissue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TissueSection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-52" name="__codelineno-0-52"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">current_slicer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TissueSlicer</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-53" name="__codelineno-0-53"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">replicate_generator</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ReplicateGenerator</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-54" name="__codelineno-0-54"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">generated_replicates</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">TissueSection</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
-<a id="__codelineno-0-55" name="__codelineno-0-55"></a>    <span class="c1"># Tissue the loaded target statistics came from (for density_layout).</span>
-<a id="__codelineno-0-56" name="__codelineno-0-56"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">target_source_tissue</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">TissueSection</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-<a id="__codelineno-0-57" name="__codelineno-0-57"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">temp_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">"tissue_sim_"</span><span class="p">)</span>
-<a id="__codelineno-0-58" name="__codelineno-0-58"></a>
-<a id="__codelineno-0-59" name="__codelineno-0-59"></a>    <span class="c1"># Register tools</span>
-<a id="__codelineno-0-60" name="__codelineno-0-60"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_register_tools</span><span class="p">()</span>
-<a id="__codelineno-0-61" name="__codelineno-0-61"></a>
-<a id="__codelineno-0-62" name="__codelineno-0-62"></a>    <span class="c1"># Register tool handlers</span>
-<a id="__codelineno-0-63" name="__codelineno-0-63"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_register_handlers</span><span class="p">()</span>
-</code></pre></div></td></tr></table></div>
-                  </details>
-
-
-
-<div class="doc doc-children">
-
-
-
-
-
-
-
-
-
-
-<div class="doc doc-object doc-function">
-
-
-<h4 id="tissue_simulator.mcp.server.TissueSimulatorMCPServer.run" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">run</span>
-
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-async"><code>async</code></small>
-  </span>
-
-<a href="#tissue_simulator.mcp.server.TissueSimulatorMCPServer.run" class="headerlink" title="Permanent link">&para;</a></h4>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">run</span><span class="p">()</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Run the MCP server.</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>tissue_simulator/mcp/server.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-2094">2094</a></span>
-<span class="normal"><a href="#__codelineno-0-2095">2095</a></span>
-<span class="normal"><a href="#__codelineno-0-2096">2096</a></span>
-<span class="normal"><a href="#__codelineno-0-2097">2097</a></span>
-<span class="normal"><a href="#__codelineno-0-2098">2098</a></span>
-<span class="normal"><a href="#__codelineno-0-2099">2099</a></span>
-<span class="normal"><a href="#__codelineno-0-2100">2100</a></span>
-<span class="normal"><a href="#__codelineno-0-2101">2101</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-2094" name="__codelineno-0-2094"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<a id="__codelineno-0-2095" name="__codelineno-0-2095"></a><span class="w">    </span><span class="sd">"""Run the MCP server."""</span>
-<a id="__codelineno-0-2096" name="__codelineno-0-2096"></a>    <span class="k">async</span> <span class="k">with</span> <span class="n">stdio_server</span><span class="p">()</span> <span class="k">as</span> <span class="p">(</span><span class="n">read_stream</span><span class="p">,</span> <span class="n">write_stream</span><span class="p">):</span>
-<a id="__codelineno-0-2097" name="__codelineno-0-2097"></a>        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-<a id="__codelineno-0-2098" name="__codelineno-0-2098"></a>            <span class="n">read_stream</span><span class="p">,</span>
-<a id="__codelineno-0-2099" name="__codelineno-0-2099"></a>            <span class="n">write_stream</span><span class="p">,</span>
-<a id="__codelineno-0-2100" name="__codelineno-0-2100"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">create_initialization_options</span><span class="p">()</span>
-<a id="__codelineno-0-2101" name="__codelineno-0-2101"></a>        <span class="p">)</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
-
-
-<div class="doc doc-object doc-function">
-
-
-<h3 id="tissue_simulator.mcp.server.main" class="doc doc-heading">
-            <span class="doc doc-object-name doc-function-name">main</span>
-
-
-  <span class="doc doc-labels">
-      <small class="doc doc-label doc-label-async"><code>async</code></small>
-  </span>
-
-<a href="#tissue_simulator.mcp.server.main" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">main</span><span class="p">()</span>
-</code></pre></div>
-
-    <div class="doc doc-contents ">
-
-        <p>Main entry point for the MCP server.</p>
-
-
-            <details class="mkdocstrings-source">
-              <summary>Source code in <code>tissue_simulator/mcp/server.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-2104">2104</a></span>
-<span class="normal"><a href="#__codelineno-0-2105">2105</a></span>
-<span class="normal"><a href="#__codelineno-0-2106">2106</a></span>
-<span class="normal"><a href="#__codelineno-0-2107">2107</a></span></pre></div></td><td class="code"><div><pre><span></span><code><a id="__codelineno-0-2104" name="__codelineno-0-2104"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-<a id="__codelineno-0-2105" name="__codelineno-0-2105"></a><span class="w">    </span><span class="sd">"""Main entry point for the MCP server."""</span>
-<a id="__codelineno-0-2106" name="__codelineno-0-2106"></a>    <span class="n">server</span> <span class="o">=</span> <span class="n">TissueSimulatorMCPServer</span><span class="p">()</span>
-<a id="__codelineno-0-2107" name="__codelineno-0-2107"></a>    <span class="k">await</span> <span class="n">server</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</code></pre></div></td></tr></table></div>
-            </details>
-    </div>
-
-</div>
-
-
-
-  </div>
-
-    </div>
-
-</div>
+<h1 id="density-aware-scaffolds-design-notes">Density-aware scaffolds: design notes<a class="headerlink" href="#density-aware-scaffolds-design-notes" title="Permanent link">&para;</a></h1>
+<p>Maintainer notes for <code>tissue_simulator.density</code>, <code>InhomogeneousPacker</code> and
+density-aware replicates (<code>ReplicateGenerator(density_model=...)</code>).</p>
+<h2 id="why">Why<a class="headerlink" href="#why" title="Permanent link">&para;</a></h2>
+<p>Testing for the constrained-ensemble manuscript showed that the uniform
+random-sequential-addition (RSA) scaffold erases tissue-scale heterogeneity.</p>
+<ul>
+<li><strong>Degree:</strong> replicates of the 40 Keren et al. TNBC regions had 0.79 of the
+  region's mean degree on the 20 µm graph.</li>
+<li><strong>Cell counts:</strong> dense regions exceeded RSA saturation and came up short.</li>
+<li><strong>Larger scales:</strong> cross-type L functions diverged beyond the graph radius.</li>
+<li><strong>ABM:</strong> the replicate ensemble did not beat random placement as
+  PhysiCell initial conditions.</li>
+</ul>
+<p>The scaffold, not the labeling, was the limit: pair fractions at one radius
+cannot put dense nests and sparse stroma back into an evenly packed box.</p>
+<h2 id="method">Method<a class="headerlink" href="#method" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Intensity maps.</strong> Per-type Gaussian kernel intensity on a 5 µm grid,
+   edge corrected, with an optional tissue mask. The bandwidth comes from
+   likelihood cross-validation over 15–80 µm.</li>
+<li><strong>Compartments.</strong> k-means (K = 3) on per-type intensity vectors. Each
+   compartment's density level and composition are counted from the cells
+   inside it, which undoes kernel blurring across boundaries. Both are also
+   profiled by distance to the compartment edge (0–10, 10–20, 20–40 and
+   more than 40 µm), which keeps margins such as an immune cuff around nests.</li>
+<li><strong>Heterogeneity test.</strong> The region is compared against 19 uniform RSA
+   packings with the same cell count and permuted labels. Homogeneous
+   regions get uniform layouts, which reproduces the classic scaffold.</li>
+<li><strong>Patch structure.</strong> Two latent stationary Gaussian fields (Matérn,
+   kernel-smoothed, correlated like the region's density and composition
+   axes) are thresholded into compartments with exact area fractions. Their
+   correlation length and smoothness are calibrated by simulation, so that
+   the probability of two points at a given distance sharing a compartment
+   matches the region's.</li>
+<li><strong>Marks and hard core.</strong> Radii are drawn from those observed at similar
+   local density. The hard core is <code>kappa * (r_i + r_j)</code>, with <code>kappa</code> the
+   2nd percentile of the region's nearest-neighbor <code>d / (r_i + r_j)</code>, so
+   dense regions pack as tightly as the segmentation shows.</li>
+<li><strong>Layouts.</strong> <code>resample</code> simulates a new compartment map per replicate and
+   rank-maps density within each compartment to the region's distribution.
+   <code>copy</code> reuses the region's maps.</li>
+<li><strong>Packing.</strong> <code>InhomogeneousPacker</code> works in three stages:</li>
+<li>bin quotas by stochastic rounding (largest-remainder ties biased quotas
+     toward one corner),</li>
+<li>per-bin RSA,</li>
+<li>best-clearance insertion and capped relaxation where RSA saturates.</li>
+<li><strong>Labels.</strong> The annealer matches pair fractions as before, plus the
+   layout's expected composition in 40 µm bins. That term is weighted by
+   <code>composition_weight * mean_degree**2</code> and warm-started from the layout.</li>
+</ol>
+<h2 id="decisions-and-rejected-alternatives">Decisions and rejected alternatives<a class="headerlink" href="#decisions-and-rejected-alternatives" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Rejected alternative</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Calibrate patches by simulation on same-compartment probability</td>
+<td>Whittle / correlogram fit of the density field</td>
+<td>Finite-window mean removal shrank fitted patches; resampled nests came out too small and too many</td>
+</tr>
+<tr>
+<td>k-means on per-type intensities</td>
+<td>Log density or composition-fraction features; normal scores</td>
+<td>Boundaries moved into the sparse side (nest area 0.40–0.46 vs true 0.28); normal scores split at the median</td>
+</tr>
+<tr>
+<td>Per-compartment density from cell counts</td>
+<td>Smoothed intensity only</td>
+<td>Kernel blur lowered nest density and mean degree</td>
+</tr>
+<tr>
+<td>Likelihood CV bandwidth</td>
+<td>Cronie–van Lieshout</td>
+<td>Its criterion never reached 1 on the test patterns</td>
+</tr>
+<tr>
+<td>Single-bin RSA null</td>
+<td>Binned (stratified) null</td>
+<td>Stratified quotas made the null too regular, so uniform regions tested heterogeneous</td>
+</tr>
+<tr>
+<td>Weight scaled by squared mean degree, default 4</td>
+<td>Fixed weight</td>
+<td>The useful weight ranged from about 16 (degree 5) to about 256 (degree 17)</td>
+</tr>
+<tr>
+<td>Data-calibrated hard core plus capped relaxation</td>
+<td>Matérn-II thinning; birth–death MCMC; PhysiCell relaxation</td>
+<td>Lower maximum density than RSA; cost and determinism; slow and non-deterministic</td>
+</tr>
+<tr>
+<td>Density and composition profiled by distance to the compartment edge</td>
+<td>Constant composition per compartment; a hard-coded CD8 margin band</td>
+<td>Constant composition lost margins; a generic profile keeps any interface without naming cell types</td>
+</tr>
+<tr>
+<td>Candidates drawn from pixels in proportion to intensity</td>
+<td>Uniform position within a bin</td>
+<td>Respects gradients finer than a bin and never places cells in zero-density voids</td>
+</tr>
+<tr>
+<td>40 µm composition bins</td>
+<td>20 µm bins</td>
+<td>20 µm improved kNN composition but worsened L at 30–40 µm and the failure count</td>
+</tr>
+</tbody>
+</table>
+<h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Legacy path:</strong> <code>SpherePacker</code> output is bit-identical to the exhaustive
+  check and about 16x faster at 850 cells. Legacy <code>graph_coloring</code> and
+  <code>radius_tuning</code> replicates are hash-identical to the pre-change <code>main</code>.</li>
+<li><strong>Tests:</strong> <code>tests/test_density.py</code>, <code>tests/test_packing.py</code> and
+  <code>tests/test_density_replicates.py</code>. They cover homogeneity, compartment
+  areas, exact resampled fractions, patch calibration, masks, trend flags,
+  JSON round-trip, packer counts and bounds, incremental cost, determinism,
+  parallel-equals-serial, <code>from_coordinates</code>, and MCP.</li>
+</ul>
+<p><strong>Synthetic nest benchmark</strong> (<code>examples/density_aware_replicates.py</code>):
+20 truth samples, 3 targets × 10 replicates, 45 held-out statistics, |z|
+against the truth ensemble.</p>
+<table>
+<thead>
+<tr>
+<th>Row</th>
+<th>mean |z|</th>
+<th>|z| &gt; 1</th>
+<th>kNN</th>
+<th>L ≤ 20 µm</th>
+<th>L 30–40 µm</th>
+<th>L 60–80 µm</th>
+<th>Degree ratio</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Target itself (floor)</td>
+<td>0.59</td>
+<td>8.3/45</td>
+<td>0.55</td>
+<td>0.54</td>
+<td>0.57</td>
+<td>0.69</td>
+<td>—</td>
+</tr>
+<tr>
+<td>Uniform scaffold</td>
+<td>2.30</td>
+<td>27.7/45</td>
+<td>2.93</td>
+<td>3.26</td>
+<td>1.97</td>
+<td>1.18</td>
+<td>0.71</td>
+</tr>
+<tr>
+<td>Density-aware (constant composition per compartment)</td>
+<td>1.12</td>
+<td>22.0/45</td>
+<td>1.59</td>
+<td>1.35</td>
+<td>0.94</td>
+<td>0.73</td>
+<td>0.92</td>
+</tr>
+<tr>
+<td>Density-aware (boundary profiles, current)</td>
+<td>1.07</td>
+<td>19.3/45</td>
+<td>1.45</td>
+<td>1.38</td>
+<td>0.88</td>
+<td>0.66</td>
+<td>0.91</td>
+</tr>
+<tr>
+<td>Density-aware, 20 µm composition bins</td>
+<td>1.08</td>
+<td>23.7/45</td>
+<td>1.18</td>
+<td>1.44</td>
+<td>0.95</td>
+<td>0.75</td>
+<td>0.91</td>
+</tr>
+</tbody>
+</table>
+<p>Replicate diversity was 0.89 of truth–truth, and positions shared within
+3 µm were at chance.</p>
+<p><strong>Tumor cells with a CD8 T cell within 10 µm</strong>, as the replicate mean over
+the target's value (6 replicates per target):</p>
+<table>
+<thead>
+<tr>
+<th>Target (its contact)</th>
+<th>Uniform</th>
+<th>Density-aware, constant composition</th>
+<th>Density-aware, boundary profiles</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Nest sample 0 (0.21)</td>
+<td>0.27</td>
+<td>0.73</td>
+<td>0.76</td>
+</tr>
+<tr>
+<td>Nest sample 1 (0.19)</td>
+<td>0.29</td>
+<td>0.93</td>
+<td>0.88</td>
+</tr>
+<tr>
+<td>Nest sample 2 (0.24)</td>
+<td>0.23</td>
+<td>0.70</td>
+<td>0.75</td>
+</tr>
+<tr>
+<td>Dense lattice nests (0.38)</td>
+<td>0.18</td>
+<td>0.64</td>
+<td>0.64</td>
+</tr>
+</tbody>
+</table>
+<p>Replicate SDs were 0.04–0.20 of the target value. Composition weights of 0,
+1 and 4 changed these ratios by less than one SD.</p>
+<p><strong>Composition-weight ablation</strong> (3 replicates each; divergence / composition error):</p>
+<table>
+<thead>
+<tr>
+<th>Weight (× mean degree²)</th>
+<th>0</th>
+<th>0.25</th>
+<th>1</th>
+<th>4</th>
+<th>8</th>
+<th>16</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Thinned nests (degree 5.3)</td>
+<td>0.094 / 0.19</td>
+<td>0.089 / 0.07</td>
+<td>0.080 / 0.06</td>
+<td>0.068 / 0.05</td>
+<td>0.079 / 0.05</td>
+<td>0.119 / 0.05</td>
+</tr>
+<tr>
+<td>Dense nests (degree 17)</td>
+<td>0.239 / 0.12</td>
+<td>0.237 / 0.09</td>
+<td>0.229 / 0.08</td>
+<td>0.199 / 0.05</td>
+<td>0.189 / 0.04</td>
+<td>0.163 / 0.04</td>
+</tr>
+</tbody>
+</table>
+<h2 id="review-checkpoint">Review checkpoint<a class="headerlink" href="#review-checkpoint" title="Permanent link">&para;</a></h2>
+<p>A mathematician, an ABM modeler/engineer and a pathologist reviewed the first
+complete version. Each finding was checked against code and data:</p>
+<table>
+<thead>
+<tr>
+<th>Finding</th>
+<th>Decision</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>No margin ring; composition constant within a compartment</td>
+<td>Accepted: boundary-distance profiles</td>
+</tr>
+<tr>
+<td>Fallback insertion could land in zero-density voids</td>
+<td>Accepted: pixel-weighted candidates</td>
+</tr>
+<tr>
+<td><code>get_cell_statistics</code> crashed for thickness 0</td>
+<td>Accepted: packing fraction is NaN</td>
+</tr>
+<tr>
+<td>Null test cannot tell clustering from heterogeneity</td>
+<td>Rejected: compartments are the intended model of a clustered layout, and short-range errors did halve</td>
+</tr>
+<tr>
+<td>Patch smoothness and length not identifiable</td>
+<td>Rejected: calibration matches the same-compartment profile, which the tests show is recovered</td>
+</tr>
+<tr>
+<td>Relaxation scope too narrow in dense regions</td>
+<td>Rejected: packer overlap (0.014) was below target and relaxation never ran; PhysiCell-scale overlap reflects local density and the missing lattice order (below)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="known-limits">Known limits<a class="headerlink" href="#known-limits" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Short-range structure.</strong> kNN composition (1.45) and L at 20 µm and
+  below (1.38) remain above the sampling floor (about 0.55 truth SDs). Local
+  packing order and interfaces finer than 10 µm are not modeled.</li>
+<li><strong>Where that gap comes from.</strong> Keeping each target's true positions and
+  re-annealing all labels reproduces L at 20 µm and below at the floor (0.53),
+  and five times more annealing iterations changed nothing on either geometry.
+  The gap is therefore in the scaffold positions (local packing and density
+  variation within 10–20 µm), not in the annealing energy or budget. A
+  position-refinement stage that matches short-range spacing statistics is the
+  next step if the ABM contact check needs it.</li>
+<li><strong>Benchmark targets.</strong> Replicates of one sample cannot be closer to the
+  process than the sample itself, which already has 8.3 of 45 statistics
+  beyond 1 SD. State acceptance thresholds relative to that floor.</li>
+<li><strong>Tumor–immune contact.</strong> Tumor cells with a CD8 T cell within 10 µm
+  reach 0.64–0.93 of the target's fraction (uniform scaffold: 0.18–0.29).
+  Check this against the t0 contact gate before the ABM re-run.</li>
+<li><strong>Mean degree.</strong> Replicates reach about 0.9 of the region's; the paper
+  gate is 0.95–1.05.</li>
+<li><strong>Local order.</strong> Epithelial lattice order inside nests is not reproduced
+  (g(r) is smooth).</li>
+<li><strong>Stationarity.</strong> <code>resample</code> assumes a stationary region. Trends and
+  window-sized patches are flagged; use <code>copy</code> for those regions.</li>
+<li><strong>Two dimensions.</strong> Maps are 2D and z is uniform. For 2D sources use a
+  thin slab so replicate graphs stay planar.</li>
+<li><strong>Fit cost.</strong> A fit takes a few seconds: 19 null packings plus 80
+  calibration simulations. Pass <code>n_null=0</code> or a <code>patch_prior</code> for speed.</li>
+</ul>
 
 
 

@@ -2394,6 +2394,12 @@ use the two-stage <code>TissueWorkflow</code> path.</p>
 <a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    <span class="p">}</span>
 <a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="p">}</span>
 </code></pre></div>
+<p>Density-aware replicates add an optional spatial-composition target:
+<code>'spatial_composition': {'node_bin': {node: bin_id}, 'expected': {bin_id: {color: expected_count}}, 'weight': w}</code>.
+The annealer then also minimizes <code>w * sum((count - expected) ** 2)</code> over bins
+and colors, updated in constant time per swap.
+<code>GraphColorizer.cost_terms(stats)</code> reports the edge, neighbor and spatial parts
+of the cost separately.</p>
 <h4 id="option-b-load-from-csv">Option B: Load from CSV<a class="headerlink" href="#option-b-load-from-csv" title="Permanent link">&para;</a></h4>
 <p>Create a CSV file with columns like:
 - <code>nodes_cancer</code>, <code>nodes_immune</code>, <code>nodes_stroma</code>
