@@ -648,6 +648,15 @@ keeps the best of several SA runs per replicate; for radius-tuning,
 `radius_optimizer="differential_evolution"` swaps the heuristic for a
 gradient-free SciPy optimizer.
 
+With `method="graph_coloring"`, `density_layout="resample"` packs each
+replicate on a density-aware scaffold fitted to the tissue the target
+statistics came from, so replicates keep the source's dense and sparse regions
+and immune margins; `"copy"` reuses the source layout, and `"none"` (default)
+keeps the uniform scaffold. The source tissue is recorded by
+`load_target_statistics_from_coordinates` and by `load_target_statistics` with
+`use_current_tissue=True`. The response summarizes the fitted density model
+(compartments, patch length, flags).
+
 ## Error Handling
 
 All tools return JSON with either:

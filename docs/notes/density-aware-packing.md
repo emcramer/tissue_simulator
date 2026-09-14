@@ -133,6 +133,16 @@ complete version. Each finding was checked against code and data:
 - **Short-range structure.** kNN composition (1.45) and L at 20 µm and
   below (1.38) remain above the sampling floor (about 0.55 truth SDs). Local
   packing order and interfaces finer than 10 µm are not modeled.
+- **Where that gap comes from.** Keeping each target's true positions and
+  re-annealing all labels reproduces L at 20 µm and below at the floor (0.53),
+  and five times more annealing iterations changed nothing on either geometry.
+  The gap is therefore in the scaffold positions (local packing and density
+  variation within 10–20 µm), not in the annealing energy or budget. A
+  position-refinement stage that matches short-range spacing statistics is the
+  next step if the ABM contact check needs it.
+- **Benchmark targets.** Replicates of one sample cannot be closer to the
+  process than the sample itself, which already has 8.3 of 45 statistics
+  beyond 1 SD. State acceptance thresholds relative to that floor.
 - **Tumor–immune contact.** Tumor cells with a CD8 T cell within 10 µm
   reach 0.64–0.93 of the target's fraction (uniform scaffold: 0.18–0.29).
   Check this against the t0 contact gate before the ABM re-run.

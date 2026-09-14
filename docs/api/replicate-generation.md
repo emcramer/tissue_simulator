@@ -343,9 +343,19 @@ generator = ReplicateGenerator(
     base_cell_radii={'type_a': (min_r, max_r), ...},
     network_mode="contact",  # or "radius"
     network_radius=None,     # required if mode="radius"
-    seed=None                # for reproducibility
+    seed=None,               # for reproducibility
+    method="radius_tuning",  # or "graph_coloring"
+    density_model=None,      # DensityModel: density-aware scaffold (graph_coloring only)
+    layout="resample",       # or "copy"; used with density_model
+    composition_weight=4.0,  # composition term weight (times squared mean degree)
+    composition_bin=40.0,    # composition bin side in µm
+    packing_params=None,     # extra InhomogeneousPacker arguments
 )
 ```
+
+`ReplicateGenerator.from_coordinates(path, ...)` builds a density-aware
+generator directly from a coordinate CSV; see
+[Density-aware scaffolds](#density-aware-scaffolds).
 
 **Key Methods:**
 
@@ -414,6 +424,12 @@ stats = ReplicateStatistics(
 - `packing_fraction`: Volume fraction
 - `interaction_stats`: Measured interactions
 - `divergence_score`: Divergence from target (lower = better)
+- `packing_report`: `PackingReport.to_dict()` of the replicate's scaffold
+  (density-aware replicates only)
+- `composition_error`: Fraction of cells whose type would have to move between
+  composition bins to match the layout (density-aware replicates only)
+- `layout_flags`: Layout mode (for example `"mode:resample"`) followed by the
+  density model's flags (density-aware replicates only)
 
 ## Export Functions
 
