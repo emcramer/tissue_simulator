@@ -604,3 +604,116 @@ def test_gradient_survives_trend_null():
     assert {"n_null", "p_value", "observed_delta_bic", "null_delta_bic_quantiles",
             "ambiguous", "seconds"} <= set(n)
     assert n["p_value"] <= 0.05 and n["n_null"] == 19
+
+
+# -- voids and lumens ----------------------------------------------------------
+
+def _ring_lumen_region(seed=2, size=200.0):
+    """No cells within 25 um of the centre (lumen); B 25-55; C outside."""
+    x, y, r, _ = _concentric_region(seed, size)
+    d = np.hypot(x - size / 2, y - size / 2)
+    keep = d >= 25
+    rng = np.random.default_rng(seed)
+    ring = np.where(d < 55, 1, 2)
+    pure = rng.random(len(r)) < 0.9
+    types = np.where(pure, np.array(['A', 'B', 'C'])[ring], rng.choice(['A', 'B', 'C'], len(r)))
+    return x[keep], y[keep], r[keep], types[keep]
+
+
+def _two_lumen_region(seed=0, size=200.0):
+    x, y, r, _ = _concentric_region(seed, size)
+    centers = np.array([[60.0, 60.0], [140.0, 140.0]])
+    keep = (np.linalg.norm(np.column_stack([x, y])[:, None] - centers[None], axis=2) >= 20).all(axis=1)
+    types = np.random.default_rng(seed).choice(['A', 'B', 'C'], len(r))
+    return x[keep], y[keep], r[keep], types[keep]
+
+
+def _components(zero):
+    from scipy import ndimage
+    return ndimage.label(zero)
+
+
+@pytest.fixture(scope="module")
+def ring_lumen_model():
+    x, y, r, t = _ring_lumen_region()
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 200, 200), strategy="adaptive",
+                            seed=0, n_null=0)
+
+
+@pytest.fixture(scope="module")
+def two_lumen_model():
+    x, y, r, t = _two_lumen_region()
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 200, 200), strategy="adaptive",
+                            seed=0, n_null=0)
+
+
+def test_ring_lumen_voids_are_inferred_and_placed(ring_lumen_model):
+    import warnings
+    model = ring_lumen_model
+    assert model.voids["n_holes"] == 1
+    assert model.estimation["voids"]["n_holes"] == 1
+    diam = model.voids["equivalent_diameters"][0]
+    assert abs(diam - 50.0) <= 0.2 * 50.0
+    source_area = model.voids["areas"][0]
+    off_center = 0
+    for seed in range(3):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            lay = model.sample_layout(rng=seed)
+        assert lay.voids["n_placed"] == 1 and "voids_unsatisfied" not in lay.flags
+        labels, n = _components(lay.intensity == 0)
+        assert n == 1
+        area = float((labels > 0).sum()) * lay.grid_step ** 2
+        assert abs(area - source_area) <= 0.3 * source_area
+        c = np.array(lay.voids["centers"][0])
+        off_center += int(np.linalg.norm(c - 100.0) > 5.0)
+        # composition just outside the hole edge is dominated by B
+        ny, nx = lay.intensity.shape
+        yy, xx = np.meshgrid((np.arange(ny) + .5) * lay.grid_step,
+                             (np.arange(nx) + .5) * lay.grid_step, indexing="ij")
+        dist = np.hypot(xx - c[0], yy - c[1]) - lay.voids["radii"][0]
+        ring = (dist > 0) & (dist <= 15.0) & (lay.intensity > 0)
+        b = lay.composition[1][ring]
+        assert (b * lay.intensity[ring]).sum() / lay.intensity[ring].sum() > 0.6
+        if lay.organization and lay.organization.get("geometry") == "radial":
+            assert np.linalg.norm(c - np.array(lay.organization["center"])) <= 10.0
+    assert off_center >= 2
+
+
+def test_two_lumens_are_placed_apart(two_lumen_model):
+    model = two_lumen_model
+    assert model.voids["n_holes"] == 2
+    for seed in range(3):
+        lay = model.sample_layout(rng=seed)
+        assert lay.voids["n_placed"] == 2
+        c = np.array(lay.voids["centers"])
+        assert np.linalg.norm(c[0] - c[1]) >= 60.0
+
+
+def test_uniform_control_has_no_voids_and_matches_none():
+    x, y, r, t = _uniform_region(0)
+    kw = dict(strategy="adaptive", seed=0, n_null=0, bounds=(0, 0, SIZE, SIZE))
+    auto = DensityModel.fit(x, y, r, t, **kw)
+    none = DensityModel.fit(x, y, r, t, voids="none", **kw)
+    assert auto.voids["n_holes"] == 0 and none.voids == {}
+    a, b = auto.sample_layout(rng=1), none.sample_layout(rng=1)
+    assert np.array_equal(a.intensity, b.intensity)
+    assert np.array_equal(a.composition, b.composition)
+    assert a.voids == {}
+
+
+def test_voids_serialization_and_defaults(ring_lumen_model):
+    clone = DensityModel.from_dict(json.loads(json.dumps(ring_lumen_model.to_dict())))
+    assert clone.voids["n_holes"] == 1
+    data = ring_lumen_model.to_dict()
+    del data["voids"]
+    assert DensityModel.from_dict(data).voids == {}
+    with pytest.raises(ValueError):
+        DensityModel.fit(*_uniform_region(0), voids="bogus")
+
+
+def test_legacy_default_draws_no_void_state():
+    x, y, r, t = _nest_region(0)
+    m = DensityModel.fit(x, y, r, t, n_null=0, seed=0)
+    assert m.voids == {} and "voids" not in m.estimation
+    assert m.sample_layout(rng=0).voids == {}

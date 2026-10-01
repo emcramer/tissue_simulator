@@ -3,6 +3,7 @@
 import contextlib
 import io
 import random
+import warnings
 
 import networkx as nx
 import numpy as np
@@ -344,3 +345,40 @@ def test_adaptive_parallel_matches_serial(adaptive_setup):
         np.testing.assert_array_equal(_as_array(ts), _as_array(tp))
         assert [c.cell_type for c in ts.cells] == [c.cell_type for c in tp.cells]
         assert ss.divergence_score == sp.divergence_score
+
+
+def test_adaptive_replicate_respects_placed_void():
+    """A lumen in the source is re-placed and left empty in the replicate."""
+    packed = SpherePacker((SIZE, SIZE, 1.0), {'c': (2.3, 3.0)}, min_spacing=0.3,
+                          seed=2).pack(max_attempts=400)
+    rng = np.random.default_rng(2)
+    tissue = TissueSection(SIZE, SIZE, 1.0, {t: (2.3, 3.0) for t in TYPES})
+    for cell in packed:
+        d = np.linalg.norm(cell.center[:2] - SIZE / 2)
+        if d < 25:
+            continue
+        cell.cell_type = TYPES[1] if d < 55 else TYPES[2]
+        if rng.random() < 0.1:
+            cell.cell_type = TYPES[int(rng.integers(3))]
+        tissue.cells.append(cell)
+    target = load_target_statistics_from_tissue(tissue, network_mode="radius", network_radius=20.0)
+    target.target_density = None
+    model = DensityModel.from_tissue(tissue, n_null=0, seed=0, strategy="adaptive")
+    gen = ReplicateGenerator(target, (SIZE, SIZE, 1.0), {t: (2.3, 3.0) for t in TYPES},
+                             network_mode="radius", network_radius=20.0, seed=11,
+                             method="graph_coloring",
+                             coloring_params=dict(cooling_rate=0.99, max_iterations=300),
+                             density_model=model, strategy="adaptive")
+    gen._cache_source_reference(tissue)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        rep, stats = _quiet(gen.generate_single_replicate, 0)
+    lv = stats.layout_voids
+    assert lv["n_placed"] == 1
+    c, rad = np.array(lv["centers"][0]), lv["radii"][0]
+    med = float(np.median([cell.radius for cell in rep.cells]))
+    depth = np.array([rad - np.linalg.norm(cell.center[:2] - c) for cell in rep.cells])
+    # Relaxation spillover (0.5 median radius) plus the half pixel diagonal of the
+    # raster hole boundary (cells are drawn from pixels next to the hole).
+    assert depth.max() <= 0.5 * med + 0.5 * np.sqrt(2.0) * model.grid_step
+    assert "layout_voids" in stats.to_dict()

@@ -49,6 +49,7 @@ from scipy.spatial import cKDTree
 from scipy.stats import rankdata
 
 from . import _organization
+from . import _voids
 
 _QUANTILE_LEVELS = np.linspace(0.0, 1.0, 201)
 _N_RADIUS_BINS = 5
@@ -604,6 +605,9 @@ class Layout:
         strategy: ``"legacy"`` or ``"adaptive"`` (from the model).
         organization: For organized layouts, ``{model, geometry, direction,
             theta, proposals_tried, accepted, fallback}``; empty otherwise.
+        voids: Placed voids ``{centers, radii, n_requested, n_placed, anchored}``
+            (µm); empty when the model has none. ``"voids_unsatisfied"`` is in
+            ``flags`` when fewer holes than requested could be placed.
         quota_scale: Adaptive quota bin size in µm, ``max(bandwidth / 2,
             max(2 d_nn, 2 grid_step, sqrt(4 / mean_density)))`` snapped to the
             grid; None for legacy layouts.
@@ -625,6 +629,7 @@ class Layout:
     strategy: str = "legacy"
     organization: Dict = field(default_factory=dict)
     quota_scale: Optional[float] = None
+    voids: Dict = field(default_factory=dict)
 
     def pixel(self, x: float, y: float) -> Tuple[int, int]:
         ny, nx = self.intensity.shape
@@ -821,6 +826,10 @@ class DensityModel:
         organization: Selected spatial trend model (see
             :mod:`tissue_simulator._organization`); ``{"model": "none"}`` when
             none was fitted or accepted.
+        voids: Void (lumen/hole) summary from :func:`_voids.infer_voids` or
+            :func:`_voids.summarize_components` (``n_holes``,
+            ``equivalent_diameters``, ``min_center_separation``, ``tau``, ...);
+            empty when voids are off. Layouts place ``n_holes`` discs.
     """
     width: float
     height: float
@@ -856,6 +865,7 @@ class DensityModel:
     size_log_sigma: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))
     estimation: Dict = field(default_factory=dict)
     organization: Dict = field(default_factory=lambda: {"model": "none"})
+    voids: Dict = field(default_factory=dict)
 
     # -- construction -------------------------------------------------------
 
@@ -875,7 +885,8 @@ class DensityModel:
             *,
             strategy: str = "legacy",
             per_type_bandwidth: Optional[bool] = None,
-            organization: Optional[bool] = None) -> 'DensityModel':
+            organization: Optional[bool] = None,
+            voids: Optional[str] = None) -> 'DensityModel':
         """Fit a density model to a 2D point pattern of cells.
 
         Args:
@@ -914,7 +925,18 @@ class DensityModel:
                 compartments; defaults to ``strategy == "adaptive"``. The
                 result is stored in :attr:`organization` and ignored by layouts
                 of homogeneous models.
+            voids: ``"auto"`` or ``"none"``; defaults to ``"auto"`` under
+                ``"adaptive"`` and ``"none"`` under ``"legacy"``. With ``"auto"``
+                and no ``mask``, empty regions (lumens, holes) are inferred from
+                the cells and become the model mask; with a ``mask`` its
+                interior holes are summarized instead. Layouts then place the
+                same number of holes (sizes resampled from the source) at new
+                positions.
         """
+        if voids is None:
+            voids = "auto" if strategy == "adaptive" else "none"
+        if voids not in ("auto", "none"):
+            raise ValueError(f"voids must be None, 'auto' or 'none', got {voids!r}.")
         if strategy not in ("legacy", "adaptive"):
             raise ValueError(f"strategy must be 'legacy' or 'adaptive', got {strategy!r}.")
         adaptive = strategy == "adaptive"
@@ -938,6 +960,7 @@ class DensityModel:
         xs, ys = xs - x0, ys - y0
 
         shape = _grid_shape(width, height, grid_step)
+        mask_given = mask is not None
         if mask is None:
             mask = np.ones(shape, dtype=bool)
         else:
@@ -953,6 +976,21 @@ class DensityModel:
         xs, ys, radii, labels, iy, ix = (a[keep] for a in (xs, ys, radii, labels, iy, ix))
         if xs.size < 10:
             raise ValueError("Fewer than 10 cells fall inside the window and mask.")
+        void_info = {}
+        if voids == "auto":
+            # Before anything else uses the mask: the inferred tissue mask is
+            # the model mask. Pixels holding a cell stay tissue.
+            if not mask_given:
+                mask, void_info = _voids.infer_voids(xs, ys, radii, None, grid_step,
+                                                     width, height)
+                mask = mask.copy()
+                mask[iy, ix] = True
+            else:
+                void_info = _voids.summarize_components(~mask, grid_step)
+                diam = void_info["equivalent_diameters"]
+                # No inference tau for a user mask: separate holes by one median diameter.
+                void_info.update(tau=float(np.median(diam)) / 2.0 if diam else 0.0,
+                                 inferred=False)
 
         cell_types = tuple(sorted(set(labels.tolist())))
         type_idx = np.searchsorted(cell_types, labels)
@@ -1035,6 +1073,7 @@ class DensityModel:
                 strategy=strategy, type_bandwidths=type_bw, size_log_mu=size_mu,
                 size_log_sigma=size_sigma, organization=org,
             )
+            model.voids = void_info
             model.estimation = {
                 "strategy": strategy,
                 "detrend_weight_cap": _DETREND_WEIGHT_CAP,
@@ -1054,6 +1093,9 @@ class DensityModel:
                 "size_fallbacks": [cell_types[t] for t in size_fallback],
                 "learned_band_edges": False,
             }
+            if void_info:
+                model.estimation["voids"] = {k: v for k, v in void_info.items()
+                                             if k != "all_components"}
             if adaptive:
                 model.estimation["d_nn"] = float(np.median(
                     cKDTree(np.column_stack([xs, ys])).query(np.column_stack([xs, ys]), k=2)[0][:, 1]))
@@ -1198,7 +1240,7 @@ class DensityModel:
             piy, pix_x = np.unravel_index(pix, shape)
             cx = np.clip((pix_x + rng.random(pix.size)) * self.grid_step, 0, self.width)
             cy = np.clip((piy + rng.random(pix.size)) * self.grid_step, 0, self.height)
-            comp = self.band_composition[compartment, band][piy, pix_x]
+            comp = self._composition_map(compartment, band)[piy, pix_x]
             cum = np.cumsum(comp, axis=1)
             cum /= np.maximum(cum[:, -1:], 1e-300)
             t = np.minimum((rng.random(pix.size)[:, None] > cum).sum(axis=1), n_types - 1)
@@ -1276,6 +1318,13 @@ class DensityModel:
         height = self.height if height is None else float(height)
 
         if self.homogeneous:
+            if self._has_voids():
+                shape = _grid_shape(width, height, self.grid_step)
+                tissue, placed = _voids.place_voids(rng, shape, self.grid_step, self.voids,
+                                                    np.ones(shape, dtype=bool))
+                n = int(round(self.density * width * height * float(tissue.mean())))
+                return self._with_voids(self._uniform_layout(width, height, n, mask=tissue),
+                                        placed)
             return self._uniform_layout(width, height, int(round(self.density * width * height)))
         if layout == "copy":
             if _grid_shape(width, height, self.grid_step) != self.mask.shape:
@@ -1297,6 +1346,39 @@ class DensityModel:
                       target_overlap_fraction=self.target_overlap_fraction,
                       mode=mode, flags=self.flags, bandwidth=self.bandwidth,
                       strategy=self.strategy, quota_scale=self._quota_scale())
+
+    def _has_voids(self) -> bool:
+        return bool(self.voids) and int(self.voids.get("n_holes", 0)) > 0
+
+    def _with_voids(self, layout: Layout, placed: dict) -> Layout:
+        layout.voids = placed
+        if placed.get("n_placed", 0) < placed.get("n_requested", 0):
+            layout.flags = tuple(layout.flags) + ("voids_unsatisfied",)
+        return layout
+
+    def _composition_map(self, compartment, band) -> np.ndarray:
+        """Per-pixel composition ``(ny, nx, n_types)``; void pixels (compartment
+        -1) take the global proportions instead of wrapping to the last compartment."""
+        if not (compartment < 0).any():
+            return self.band_composition[compartment, band]
+        c, b = np.maximum(compartment, 0), np.maximum(band, 0)
+        return np.where((compartment < 0)[..., None], self.proportions,
+                        self.band_composition[c, b])
+
+    def _radial_anchor_hole(self) -> bool:
+        """True when a source hole is centered on the fitted radial center
+        (centroid within one hole radius): the largest placed hole is then
+        anchored at each proposed center (a lumen at the center of rings)."""
+        c = self.organization.get("center")
+        if c is None:
+            return False
+        for comp in self.voids.get("all_components", []):
+            if comp["edge_touching"]:
+                continue
+            r = comp["equivalent_diameter"] / 2.0
+            if math.hypot(comp["centroid"][0] - c[0], comp["centroid"][1] - c[1]) <= r:
+                return True
+        return False
 
     def _quota_scale(self) -> Optional[float]:
         if self.strategy != "adaptive":
@@ -1324,27 +1406,40 @@ class DensityModel:
         total = self.region_intensity.sum(axis=0)
         composition = np.where(total > 0, self.region_intensity / np.maximum(total, 1e-300),
                                self.proportions[:, None, None])
-        return self._layout(width, height, total.copy(), composition,
-                            self.region_compartments.copy(), self.n_cells, "copy")
+        out = self._layout(width, height, total.copy(), composition,
+                           self.region_compartments.copy(), self.n_cells, "copy")
+        if self._has_voids():
+            comps = self.voids.get("all_components", [])
+            interior = [c for c in comps if not c["edge_touching"]]
+            out.voids = {"centers": [list(c["centroid"]) for c in interior],
+                         "radii": [c["equivalent_diameter"] / 2.0 for c in interior],
+                         "n_requested": len(interior), "n_placed": len(interior),
+                         "anchored": False}
+        return out
 
-    def _residual_maps(self, rng, width, height, theta0=None):
-        """Compartment/band maps (residual structure) from two noise fields.
-
-        Returns ``(intensity normalized to n_target, compartment, n_target)``.
-        """
-        shape = _grid_shape(width, height, self.grid_step)
-        n_target = int(round(self.density * width * height))
+    def _noise_fields(self, rng, shape):
+        """The two latent-field draws of a resampled layout (labels, scores)."""
         pad = _padding(shape, self.grid_step, self.patch_length, self.bandwidth)
-        labels, u_scores = _sample_labels(
+        return _sample_labels(
             shape, self.grid_step, self.patch_length, self.patch_smoothness, self.bandwidth,
             self.rho, self.compartment_centers, self.compartment_fractions,
             rng.standard_normal(_noise_shape(shape, pad)),
             rng.standard_normal(_noise_shape(shape, pad)), pad)
 
+    def _maps_from_fields(self, labels, u_scores, shape, hole_mask=None):
+        """Compartment, band and intensity maps from latent fields.
+
+        ``hole_mask`` (True inside placed voids) sets compartment -1 and zero
+        intensity there and is recomputed into the band index, so bands see the
+        void edge. Intensity is returned un-normalized (quantile units).
+        """
+        labels = labels.copy()
+        if hole_mask is not None:
+            labels[hole_mask.ravel()] = -1
         compartment = labels.reshape(shape)
         band = _band_index(compartment, self.grid_step, self.band_edges)
         flat_band = band.ravel()
-        intensity = np.empty(labels.size)
+        intensity = np.zeros(labels.size) if hole_mask is not None else np.empty(labels.size)
         for c in range(self.n_compartments):
             for b in range(self.band_density_quantiles.shape[1]):
                 sel = np.flatnonzero((labels == c) & (flat_band == b))
@@ -1353,7 +1448,36 @@ class DensityModel:
                 ranks = np.argsort(np.argsort(u_scores[sel], kind='stable'), kind='stable')
                 intensity[sel] = np.interp((ranks + 0.5) / sel.size, _QUANTILE_LEVELS,
                                            self.band_density_quantiles[c, b])
-        intensity = intensity.reshape(shape)
+        return intensity.reshape(shape), compartment, band
+
+    def _normalize(self, intensity, n_target):
+        mass = intensity.sum() * self.grid_step ** 2
+        if mass > 0:
+            intensity = intensity * n_target / mass
+        return intensity
+
+    def _residual_maps(self, rng, width, height, theta0=None):
+        """Compartment/band maps (residual structure) from two noise fields.
+
+        Returns ``(intensity normalized to n_target, compartment, band, n_target)``.
+        With voids, ``n_holes`` discs are placed after the two noise fields
+        (:func:`_voids.place_voids`) and ``n_target`` counts tissue pixels only;
+        the placement is left in ``self._last_placed`` for the caller.
+        """
+        shape = _grid_shape(width, height, self.grid_step)
+        n_target = int(round(self.density * width * height))
+        labels, u_scores = self._noise_fields(rng, shape)
+        hole_mask = None
+        self._last_placed = {}
+        if self._has_voids():
+            tissue, placed = _voids.place_voids(rng, shape, self.grid_step, self.voids,
+                                                np.ones(shape, dtype=bool))
+            hole_mask = ~tissue
+            self._last_placed = placed
+            n_target = int(round(self.density * width * height * float(tissue.mean())))
+        intensity, compartment, band = self._maps_from_fields(labels, u_scores, shape,
+                                                              hole_mask)
+        intensity = intensity.copy() if hole_mask is not None else intensity
         mass = intensity.sum() * self.grid_step ** 2
         if mass > 0:
             intensity *= n_target / mass
@@ -1361,9 +1485,11 @@ class DensityModel:
 
     def _resampled_layout(self, rng, width, height) -> Layout:
         intensity, compartment, band, n_target = self._residual_maps(rng, width, height)
-        composition = np.moveaxis(self.band_composition[compartment, band], -1, 0).copy()
-        return self._layout(width, height, intensity, composition, compartment,
-                            n_target, "resample")
+        placed = self._last_placed
+        composition = np.moveaxis(self._composition_map(compartment, band), -1, 0).copy()
+        out = self._layout(width, height, intensity, composition, compartment,
+                           n_target, "resample")
+        return self._with_voids(out, placed) if placed else out
 
     def _organized_layout(self, rng, width, height, max_proposals) -> Layout:
         """Resampled layout with the source's fitted trend in a new direction.
@@ -1381,13 +1507,46 @@ class DensityModel:
             theta0 = _organization.sample_center(rng, shape0, self.grid_step)
         else:
             theta0 = _organization.sample_direction(rng)
-        intensity, compartment, band, n_target = self._residual_maps(rng, width, height)
-        resid_comp = np.moveaxis(self.band_composition[compartment, band], -1, 0)
-        intensity, composition, info = _organization.propose_layout(
-            org, theta0, rng, intensity.shape, self.grid_step, intensity, resid_comp,
-            self.proportions, n_target, max_proposals)
+        if not self._has_voids():
+            intensity, compartment, band, n_target = self._residual_maps(rng, width, height)
+            resid_comp = np.moveaxis(self._composition_map(compartment, band), -1, 0)
+            intensity, composition, info = _organization.propose_layout(
+                org, theta0, rng, intensity.shape, self.grid_step, intensity, resid_comp,
+                self.proportions, n_target, max_proposals)
+            placed = {}
+        else:
+            # Holes are drawn after theta0 and the two noise fields, per
+            # proposal when anchored on the proposed radial center.
+            shape = _grid_shape(width, height, self.grid_step)
+            labels, u_scores = self._noise_fields(rng, shape)
+            anchored = radial and self._radial_anchor_hole()
+            states = {}
+
+            def resid_fn(theta):
+                key = tuple(theta) if radial else float(theta)
+                if not anchored and states:
+                    state = next(iter(states.values()))
+                    states[key] = state
+                    return state[0], state[1], state[2]
+                tissue, pl = _voids.place_voids(
+                    rng, shape, self.grid_step, self.voids, np.ones(shape, dtype=bool),
+                    anchor=(theta if anchored else None))
+                n_t = int(round(self.density * width * height * float(tissue.mean())))
+                inten, comp, band = self._maps_from_fields(labels, u_scores, shape, ~tissue)
+                inten = self._normalize(inten, n_t)
+                rc = np.moveaxis(self._composition_map(comp, band), -1, 0)
+                states[key] = (inten, rc, n_t, comp, pl)
+                return inten, rc, n_t
+
+            intensity, composition, info = _organization.propose_layout(
+                org, theta0, rng, shape, self.grid_step, None, None,
+                self.proportions, None, max_proposals, resid_fn=resid_fn)
+            th = info["theta"]
+            _, _, n_target, compartment, placed = states[tuple(th) if radial else float(th)]
         out = self._layout(width, height, intensity, composition, compartment,
                            n_target, "resample")
+        if placed:
+            self._with_voids(out, placed)
         theta = info["theta"]
         geom = ({"center": [float(theta[0]), float(theta[1])]} if radial else
                 {"direction": [math.cos(theta), math.sin(theta)], "theta": theta})

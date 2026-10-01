@@ -275,6 +275,7 @@ class ReplicateStatistics:
     layout_organization: Optional[Dict] = None
     fidelity: Optional[Dict] = None
     separation: Optional[Dict] = None
+    layout_voids: Optional[Dict] = None
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
@@ -1109,6 +1110,7 @@ class ReplicateGenerator:
             layout_organization=dict(layout.organization) if layout.organization else None,
             fidelity=fidelity,
             separation=separation_diagnostics(tissue.cells),
+            layout_voids=dict(layout.voids) if layout.voids else None,
         )
         return tissue, replicate_stats
 

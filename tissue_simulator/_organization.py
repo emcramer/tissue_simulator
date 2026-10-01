@@ -638,12 +638,16 @@ def accept_proposal(coverage: float, expected, target) -> bool:
 def propose_layout(organization: Dict, theta0: float, rng: np.random.Generator, shape,
                    step: float,
                    resid_intensity, resid_composition, proportions, n_target: int,
-                   max_proposals: int = DEFAULT_MAX_PROPOSALS):
+                   max_proposals: int = DEFAULT_MAX_PROPOSALS, resid_fn=None):
     """Draw directions (planar) or centres (radial) until one is accepted.
 
     ``theta0`` is the first direction (planar) or centre ``(cx, cy)`` (radial), drawn by the caller *before* the noise
     fields; rejected proposals re-draw only the direction/centre from ``rng`` (the
     residual maps are reused).
+
+    ``resid_fn(theta) -> (resid_intensity, resid_composition, n_target)``, when
+    given, replaces the fixed residual maps (void placement that depends on the
+    proposed centre, so every proposal re-places the anchored hole).
 
     Returns:
         ``(intensity, composition, info)``; ``info`` has ``theta`` (the angle, or the centre for radial),
@@ -659,6 +663,8 @@ def propose_layout(organization: Dict, theta0: float, rng: np.random.Generator, 
         else:
             theta = sample_center(rng, shape, step) if radial else sample_direction(rng)
         tried += 1
+        if resid_fn is not None:
+            resid_intensity, resid_composition, n_target = resid_fn(theta)
         if radial:
             log_d, logits, coverage = evaluate_radial_trend(organization, theta, shape, step)
         else:

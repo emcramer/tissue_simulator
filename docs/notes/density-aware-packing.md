@@ -208,6 +208,65 @@ docstring is the full method). Fitting is RNG-free; sampling happens in
 - `Layout.organization` keys: `model`, `geometry`, `direction`+`theta` or
   `center`, `proposals_tried`, `accepted`, `fallback`.
 
+### Trend null
+
+An adaptive fit that selects a trend (and is not homogeneous) tests it against
+its own stationary residual model: `n_null` layouts (default 19) are drawn from
+the final detrended model's `_residual_maps` (holes included), sampled as
+inhomogeneous Poisson cell sets, and `trend_statistic` (max delta BIC over the
+candidates) is recomputed on each. `p = (1 + #{null >= observed}) / (n_null + 1)`;
+the trend is accepted iff `observed >= BIC_THRESHOLD` and `p <= alpha` (0.05).
+On rejection the model is rebuilt once without detrending and
+`organization["fallback"] == "stationary_null"` (candidates are kept). The
+result is in `organization["null"]`. A bootstrap from the fitted stationary
+model was rejected: it reproduced concentric/layered trends at window scale, so
+the null is deliberately the detrended one. It costs several seconds in
+adaptive fits; set `n_null=0` to skip it (the BIC threshold alone then decides).
+
+## Voids and lumens
+
+`DensityModel.fit(..., voids="auto"|"none")` (default `"auto"` under adaptive,
+`"none"` under legacy, where nothing changes and no random numbers are drawn).
+
+- **Empty-space criterion** (`_voids.infer_voids`, run before anything uses the
+  mask): a grid pixel is void when its distance to the nearest cell center
+  exceeds `tau = max(sqrt(ln N / (pi lambda)), TAU_NN_FACTOR d_nn (1.5),
+  TAU_RADIUS_FACTOR r_med + grid_step (2))` (largest Poisson gap, a multiple of
+  the nearest-neighbour spacing, a multiple of the cell radius). The core is
+  regrown by `tau`, opened with a 3x3 element (`OPENING_STRUCTURE`) and
+  components smaller than `MIN_HOLE_AREA_FACTOR pi tau^2` (1) are dropped.
+  Pixels holding a cell stay tissue.
+- The inferred tissue mask becomes `model.mask` (edge correction, k-means pixels,
+  per-tissue-area `density` and the organization fit all exclude the lumen).
+  With a user `mask`, its interior holes are summarized instead (separation
+  fallback: one median hole diameter) and the mask is unchanged.
+- Edge-touching components stay void in the mask but are excluded from the size
+  pool unless no interior hole exists. `DensityModel.voids` (also mirrored in
+  `estimation["voids"]`) holds `n_holes`, `equivalent_diameters`, `areas`,
+  `min_center_separation`, `tau`, `all_components`.
+- **Placement** (`_voids.place_voids`, in `_residual_maps` after the two noise
+  fields; organized layouts draw holes after theta/center): the exact source
+  interior hole count, diameters resampled with replacement, disc centers by
+  rejection (<= 50 tries) keeping center separation >= the learned minimum
+  (fallback `2 tau`). Inside holes compartment is -1 and intensity 0; bands are
+  recomputed so they see the void edge; composition there is the global
+  proportions. `n_target = round(density W H * tissue_fraction)`. Shortfalls are
+  in `Layout.voids` and flagged `voids_unsatisfied`; replicates report
+  `ReplicateStatistics.layout_voids`.
+- **Radial anchoring**: for a radial trend whose center lies inside a source hole
+  (centroid within one hole radius), the largest placed hole is put on the
+  proposed center at every proposal (rings around a lumen). `combine_trend`
+  multiplies, so zeros persist, and `expected_proportions` is intensity weighted,
+  so void pixels do not affect acceptance.
+- The packer is unchanged. Relaxation can push cells into a hole by at most
+  `displacement_cap` (0.5 median radius); cells are also drawn from pixels next
+  to the hole, adding up to half a pixel diagonal.
+
+Known limits: the void edge and the compartment edge share one band axis
+(band-edge conflation; `band_edge_type` would split them); holes are discs, not
+ducts or elongated lumens (elongation is recorded, not used); inference needs
+holes of at least ~`tau` radius.
+
 ## Composition constraints and size compatibility
 
 - Multi-scale composition (`ReplicateGenerator._resolve_composition_scales`).

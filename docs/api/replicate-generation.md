@@ -156,7 +156,9 @@ sides in µm; default `"auto"` under adaptive), `composition_weight`,
 `size_weight` (default 1.0 adaptive, 0 legacy), `diagnostics` (default on for
 adaptive), `max_proposals` (organization re-draws, default 20).
 `DensityModel.fit` accepts `strategy`, `bandwidth_range` (`(lo, hi)`, `"auto"`
-or None), `per_type_bandwidth` and `organization`. Criteria and limits are in
+or None), `per_type_bandwidth` and `organization`. It also takes `voids` (`"auto"`/`"none"`; default `"auto"` under
+adaptive): lumens and holes in the source are inferred and re-placed in each
+layout, reported as `layout_voids` on the replicate statistics. Criteria and limits are in
 [the design notes](../notes/density-aware-packing.md).
 
 Design, ablations and known limits are in
@@ -459,6 +461,8 @@ stats = ReplicateStatistics(
   quota from the layout and final counts (density-aware replicates)
 - `layout_organization`: the layout's organization dict (`model`, `geometry`,
   `direction`/`center`, `proposals_tried`, `accepted`, `fallback`)
+- `layout_voids`: placed voids of the layout (`centers`, `radii`, `n_requested`,
+  `n_placed`, `anchored`); None when the model has none
 - `fidelity`: diagnostics against the source (`size_nll`, `size_ks_by_type`,
   `nn_distance_quantiles`, `mixing_index`, `organization_rmse`,
   `interface_fraction`, `n_components`, `n_holes`); None unless
