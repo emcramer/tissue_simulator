@@ -797,6 +797,29 @@ class TissueSimulatorMCPServer:
                                     "uniform scaffold."
                                 ),
                                 "default": "none"
+                            },
+                            "strategy": {
+                                "type": "string",
+                                "enum": ["legacy", "adaptive"],
+                                "description": (
+                                    "Density-layout strategy (needs density_layout != 'none'). "
+                                    "'legacy' (default) is the original behavior; 'adaptive' "
+                                    "learns bandwidths, organization (planar/radial) and "
+                                    "multi-scale composition and size targets from the source."
+                                ),
+                                "default": "legacy"
+                            },
+                            "diagnostics": {
+                                "type": "boolean",
+                                "description": "Record fidelity diagnostics per replicate (default: on for adaptive)."
+                            },
+                            "composition_weight": {
+                                "type": "number",
+                                "description": "Weight of the spatial-composition cost term (generator default 4.0)."
+                            },
+                            "size_weight": {
+                                "type": "number",
+                                "description": "Weight of the size-compatibility cost term (adaptive only; optional)."
                             }
                         },
                         "required": ["height", "width", "thickness", "cell_radii"]
@@ -1834,6 +1857,13 @@ class TissueSimulatorMCPServer:
         n_restarts = args.get("n_restarts", 1)
         radius_optimizer = args.get("radius_optimizer", "heuristic")
         density_layout = args.get("density_layout", "none")
+        strategy = args.get("strategy", "legacy")
+        diagnostics = args.get("diagnostics")
+        extra_kwargs = {}
+        if args.get("composition_weight") is not None:
+            extra_kwargs["composition_weight"] = float(args["composition_weight"])
+        if args.get("size_weight") is not None:
+            extra_kwargs["size_weight"] = float(args["size_weight"])
 
         # Convert cell_radii dict to proper format
         cell_radii = {
@@ -1853,7 +1883,7 @@ class TissueSimulatorMCPServer:
                             "load them with load_target_statistics_from_coordinates or "
                             "load_target_statistics(use_current_tissue=True).")})
                     )]
-                density_model = DensityModel.from_tissue(source, seed=seed)
+                density_model = DensityModel.from_tissue(source, seed=seed, strategy=strategy)
 
             self.replicate_generator = ReplicateGenerator(
                 target_stats=self.target_stats,
@@ -1867,7 +1897,12 @@ class TissueSimulatorMCPServer:
                 radius_optimizer=radius_optimizer,
                 density_model=density_model,
                 layout="copy" if density_layout == "copy" else "resample",
+                strategy=strategy,
+                diagnostics=diagnostics,
+                **extra_kwargs,
             )
+            if density_model is not None:
+                self.replicate_generator._cache_source_reference(self.target_source_tissue)
 
             result = {
                 "status": "success",
@@ -1881,6 +1916,8 @@ class TissueSimulatorMCPServer:
                 "seed": seed,
                 "method": method,
                 "density_layout": density_layout,
+                "strategy": strategy,
+                "diagnostics": diagnostics,
                 "density_model": None if density_model is None else {
                     "n_compartments": density_model.n_compartments,
                     "compartment_fractions": [round(float(f), 3)

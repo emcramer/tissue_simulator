@@ -121,10 +121,14 @@ def fidelity_diagnostics(x, y, radii, types, edges, *, cell_types, model=None, l
     """Fidelity of one replicate against its source (pure, no RNG, JSON-friendly).
 
     Args:
-        x, y, radii, types: per-cell centres, radii and type names.
+        x: per-cell x centres.
+        y: per-cell y centres.
+        radii: per-cell radii.
+        types: per-cell type names.
         edges: iterable of ``(i, j)`` neighbour-graph edges (cell indices).
         cell_types: type names considered.
-        model, layout: the :class:`DensityModel` / :class:`Layout` (optional).
+        model: the :class:`DensityModel` (optional).
+        layout: the :class:`Layout` (optional).
         intensities: layout intensity at each cell (needed for size NLL).
         source_radii: ``{type: radii}`` of the source (for KS), or None.
         source_size_nll: cached mean size NLL of the source, or None.

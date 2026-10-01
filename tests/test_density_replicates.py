@@ -185,6 +185,32 @@ def test_mcp_setup_replicate_generator_density_layout(setup):
     assert server.replicate_generator.density_model is not None
 
 
+def test_mcp_setup_replicate_generator_strategy(setup):
+    import asyncio
+    import json
+    pytest.importorskip("mcp")
+    from tissue_simulator.mcp.server import TissueSimulatorMCPServer
+
+    tissue, target, _, radii = setup
+    server = TissueSimulatorMCPServer()
+    server.target_stats, server.network_mode, server.network_radius = target, "radius", 20.0
+    server.target_source_tissue = tissue
+    args = {"height": SIZE, "width": SIZE, "thickness": 20,
+            "cell_radii": {k: list(v) for k, v in radii.items()},
+            "seed": 3, "method": "graph_coloring", "density_layout": "resample",
+            "strategy": "adaptive", "diagnostics": True, "composition_weight": 2.0}
+    loop = asyncio.new_event_loop()
+    try:
+        data = json.loads(loop.run_until_complete(
+            server._handle_setup_replicate_generator(args))[0].text)
+    finally:
+        loop.close()
+    assert data["status"] == "success", data
+    assert data["strategy"] == "adaptive"
+    assert data["diagnostics"] is True
+    assert server.replicate_generator.strategy == "adaptive"
+
+
 # ---------------------------------------------------------------------------
 # Adaptive strategy (multi-scale composition, size compatibility, diagnostics)
 # ---------------------------------------------------------------------------

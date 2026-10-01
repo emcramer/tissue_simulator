@@ -128,6 +128,136 @@ complete version. Each finding was checked against code and data:
 | Patch smoothness and length not identifiable | Rejected: calibration matches the same-compartment profile, which the tests show is recovered |
 | Relaxation scope too narrow in dense regions | Rejected: packer overlap (0.014) was below target and relaxation never ran; PhysiCell-scale overlap reflects local density and the missing lattice order (below) |
 
+## Adaptive strategy (opt-in)
+
+`strategy="adaptive"` (on `DensityModel.fit`, `ReplicateGenerator`,
+`ReplicateGenerator.from_coordinates` and the MCP `setup_replicate_generator`
+tool) turns on, together: data-derived bandwidth range, per-type bandwidths,
+organization (trend) fitting with detrended residual maps, learned boundary
+bands, multi-scale composition targets, a size-compatibility term and
+fidelity diagnostics. `strategy="legacy"` is the default and draws no new
+random numbers and takes no new arithmetic path; golden tests pin it. Switching
+the default is a separate reviewed change. Individual pieces can be forced with
+`fit(per_type_bandwidth=..., organization=..., bandwidth_range=...)`,
+`composition_scales=`, `composition_bin=`, `size_weight=` and `diagnostics=`.
+
+## Learned scales and estimation metadata
+
+- Auto bandwidth range (`_auto_bandwidth_range`), with `d_nn` the median
+  nearest-neighbor distance, `r_med` the median radius, `L` the shorter side
+  of the mask bounding box: `lo = max(grid_step, d_nn, 2 r_med)`,
+  `hi = max(min(L/3, 20 d_nn), 3 lo)`. Legacy keeps `(15, 80)`.
+- Per-type bandwidths: a type keeps the pooled bandwidth
+  (`"pooled_fallback"`) if it has fewer than `_TYPE_BW_MIN_CELLS = 10` cells or
+  its cross-validated gain over the pooled bandwidth is below
+  `_TYPE_BW_MIN_GAIN = 2.0` nats. Otherwise
+  `log h_t = (n_t log h_cv + m log h_pool) / (n_t + m)` with
+  `_TYPE_BW_SHRINK_M = 30`; evidence is `"cv"` when
+  `n_t/(n_t+m) >= _TYPE_BW_CV_WEIGHT = 0.9`, else `"shrunk"`.
+- Learned band edges: quantiles `_BAND_EDGE_QUANTILES = (0.25, 0.5, 0.75)` of
+  the cells' distance to their compartment edge (legacy: `_BAND_EDGES_UM`).
+- Size model: Gaussian in log radius per (type, density bin), shrunk toward the
+  type's pooled Gaussian with `_SIZE_SHRINK_M = 20` pseudo-cells; types with
+  fewer than `_SIZE_MIN_TYPE_CELLS = 10` cells use the all-type Gaussian
+  (listed in `estimation["size_fallbacks"]`); `sigma >= _MIN_LOG_SIGMA = 0.02`.
+  Fitted under both strategies (RNG-free); only the adaptive path uses it.
+- Detrending regularization: inverse-trend weights clipped to
+  `[1/_DETREND_WEIGHT_CAP, _DETREND_WEIGHT_CAP]` (5) and renormalized to mean 1;
+  per-(compartment, band) compositions shrunk with
+  `_COMPOSITION_PRIOR_CELLS = 10` pseudo-cells; maps floored at
+  `_DETREND_FLOOR = 1e-3`.
+- `DensityModel.estimation` keys: `strategy`, `detrend_weight_cap`,
+  `composition_prior_cells`, `bandwidth`, `bandwidth_source`,
+  `bandwidth_range`, `bandwidth_range_source`, `bandwidth_at_bound` /
+  `bandwidth_bound` (also flag `bandwidth_at_{lower,upper}_bound`),
+  `per_type_bandwidth`, `type_bandwidths`, `type_bandwidth_evidence`,
+  `type_counts`, `size_fallbacks`, `learned_band_edges`, and (adaptive) `d_nn`.
+- `Layout.quota_scale` (adaptive only): `max(bandwidth/2, 2 d_nn, 2 grid_step,
+  sqrt(4/mean_density))` snapped to the grid; the packer uses it as quota bin
+  side instead of the legacy `max(bandwidth/2, 10)`.
+
+## Organization models (planar/radial)
+
+Implemented in `tissue_simulator/_organization.py` (private; the module
+docstring is the full method). Fitting is RNG-free; sampling happens in
+`DensityModel.sample_layout`.
+
+- Candidates: `density` (log-quadratic Poisson trend), `composition`
+  (multinomial logit, linear), `both`; each for a planar coordinate
+  `s = x cos(theta) + y sin(theta)` and a radial one `s = |p - c|`.
+  Models: `none`, `planar_density|composition|both`,
+  `radial_density|composition|both`.
+- Selection by BIC: a candidate is accepted only if `delta_bic >=
+  BIC_THRESHOLD = 10`. Radial must beat the best planar by the same margin;
+  otherwise it is stored as `weak_candidate="radial"` and planar (or `none`)
+  is used. No trend is attempted below `MIN_CELLS = 60`. Search: `N_ANGLE_STARTS
+  = 12`, radial `CENTER_GRID = 5` per axis, `CENTER_MAX_ITER = 200`,
+  `CELLS_PER_KNOT = 40`, `PROFILE_SMOOTHING = 0.5`, `MAX_INTEGRAL_PIXELS = 4000`.
+- A model fitted on a region that the null test calls homogeneous is set to
+  `none` with `fallback="homogeneous"`.
+- Resampling: a new direction (planar) or center (radial, drawn from the window
+  shrunk by `CENTER_MARGIN = 0.10` per side) is proposed up to
+  `max_proposals` (`DEFAULT_MAX_PROPOSALS = 20`) times. A proposal is accepted
+  if the window spans at least `MIN_COVERAGE = 0.9` of the source knot range
+  and every type's expected proportion `p'_t` satisfies
+  `|p'_t - p_t| <= max(PROPORTION_ABS_TOL = 0.02, PROPORTION_REL_TOL * p_t)`
+  with `PROPORTION_REL_TOL = 0.15`. If none is accepted the best-coverage
+  proposal is used, `Layout.organization["accepted"]` is False,
+  `fallback == "best_of_proposals"`, the flag `organization_unsatisfied` is
+  added and a warning is issued.
+- `Layout.organization` keys: `model`, `geometry`, `direction`+`theta` or
+  `center`, `proposals_tried`, `accepted`, `fallback`.
+
+## Composition constraints and size compatibility
+
+- Multi-scale composition (`ReplicateGenerator._resolve_composition_scales`).
+  `composition_scales=[...]` wins; else numeric `composition_bin` is one scale;
+  `"auto"` (adaptive default) uses `[max(bw/2, 2 d_nn, MIN_AUTO_SCALE_UM),
+  max(patch_length, 2 first_band_edge), min(W, H)/4]`, deduplicated so
+  successive scales differ by `MIN_SCALE_RATIO = 1.5`, at most
+  `MAX_COMPOSITION_SCALES = 3`, `MIN_AUTO_SCALE_UM = 10`. Expected bin counts
+  shrink toward the global mix with weight `N/(n_b+N)`,
+  `COMPOSITION_SHRINK_N = 5`. Passed to the annealer as
+  `spatial_composition_scales`; weight is `composition_weight` (default 4.0).
+- Size compatibility: the annealer's `size_compatibility` target holds
+  `nll[node][color] = 0.5 ((log r - mu)/sigma)^2 + log sigma` for the cell's
+  local density bin, weighted `size_weight * mean_degree` (default
+  `size_weight=1.0` adaptive, 0 legacy). Radii are therefore a constraint on
+  type assignment, not re-drawn.
+- `cost_terms` gains `spatial_scales` and `size` entries when those targets exist.
+- Requested vs achieved counts: `requested_cell_type_counts` (layout quota) and
+  `achieved_cell_type_counts` are reported so rare-type shortfalls are visible.
+
+## Diagnostics
+
+Adaptive generators default to `diagnostics=True`; legacy to off. Per replicate
+`ReplicateStatistics` gains `requested_cell_type_counts`,
+`achieved_cell_type_counts`, `layout_organization`, `separation` (clearance
+and normalized nearest-neighbor distance quantiles, plus count) and `fidelity`
+(`fidelity_diagnostics`): `size_nll` (replicate vs source), `size_ks_by_type`,
+`nn_distance_quantiles` (p5/p50/p95; `NN_QUANTILES`), `mixing_index`,
+`organization_rmse`, `interface_fraction`, `n_components`, `n_holes` (bins whose
+layout-expected count exceeds `HOLE_MIN_EXPECTED = 2` but hold no cell, at the
+finest scale). Entries that cannot be computed are None. Source reference
+values are cached by `ReplicateGenerator._cache_source_reference(tissue)`
+(called by `from_coordinates` and the MCP tool), so a generator built
+directly from a model has no source KS/NLL.
+`PackingReport` adds `bin_shortfall`, `quota_floor`, `quota_floor_source`,
+`clearance_quantiles`, `normalized_distance_quantiles`,
+`dense_bin_fraction_short` (bins with target >= 4 achieved below 0.9 of target).
+
+## Schema evolution
+
+- `DensityModel.to_dict` writes `format_version: 2` (adds `strategy`,
+  `type_bandwidths`, size model, `organization`, `estimation`).
+  `from_dict` skips absent keys, so version-1 files load with legacy defaults
+  (`strategy="legacy"`, `organization={"model": "none"}`) and behave as before.
+- Each replicate draws layout, packing, warm start and annealing from separate
+  streams spawned from `SeedSequence([seed, replicate_id])`, so adaptive
+  replicates are identical serial and parallel. Legacy seeding is unchanged.
+- All new dataclass fields have defaults and come last; the generator stores
+  only plain data, so it pickles for process pools.
+
 ## Known limits
 
 - **Short-range structure.** kNN composition (1.45) and L at 20 µm and
@@ -156,3 +286,20 @@ complete version. Each finding was checked against code and data:
   thin slab so replicate graphs stay planar.
 - **Fit cost.** A fit takes a few seconds: 19 null packings plus 80
   calibration simulations. Pass `n_null=0` or a `patch_prior` for speed.
+- **Symmetric multi-nest samples.** A pattern of several similar nests can be
+  selected as radial (delta BIC above `BIC_THRESHOLD = 10`) although it is not
+  one center-to-periphery structure; inspect `organization["candidates"]`.
+- **Auto bandwidth bound.** On near-uniform data the cross-validated bandwidth
+  often sits at the upper bound of the auto range (flag
+  `bandwidth_at_upper_bound`); treat the density map as nearly flat there.
+- **Fidelity summaries are evidence, not calibrated intervals.** `fidelity`
+  values have no null distribution; compare against replicates of other
+  seeds or the source's own floor.
+- **Radius definition.** Size targets reproduce whatever the source radii mean.
+  State whether they are whole-cell or nuclear radii; mixing them between
+  source and `cell_radii` changes packing density.
+- **Radial coverage ignores masks.** The radial acceptance check uses the
+  replicate window's rectangle, not a mask on the `Layout`.
+- **Small windows.** When no proposal meets the coverage and proportion
+  criteria the organization falls back to `best_of_proposals`
+  (flag `organization_unsatisfied`); the replicate is still produced.

@@ -134,6 +134,31 @@ and `ReplicateGenerator(..., method="graph_coloring", density_model=model)`.
 - For a 2D source, use a thin slab (thickness about 1 µm) so replicate graphs
   stay planar.
 
+#### Adaptive strategy (opt-in)
+
+`strategy="legacy"` is the default and reproduces earlier releases exactly;
+switching the default is a separate reviewed change. `strategy="adaptive"`
+fits the model with data-derived bandwidths, per-type bandwidths and a
+planar/radial organization trend, uses multi-scale composition targets and a
+size-compatibility term, and records fidelity diagnostics.
+
+```python
+gen = ReplicateGenerator.from_coordinates(
+    "region.csv", network_mode="radius", network_radius=20.0,
+    seed=42, strategy="adaptive",
+)
+tissue, stats = gen.generate_single_replicate(0)
+print(stats.layout_organization, stats.fidelity["size_ks_by_type"])
+```
+
+Keyword-only generator options: `strategy`, `composition_scales` (list of bin
+sides in µm; default `"auto"` under adaptive), `composition_weight`,
+`size_weight` (default 1.0 adaptive, 0 legacy), `diagnostics` (default on for
+adaptive), `max_proposals` (organization re-draws, default 20).
+`DensityModel.fit` accepts `strategy`, `bandwidth_range` (`(lo, hi)`, `"auto"`
+or None), `per_type_bandwidth` and `organization`. Criteria and limits are in
+[the design notes](../notes/density-aware-packing.md).
+
 Design, ablations and known limits are in
 [the design notes](../notes/density-aware-packing.md).
 
@@ -430,6 +455,21 @@ stats = ReplicateStatistics(
   composition bins to match the layout (density-aware replicates only)
 - `layout_flags`: Layout mode (for example `"mode:resample"`) followed by the
   density model's flags (density-aware replicates only)
+- `requested_cell_type_counts`, `achieved_cell_type_counts`: per-type cell
+  quota from the layout and final counts (density-aware replicates)
+- `layout_organization`: the layout's organization dict (`model`, `geometry`,
+  `direction`/`center`, `proposals_tried`, `accepted`, `fallback`)
+- `fidelity`: diagnostics against the source (`size_nll`, `size_ks_by_type`,
+  `nn_distance_quantiles`, `mixing_index`, `organization_rmse`,
+  `interface_fraction`, `n_components`, `n_holes`); None unless
+  `diagnostics` is on. Evidence, not calibrated intervals.
+- `separation`: nearest-neighbor `clearance_quantiles`,
+  `normalized_distance_quantiles` and `n_nearest_neighbour`
+
+`packing_report` (`PackingReport.to_dict()`) also carries `bin_shortfall`,
+`quota_floor`, `quota_floor_source` (`"layout"` or `"legacy"`),
+`clearance_quantiles`, `normalized_distance_quantiles` and
+`dense_bin_fraction_short`.
 
 ## Export Functions
 
@@ -566,6 +606,13 @@ generate_replicates(
 export_replicate_statistics(base_filename="output")
 export_replicate_tissues(output_dir="tissues")
 ```
+
+   For a density-aware scaffold add `density_layout` (`"resample"` or
+   `"copy"`, needs source coordinates loaded with
+   `load_target_statistics_from_coordinates`) and optionally `strategy`
+   (`"legacy"` default or `"adaptive"`), `diagnostics`, `composition_weight`
+   and `size_weight`. The result echoes `strategy` and `diagnostics`; adaptive
+   fits the source model with `strategy="adaptive"`.
 
 5. **Get summary**:
 ```
