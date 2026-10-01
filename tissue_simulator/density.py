@@ -60,6 +60,13 @@ _CALIBRATION_REPEATS = 2
 # profile density and composition near boundaries (margins, invasive fronts).
 _BAND_EDGES_UM = (10.0, 20.0, 40.0)
 _MIN_BAND_CELLS = 10
+# Adaptive detrending regularization: per-cell inverse-trend weights are clipped
+# to [1/cap, cap] (then renormalized to mean 1) so rare-type cells in layers
+# where the trend says they are rare do not dominate residual maps, and
+# per-(compartment, band) compositions are shrunk toward the global
+# proportions with this many pseudo-cells (Dirichlet prior).
+_DETREND_WEIGHT_CAP = 5.0
+_COMPOSITION_PRIOR_CELLS = 10
 
 # Adaptive-strategy criteria (all deterministic, RNG-free).
 # Per-type bandwidths: a type with fewer than _TYPE_BW_MIN_CELLS cells, or whose
@@ -856,6 +863,7 @@ class DensityModel:
                 weights = 1.0 / np.maximum(
                     dens_c * comp_c[np.arange(xs.size), type_idx] / proportions[type_idx],
                     _DETREND_FLOOR)
+                weights = np.clip(weights, 1.0 / _DETREND_WEIGHT_CAP, _DETREND_WEIGHT_CAP)
                 weights = weights * (weights.size / weights.sum())
         lam_types = _intensity_grids(iy, ix, type_idx, n_types, shape, grid_step,
                                      bandwidth if bw_evidence is None else type_bw, mask,
@@ -904,8 +912,9 @@ class DensityModel:
                 else:
                     wc = weights[in_c]
                     factor = (wc.sum() / (sel.sum() * grid_step ** 2)) / smoothed.mean()
-                    composition[c] = np.bincount(type_idx[in_c], weights=wc,
-                                                 minlength=n_types) / wc.sum()
+                    composition[c] = (np.bincount(type_idx[in_c], weights=wc, minlength=n_types)
+                                      + _COMPOSITION_PRIOR_CELLS * proportions
+                                      ) / (wc.sum() + _COMPOSITION_PRIOR_CELLS)
             else:
                 factor = 0.0
                 composition[c] = proportions
@@ -935,8 +944,9 @@ class DensityModel:
                     else:
                         wb = weights[in_cb]
                         band_density = wb.sum() / (sel.sum() * grid_step ** 2)
-                        band_comp = np.bincount(type_idx[in_cb], weights=wb,
-                                                minlength=n_types) / wb.sum()
+                        band_comp = (np.bincount(type_idx[in_cb], weights=wb, minlength=n_types)
+                                     + _COMPOSITION_PRIOR_CELLS * proportions
+                                     ) / (wb.sum() + _COMPOSITION_PRIOR_CELLS)
                     band_quantiles[c, b] = np.quantile(
                         smoothed * (band_density / smoothed.mean()), _QUANTILE_LEVELS)
                     band_composition[c, b] = band_comp
@@ -989,6 +999,8 @@ class DensityModel:
         )
         model.estimation = {
             "strategy": strategy,
+            "detrend_weight_cap": _DETREND_WEIGHT_CAP,
+            "composition_prior_cells": _COMPOSITION_PRIOR_CELLS,
             "bandwidth": bandwidth,
             "bandwidth_source": bandwidth_source,
             "bandwidth_range": [bandwidth_range[0], bandwidth_range[1]],

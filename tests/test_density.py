@@ -428,8 +428,7 @@ def _layered_region(seed=0, w=240.0, h=120.0):
 @pytest.fixture(scope="module")
 def layered_model():
     x, y, r, t = _layered_region(2)
-    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 240, 120), strategy="adaptive",
-                            n_compartments=1, seed=0)
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 240, 120), strategy="adaptive", seed=0)
 
 
 def test_organized_layouts(layered_model):
@@ -511,8 +510,7 @@ def _concentric_region(seed=0, size=200.0):
 @pytest.fixture(scope="module")
 def concentric_model():
     x, y, r, t = _concentric_region(2)
-    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 200, 200), strategy="adaptive",
-                            n_compartments=1, seed=0)
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 200, 200), strategy="adaptive", seed=0)
 
 
 def test_radial_organized_layouts(concentric_model):
@@ -536,7 +534,7 @@ def test_radial_organized_layouts(concentric_model):
             mean_d.append((w * dist).sum() / w.sum())
         assert mean_d[0] < mean_d[1] < mean_d[2]
         w = (lay.composition * lay.intensity).sum(axis=(1, 2))
-        np.testing.assert_allclose(w / w.sum(), model.proportions, rtol=0.15)
+        np.testing.assert_allclose(w / w.sum(), model.proportions, rtol=0.15, atol=0.02)  # acceptance rule: max(0.02, 15 %)
     for i in range(3):
         for j in range(i + 1, 3):
             assert np.linalg.norm(centers[i] - centers[j]) > 15.0
