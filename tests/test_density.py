@@ -408,3 +408,85 @@ def test_band_index_accepts_learned_edges():
     custom = _band_index(labels, 5.0, (5.0,))
     assert legacy.max() == 3 and custom.max() == 1
     np.testing.assert_array_equal(_band_index(labels, 5.0, (10.0, 20.0, 40.0)), legacy)
+
+
+# -- organized (directional) layouts -----------------------------------------
+
+def _layered_region(seed=0, w=240.0, h=120.0):
+    """Bands A | B | C along x (thirds), ~600 RSA cells."""
+    cells = SpherePacker((h, w, 0.0), {'c': (2.3, 3.0)}, min_spacing=0.3,
+                         seed=seed).pack(max_attempts=400)
+    xy = np.array([c.center[:2] for c in cells])
+    r = np.array([c.radius for c in cells])
+    rng = np.random.default_rng(seed)
+    third = np.minimum((xy[:, 0] / (w / 3)).astype(int), 2)
+    pure = rng.random(len(r)) < 0.9
+    types = np.where(pure, np.array(['A', 'B', 'C'])[third], rng.choice(['A', 'B', 'C'], len(r)))
+    return xy[:, 0], xy[:, 1], r, types
+
+
+@pytest.fixture(scope="module")
+def layered_model():
+    x, y, r, t = _layered_region(2)
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 240, 120), strategy="adaptive",
+                            n_compartments=1, seed=0)
+
+
+def test_organized_layouts(layered_model):
+    model = layered_model
+    assert model.organization["model"] != "none"
+    copy = model.sample_layout(layout="copy")
+    layouts = [model.sample_layout(rng=s) for s in range(4)]
+    thetas = []
+    for lay in layouts:
+        org = lay.organization
+        assert org["accepted"] is True and org["fallback"] is None
+        assert "organization_unsatisfied" not in lay.flags
+        assert lay.quota_scale is not None and lay.strategy == "adaptive"
+        thetas.append(org["theta"])
+        d = np.array(org["direction"])
+        ny, nx = lay.intensity.shape
+        yy, xx = np.meshgrid((np.arange(ny) + .5) * lay.grid_step,
+                             (np.arange(nx) + .5) * lay.grid_step, indexing="ij")
+        s = xx * d[0] + yy * d[1]
+        cent = []
+        for t in range(3):
+            w = lay.intensity * lay.composition[t]
+            cent.append((w * s).sum() / w.sum())
+        assert cent[0] < cent[1] < cent[2]
+        w = (lay.composition * lay.intensity).sum(axis=(1, 2))
+        np.testing.assert_allclose(w / w.sum(), model.proportions, rtol=0.15)
+        assert np.all(np.isfinite(lay.composition))
+        np.testing.assert_allclose(lay.composition.sum(axis=0), 1.0)
+        assert np.corrcoef(lay.intensity.ravel(), copy.intensity.ravel())[0, 1] < 0.95
+    for i in range(4):
+        for j in range(i + 1, 4):
+            diff = abs(thetas[i] - thetas[j]) % (2 * np.pi)
+            assert np.degrees(min(diff, 2 * np.pi - diff)) > 10.0
+
+
+def test_adaptive_without_organization_matches_legacy_resample():
+    x, y, r, t = _nest_region()
+    kw = dict(bounds=(0, 0, SIZE, SIZE), n_compartments=2, seed=0)
+    legacy = DensityModel.fit(x, y, r, t, **kw)
+    adaptive = DensityModel.fit(x, y, r, t, strategy="adaptive", organization=False,
+                                bandwidth_range=(15.0, 80.0), per_type_bandwidth=False, **kw)
+    a = legacy.sample_layout(rng=5)
+    assert a.strategy == "legacy" and a.quota_scale is None and a.organization == {}
+    # Legacy goes through the untouched resampler; adaptive with no trend model
+    # must use exactly the same path (no extra draws).
+    for model in (legacy, adaptive):
+        lay = model.sample_layout(rng=5)
+        ref = model._resampled_layout(np.random.default_rng(5), model.width, model.height)
+        np.testing.assert_array_equal(lay.intensity, ref.intensity)
+        np.testing.assert_array_equal(lay.composition, ref.composition)
+        assert lay.organization == {}
+
+
+def test_organized_layout_unsatisfied_on_narrow_window(layered_model):
+    with pytest.warns(UserWarning, match="best-coverage"):
+        lay = layered_model.sample_layout(rng=0, width=60.0, height=60.0, max_proposals=1)
+    assert lay.organization["accepted"] is False
+    assert lay.organization["fallback"] == "best_of_proposals"
+    assert "organization_unsatisfied" in lay.flags
+    assert np.all(np.isfinite(lay.intensity))

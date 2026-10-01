@@ -594,6 +594,12 @@ class Layout:
         mode: ``"resample"``, ``"copy"`` or ``"uniform"``.
         flags: Diagnostics inherited from the density model.
         bandwidth: Smoothing bandwidth of the maps in µm (sets packer bin size).
+        strategy: ``"legacy"`` or ``"adaptive"`` (from the model).
+        organization: For organized layouts, ``{model, geometry, direction,
+            theta, proposals_tried, accepted, fallback}``; empty otherwise.
+        quota_scale: Adaptive quota bin size in µm, ``max(bandwidth / 2,
+            max(2 d_nn, 2 grid_step, sqrt(4 / mean_density)))`` snapped to the
+            grid; None for legacy layouts.
     """
     width: float
     height: float
@@ -609,6 +615,9 @@ class Layout:
     mode: str
     flags: Tuple[str, ...] = ()
     bandwidth: Optional[float] = None
+    strategy: str = "legacy"
+    organization: Dict = field(default_factory=dict)
+    quota_scale: Optional[float] = None
 
     def pixel(self, x: float, y: float) -> Tuple[int, int]:
         ny, nx = self.intensity.shape
@@ -995,6 +1004,9 @@ class DensityModel:
             "size_fallbacks": [cell_types[t] for t in size_fallback],
             "learned_band_edges": False,
         }
+        if adaptive:
+            model.estimation["d_nn"] = float(np.median(
+                cKDTree(np.column_stack([xs, ys])).query(np.column_stack([xs, ys]), k=2)[0][:, 1]))
         if n_null > 0:
             model._test_heterogeneity(xs, ys, type_idx, n_null, alpha, rng)
         if model.homogeneous and org["model"] != "none":
@@ -1122,7 +1134,7 @@ class DensityModel:
 
     def sample_layout(self, rng=None, width: Optional[float] = None,
                       height: Optional[float] = None,
-                      layout: str = "resample") -> Layout:
+                      layout: str = "resample", *, max_proposals: int = 20) -> Layout:
         """Sample the target maps for one replicate.
 
         Args:
@@ -1130,6 +1142,8 @@ class DensityModel:
             width, height: Replicate window in µm; defaults to the region's.
                 ``"copy"`` requires the region's window size.
             layout: ``"resample"`` (new compartment arrangement) or ``"copy"``.
+            max_proposals: Direction proposals for organized (adaptive,
+                trend-model) resampling before the best-coverage fallback.
 
         Homogeneous regions (see :attr:`homogeneous`) always yield a uniform
         layout, which reproduces the classic uniform packing.
@@ -1146,6 +1160,10 @@ class DensityModel:
             if _grid_shape(width, height, self.grid_step) != self.mask.shape:
                 raise ValueError("layout='copy' requires the region's window size.")
             return self._copy_layout(width, height)
+        # Radial geometry is not organized yet (falls back to plain resampling).
+        if (self.strategy == "adaptive" and self.organization.get("model", "none") != "none"
+                and self.organization.get("geometry") == "planar"):
+            return self._organized_layout(rng, width, height, max_proposals)
         return self._resampled_layout(rng, width, height)
 
     def _layout(self, width, height, intensity, composition, compartment, n_target,
@@ -1156,7 +1174,18 @@ class DensityModel:
                       marks=self.marks if marks is None else marks, kappa=self.kappa,
                       n_target=int(n_target),
                       target_overlap_fraction=self.target_overlap_fraction,
-                      mode=mode, flags=self.flags, bandwidth=self.bandwidth)
+                      mode=mode, flags=self.flags, bandwidth=self.bandwidth,
+                      strategy=self.strategy, quota_scale=self._quota_scale())
+
+    def _quota_scale(self) -> Optional[float]:
+        if self.strategy != "adaptive":
+            return None
+        d_nn = self.estimation.get("d_nn")
+        if d_nn is None or not self.bandwidth or self.density <= 0:
+            return None
+        floor = max(2.0 * d_nn, 2.0 * self.grid_step, math.sqrt(4.0 / self.density))
+        size = max(self.bandwidth / 2.0, floor)
+        return float(max(round(size / self.grid_step), 1) * self.grid_step)
 
     def _uniform_layout(self, width, height, n_target, mask=None) -> Layout:
         shape = _grid_shape(width, height, self.grid_step)
@@ -1177,7 +1206,11 @@ class DensityModel:
         return self._layout(width, height, total.copy(), composition,
                             self.region_compartments.copy(), self.n_cells, "copy")
 
-    def _resampled_layout(self, rng, width, height) -> Layout:
+    def _residual_maps(self, rng, width, height, theta0=None):
+        """Compartment/band maps (residual structure) from two noise fields.
+
+        Returns ``(intensity normalized to n_target, compartment, n_target)``.
+        """
         shape = _grid_shape(width, height, self.grid_step)
         n_target = int(round(self.density * width * height))
         pad = _padding(shape, self.grid_step, self.patch_length, self.bandwidth)
@@ -1203,9 +1236,48 @@ class DensityModel:
         mass = intensity.sum() * self.grid_step ** 2
         if mass > 0:
             intensity *= n_target / mass
+        return intensity, compartment, band, n_target
+
+    def _resampled_layout(self, rng, width, height) -> Layout:
+        intensity, compartment, band, n_target = self._residual_maps(rng, width, height)
         composition = np.moveaxis(self.band_composition[compartment, band], -1, 0).copy()
         return self._layout(width, height, intensity, composition, compartment,
                             n_target, "resample")
+
+    def _organized_layout(self, rng, width, height, max_proposals) -> Layout:
+        """Resampled layout with the source's fitted trend in a new direction.
+
+        ``theta'`` is drawn first, then the two noise fields as in
+        :meth:`_resampled_layout`; the trend (see :mod:`._organization`) is
+        multiplied onto the residual maps. Rejected directions are re-drawn
+        (noise reused) up to ``max_proposals``; on exhaustion the best-coverage
+        proposal is used, flagged ``organization_unsatisfied`` and warned.
+        """
+        org = self.organization
+        if org.get("geometry") != "planar":
+            raise NotImplementedError(
+                "Organized layouts for radial geometry are not implemented yet.")
+        theta0 = _organization.sample_direction(rng)
+        intensity, compartment, band, n_target = self._residual_maps(rng, width, height)
+        resid_comp = np.moveaxis(self.band_composition[compartment, band], -1, 0)
+        intensity, composition, info = _organization.propose_layout(
+            org, theta0, rng, intensity.shape, self.grid_step, intensity, resid_comp,
+            self.proportions, n_target, max_proposals)
+        out = self._layout(width, height, intensity, composition, compartment,
+                           n_target, "resample")
+        theta = info["theta"]
+        out.organization = {
+            "model": org["model"], "geometry": org["geometry"],
+            "direction": [math.cos(theta), math.sin(theta)], "theta": theta,
+            "proposals_tried": info["proposals_tried"], "accepted": info["accepted"],
+            "fallback": info["fallback"],
+        }
+        if not info["accepted"]:
+            out.flags = tuple(out.flags) + ("organization_unsatisfied",)
+            warnings.warn(
+                f"No direction in {info['proposals_tried']} proposals met the window coverage "
+                "and composition criteria; using the best-coverage proposal.", stacklevel=3)
+        return out
 
     # -- serialization ------------------------------------------------------
 

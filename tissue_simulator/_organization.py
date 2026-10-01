@@ -485,3 +485,124 @@ def fit_organization(xs, ys, type_idx, n_types, mask, grid_step, width, height) 
 # ---------------------------------------------------------------------------
 # Sampling (added by later work packages) goes below this line.
 # ---------------------------------------------------------------------------
+
+MIN_COVERAGE = 0.9             # fraction of the source knot range the new window must span
+PROPORTION_ABS_TOL = 0.02      # accepted |p'_t - p_t| floor (absolute)
+PROPORTION_REL_TOL = 0.15      # accepted |p'_t - p_t| <= max(abs, rel * p_t)
+DEFAULT_MAX_PROPOSALS = 20     # direction re-draws before the best-coverage fallback
+_LOG_FLOOR = 1e-12             # floor before taking logs of residual maps
+
+
+def sample_direction(rng: np.random.Generator) -> float:
+    """Draw a planar trend angle ``theta' ~ U(0, 2 pi)`` (one RNG draw)."""
+    return float(rng.uniform(0.0, 2.0 * math.pi))
+
+
+def evaluate_trend(organization: Dict, theta: float, shape, step: float
+                   ) -> Tuple[np.ndarray, np.ndarray, float]:
+    """Source trend re-expressed along a new planar direction on a new window.
+
+    The coordinate is ``s' = (p - c') . d' + s_mid`` with ``c'`` the window
+    centre and ``d' = (cos theta, sin theta)``: the source profile's mid-knot
+    lands on the window centroid, so physical gradient strength and transition
+    widths (in µm) are preserved.
+
+    Returns:
+        ``(log_density (ny, nx) [log of density relative to the mean],
+        logits (T, ny, nx) [log composition profile], coverage)`` where
+        coverage is the fraction of the source knot range ``[k_0, k_last]``
+        lying within the window's range of ``s'``.
+    """
+    ny, nx = shape
+    yy, xx = np.meshgrid((np.arange(ny) + 0.5) * step, (np.arange(nx) + 0.5) * step,
+                         indexing="ij")
+    cx, cy = 0.5 * nx * step, 0.5 * ny * step
+    s = (xx - cx) * math.cos(theta) + (yy - cy) * math.sin(theta) + organization["s_mid"]
+    dens, comp = profile_along(organization, s.ravel())
+    log_density = np.log(np.maximum(dens, _LOG_FLOOR)).reshape(shape)
+    logits = np.moveaxis(np.log(np.maximum(comp, _LOG_FLOOR)).reshape(shape + (comp.shape[1],)),
+                         -1, 0)
+    knots = np.asarray(organization["s_knots"], dtype=float)
+    span = float(knots[-1] - knots[0])
+    if span <= 0:
+        return log_density, logits, 1.0
+    overlap = min(float(s.max()), knots[-1]) - max(float(s.min()), knots[0])
+    return log_density, logits, float(np.clip(overlap / span, 0.0, 1.0))
+
+
+def combine_trend(log_density, trend_logits, resid_intensity, resid_composition,
+                  proportions, n_target: int, step: float) -> Tuple[np.ndarray, np.ndarray]:
+    """Multiply the trend onto the residual maps and normalize.
+
+    ``intensity = exp(log_density) * residual intensity`` (scaled to
+    ``n_target`` cells); ``composition = softmax(trend logits + log residual
+    composition - log proportions)``. The residual composition describes the
+    detrended data and equals the global proportions when it has no structure,
+    so the ``- log proportions`` term avoids counting the prior twice.
+    Composition is finite and sums to 1 per pixel.
+    """
+    intensity = np.exp(log_density) * resid_intensity
+    mass = intensity.sum() * step ** 2
+    if mass > 0:
+        intensity = intensity * (n_target / mass)
+    z = (trend_logits + np.log(np.maximum(resid_composition, _LOG_FLOOR))
+         - np.log(np.maximum(np.asarray(proportions, dtype=float), _LOG_FLOOR))[:, None, None])
+    z = z - z.max(axis=0, keepdims=True)
+    e = np.exp(z)
+    return intensity, e / e.sum(axis=0, keepdims=True)
+
+
+def expected_proportions(intensity: np.ndarray, composition: np.ndarray) -> np.ndarray:
+    """Expected type proportions, ``sum(intensity * composition) / sum(intensity)``."""
+    w = (composition * intensity[None]).reshape(composition.shape[0], -1).sum(axis=1)
+    total = w.sum()
+    return w / total if total > 0 else np.full(composition.shape[0], 1.0 / composition.shape[0])
+
+
+def accept_proposal(coverage: float, expected, target) -> bool:
+    """Window-aware acceptance.
+
+    Accept when ``coverage >= MIN_COVERAGE`` (0.9) and every type satisfies
+    ``|p'_t - p_t| <= max(0.02, 0.15 p_t)``.
+    """
+    expected = np.asarray(expected, dtype=float)
+    target = np.asarray(target, dtype=float)
+    tol = np.maximum(PROPORTION_ABS_TOL, PROPORTION_REL_TOL * target)
+    return bool(coverage >= MIN_COVERAGE and np.all(np.abs(expected - target) <= tol))
+
+
+def propose_layout(organization: Dict, theta0: float, rng: np.random.Generator, shape,
+                   step: float,
+                   resid_intensity, resid_composition, proportions, n_target: int,
+                   max_proposals: int = DEFAULT_MAX_PROPOSALS):
+    """Draw directions until one is accepted (planar geometry).
+
+    ``theta0`` is the first direction, drawn by the caller *before* the noise
+    fields; rejected proposals re-draw only the direction from ``rng`` (the
+    residual maps are reused).
+
+    Returns:
+        ``(intensity, composition, info)``; ``info`` has ``theta``,
+        ``proposals_tried``, ``accepted``, ``fallback`` (``None`` or
+        ``"best_of_proposals"``, the best-coverage proposal then being used).
+    """
+    if organization.get("geometry") != "planar":
+        raise NotImplementedError(
+            "Organized layouts for radial geometry are not implemented yet.")
+    best = None
+    tried = 0
+    for k in range(max(1, int(max_proposals))):
+        theta = theta0 if k == 0 else sample_direction(rng)
+        tried += 1
+        log_d, logits, coverage = evaluate_trend(organization, theta, shape, step)
+        intensity, composition = combine_trend(log_d, logits, resid_intensity,
+                                               resid_composition, proportions, n_target, step)
+        ok = accept_proposal(coverage, expected_proportions(intensity, composition),
+                             proportions)
+        if ok:
+            return intensity, composition, {"theta": theta, "proposals_tried": tried,
+                                            "accepted": True, "fallback": None}
+        if best is None or coverage > best[0]:
+            best = (coverage, theta, intensity, composition)
+    return best[2], best[3], {"theta": best[1], "proposals_tried": tried,
+                              "accepted": False, "fallback": "best_of_proposals"}
