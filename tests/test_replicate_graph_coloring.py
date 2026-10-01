@@ -325,3 +325,130 @@ def test_differential_evolution_radius_optimizer_runs():
     b = run()
     assert a[0] > 0
     assert a == b  # deterministic (fixed-seed objective)
+
+
+# ---------------------------------------------------------------------------
+# Multi-scale composition and size-compatibility terms
+# ---------------------------------------------------------------------------
+
+_MS_COLORS = ['a', 'b', 'c']
+
+
+def _ms_graph(n=150, seed=3):
+    rng = np.random.default_rng(seed)
+    g = nx.gnp_random_graph(n, 0.04, seed=seed)
+    return g, rng
+
+
+def _ms_targets(n=150, seed=3, nscales=3, size=False):
+    g, rng = _ms_graph(n, seed)
+    scales = []
+    for k in range(nscales):
+        nb = 4 + 3 * k
+        node_bin = {i: int(rng.integers(nb)) for i in range(n)}
+        expected = {b: {c: float(rng.uniform(0.5, 4)) for c in _MS_COLORS}
+                    for b in range(nb)}
+        scales.append({'node_bin': node_bin, 'expected': expected,
+                       'weight': 1.0 + 0.5 * k})
+    stats = {'node_counts': {'a': 50, 'b': 50, 'c': 50},
+             'edge_counts': {'a-b': 5, 'a-a': 3},
+             'neighbor_dist': {'a': {'b': 0.3}}}
+    if scales and nscales:
+        stats['spatial_composition_scales'] = scales
+    if size:
+        stats['size_compatibility'] = {
+            'nll': {i: {c: float(rng.uniform(0, 3)) for c in _MS_COLORS}
+                    for i in range(n)},
+            'weight': 0.7}
+    return g, stats
+
+
+def _random_walk_check(col, g, steps=2000, seed=0):
+    rng = np.random.default_rng(seed)
+    nodes = list(g.nodes())
+    coloring = {n: _MS_COLORS[i % 3] for i, n in enumerate(nodes)}
+    stats, nc = col._calculate_statistics(g, coloring)
+    for _ in range(steps):
+        a, b = rng.choice(len(nodes), 2, replace=False)
+        n1, n2 = nodes[a], nodes[b]
+        stats, nc = col._update_statistics_incremental(n1, n2, coloring, stats, nc)
+        coloring[n1], coloring[n2] = coloring[n2], coloring[n1]
+    full, _ = col._calculate_statistics(g, coloring)
+    ci, cf = col._calculate_cost(stats), col._calculate_cost(full)
+    assert abs(ci - cf) <= 1e-6 * max(1.0, abs(cf))
+    return stats, full
+
+
+def test_multiscale_incremental_matches_full():
+    g, stats = _ms_targets()
+    col = GraphColorizer(target_graph=g, colors=_MS_COLORS, target_statistics=stats, seed=1)
+    assert 'spatial_composition_scales' not in col.target_stats
+    inc, full = _random_walk_check(col, g)
+    assert len(inc['scale_sse']) == 3
+    for a, b in zip(inc['scale_sse'], full['scale_sse']):
+        assert abs(a - b) <= 1e-6 * max(1.0, abs(b))
+    assert col.cost_terms(full)['spatial_scales'] > 0
+
+
+def test_size_term_incremental_matches_full():
+    g, stats = _ms_targets(size=True)
+    col = GraphColorizer(target_graph=g, colors=_MS_COLORS, target_statistics=stats, seed=1)
+    assert 'size_compatibility' not in col.target_stats
+    inc, full = _random_walk_check(col, g)
+    assert abs(inc['size_nll'] - full['size_nll']) <= 1e-6 * abs(full['size_nll'])
+    assert 'size' in col.cost_terms(full)
+
+
+def test_duplicating_scale_does_not_change_cost():
+    g, stats = _ms_targets(nscales=1)
+    col1 = GraphColorizer(target_graph=g, colors=_MS_COLORS, target_statistics=stats, seed=1)
+    dup = dict(stats)
+    dup['spatial_composition_scales'] = stats['spatial_composition_scales'] * 2
+    col2 = GraphColorizer(target_graph=g, colors=_MS_COLORS, target_statistics=dup, seed=1)
+    coloring = {n: _MS_COLORS[i % 3] for i, n in enumerate(g.nodes())}
+    c1 = col1._calculate_cost(col1._calculate_statistics(g, coloring)[0])
+    c2 = col2._calculate_cost(col2._calculate_statistics(g, coloring)[0])
+    assert abs(c1 - c2) < 1e-9
+
+
+def test_single_scale_matches_legacy_normalization():
+    g, stats = _ms_targets(nscales=1)
+    sc = stats['spatial_composition_scales'][0]
+    legacy = {k: v for k, v in stats.items() if k != 'spatial_composition_scales'}
+    legacy['spatial_composition'] = {
+        'node_bin': sc['node_bin'], 'expected': sc['expected'],
+        'weight': sc['weight'] / np.mean([sum(v.values()) for v in sc['expected'].values()])}
+    cl = GraphColorizer(target_graph=g, colors=_MS_COLORS, target_statistics=legacy, seed=1)
+    cs = GraphColorizer(target_graph=g, colors=_MS_COLORS, target_statistics=stats, seed=1)
+    coloring = {n: _MS_COLORS[i % 3] for i, n in enumerate(g.nodes())}
+    a = cl._calculate_cost(cl._calculate_statistics(g, coloring)[0])
+    b = cs._calculate_cost(cs._calculate_statistics(g, coloring)[0])
+    assert abs(a - b) < 1e-9
+
+
+def test_empty_new_keys_identical_to_absent():
+    g, stats = _ms_targets(nscales=0)
+    base = GraphColorizer(target_graph=g.copy(), colors=_MS_COLORS,
+                          target_statistics=dict(stats), seed=4)
+    empty_stats = dict(stats, spatial_composition_scales=[])
+    empty = GraphColorizer(target_graph=g.copy(), colors=_MS_COLORS,
+                           target_statistics=empty_stats, seed=4)
+    kw = dict(max_iterations=800, verbose=False)
+    assert base.colorize(**kw) == empty.colorize(**kw)
+
+
+def test_size_term_prefers_consistent_radii():
+    rng = np.random.default_rng(0)
+    n = 120
+    radii = {i: (6.0 if i < 40 else 3.0) for i in range(n)}
+    g = nx.gnp_random_graph(n, 0.05, seed=2)
+    nll = {i: ({'big': 0.0, 'small': 5.0} if radii[i] == 6.0
+               else {'big': 5.0, 'small': 0.0}) for i in range(n)}
+    stats = {'node_counts': {'big': 40, 'small': 80},
+             'edge_counts': {}, 'neighbor_dist': {},
+             'size_compatibility': {'nll': nll, 'weight': 1.0}}
+    col = GraphColorizer(target_graph=g, colors=['big', 'small'],
+                         target_statistics=stats, seed=0)
+    out = col.colorize(max_iterations=8000, initial_temp=1.0, cooling_rate=0.999, final_temp=0.01, verbose=False)
+    large = [i for i in range(n) if radii[i] == 6.0]
+    assert sum(out[i] == 'big' for i in large) >= 0.9 * len(large)

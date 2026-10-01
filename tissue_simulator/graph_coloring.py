@@ -97,6 +97,37 @@ class GraphColorizer:
         else:
             raise ValueError("Either source_graph or target_statistics must be provided.")
         
+        # Optional multi-scale composition and size-compatibility targets
+        # (adaptive density-aware replicates). Stripped from target_stats.
+        extra = target_statistics or {}
+        scales = extra.get('spatial_composition_scales')
+        size = extra.get('size_compatibility')
+        self._scales = []
+        for sc in (scales or []):
+            expected = {b: dict(v) for b, v in sc['expected'].items()}
+            totals = [sum(v.values()) for v in expected.values()]
+            mean_k = (sum(totals) / len(totals)) if totals else 0.0
+            if mean_k <= 0:
+                mean_k = 1.0
+            self._scales.append({
+                'node_bin': dict(sc['node_bin']),
+                'expected': expected,
+                'weight': float(sc.get('weight', 1.0)),
+                'mean': mean_k,
+            })
+        K = len(self._scales)
+        # Total penalty = weight * (1/K) * sum_k SSE_k / mean_k, with the
+        # per-scale weight multiplying its own term.
+        for sc in self._scales:
+            sc['coef'] = sc['weight'] / (K * sc['mean'])
+        self._size_nll = ({n: dict(v) for n, v in size['nll'].items()}
+                          if size else None)
+        self._size_weight = float(size.get('weight', 1.0)) if size else 0.0
+        if scales is not None or size is not None:
+            self.target_stats = {k: v for k, v in self.target_stats.items()
+                                 if k not in ('spatial_composition_scales',
+                                              'size_compatibility')}
+
         print("Target Statistics:", self.target_stats)
         
         # Internal state for incremental updates
@@ -159,6 +190,29 @@ class GraphColorizer:
             stats['bin_counts'] = bin_counts
             stats['spatial_sse'] = self._spatial_sse(bin_counts)
 
+        if self._scales:
+            scale_counts, scale_sse = [], []
+            for sc in self._scales:
+                bc = {}
+                for node in graph.nodes():
+                    color = coloring.get(node)
+                    b = sc['node_bin'].get(node)
+                    if color and b is not None:
+                        counts = bc.setdefault(b, {})
+                        counts[color] = counts.get(color, 0) + 1
+                scale_counts.append(bc)
+                scale_sse.append(self._scale_sse(sc, bc))
+            stats['scale_bin_counts'] = scale_counts
+            stats['scale_sse'] = scale_sse
+
+        if self._size_nll is not None:
+            total = 0.0
+            for node in graph.nodes():
+                color = coloring.get(node)
+                if color:
+                    total += self._size_nll.get(node, {}).get(color, 0.0)
+            stats['size_nll'] = total
+
         return stats, neighbor_counts
 
     def _update_statistics_incremental(self, node1, node2, current_coloring, stats, neighbor_counts):
@@ -186,6 +240,11 @@ class GraphColorizer:
         if 'bin_counts' in stats:
             new_stats['bin_counts'] = stats['bin_counts']
             new_stats['spatial_sse'] = stats['spatial_sse']
+        if 'scale_bin_counts' in stats:
+            new_stats['scale_bin_counts'] = stats['scale_bin_counts']
+            new_stats['scale_sse'] = stats['scale_sse']
+        if 'size_nll' in stats:
+            new_stats['size_nll'] = stats['size_nll']
 
         # Deep copy neighbor counts
         new_neighbor_counts = defaultdict(lambda: defaultdict(int))
@@ -250,6 +309,14 @@ class GraphColorizer:
 
         if 'bin_counts' in stats:
             self._swap_bin_counts(node1, node2, c1_old, c2_old, new_stats)
+        if 'scale_bin_counts' in stats:
+            self._swap_scale_counts(node1, node2, c1_old, c2_old, new_stats)
+        if 'size_nll' in stats:
+            nll = self._size_nll
+            n1, n2 = nll.get(node1, {}), nll.get(node2, {})
+            new_stats['size_nll'] = (stats['size_nll']
+                                     + n1.get(c2_old, 0.0) - n1.get(c1_old, 0.0)
+                                     + n2.get(c1_old, 0.0) - n2.get(c2_old, 0.0))
                     
         return new_stats, new_neighbor_counts
 
@@ -273,7 +340,51 @@ class GraphColorizer:
         if self._spatial_weight and 'spatial_sse' in current_stats:
             cost += self._spatial_weight * current_stats['spatial_sse']
 
+        if self._scales and 'scale_sse' in current_stats:
+            for sc, sse in zip(self._scales, current_stats['scale_sse']):
+                cost += sc['coef'] * sse
+
+        if self._size_nll is not None and 'size_nll' in current_stats:
+            cost += self._size_weight * current_stats['size_nll']
+
         return cost
+
+    @staticmethod
+    def _scale_sse(sc: dict, bin_counts: dict) -> float:
+        """Squared error of per-bin color counts against one scale's target."""
+        sse = 0.0
+        expected_bins = sc['expected']
+        for b in sorted(set(expected_bins) | set(bin_counts), key=repr):
+            expected = expected_bins.get(b, {})
+            counts = bin_counts.get(b, {})
+            for color in sorted(set(expected) | set(counts)):
+                sse += (counts.get(color, 0) - expected.get(color, 0.0)) ** 2
+        return sse
+
+    def _swap_scale_counts(self, node1, node2, c1_old, c2_old, new_stats: dict) -> None:
+        """O(1) per-scale bin-count / SSE update for a label swap."""
+        all_counts = list(new_stats['scale_bin_counts'])
+        all_sse = list(new_stats['scale_sse'])
+        for k, sc in enumerate(self._scales):
+            b1, b2 = sc['node_bin'].get(node1), sc['node_bin'].get(node2)
+            if b1 == b2:
+                continue
+            bin_counts = dict(all_counts[k])
+            sse = all_sse[k]
+            for b, leaving, arriving in ((b1, c1_old, c2_old), (b2, c2_old, c1_old)):
+                if b is None:
+                    continue
+                counts = dict(bin_counts.get(b, {}))
+                expected = sc['expected'].get(b, {})
+                for color, delta in ((leaving, -1), (arriving, 1)):
+                    n = counts.get(color, 0)
+                    sse += 2 * delta * (n - expected.get(color, 0.0)) + 1
+                    counts[color] = n + delta
+                bin_counts[b] = counts
+            all_counts[k] = bin_counts
+            all_sse[k] = sse
+        new_stats['scale_bin_counts'] = all_counts
+        new_stats['scale_sse'] = all_sse
         
     def _spatial_sse(self, bin_counts: dict) -> float:
         """Squared error of per-bin color counts against the spatial target."""
@@ -309,15 +420,25 @@ class GraphColorizer:
         """Unweighted squared-error components of the cost for ``stats``.
 
         Keys: ``edge`` (edge counts), ``neighbor`` (mean neighbor counts) and
-        ``spatial`` (per-bin color counts; 0 without a spatial target).
+        ``spatial`` (per-bin color counts; 0 without a spatial target). With
+        multi-scale / size targets, also ``spatial_scales`` (already weighted
+        and normalized) and ``size`` (summed NLL, unweighted).
         """
         edge = sum((stats['edge_counts'].get(key, 0) - target) ** 2
                    for key, target in self.target_stats['edge_counts'].items())
         neighbor = sum((stats['neighbor_dist'].get(c1, {}).get(c2, 0) - target) ** 2
                        for c1, dist in self.target_stats['neighbor_dist'].items()
                        for c2, target in dist.items())
-        return {'edge': float(edge), 'neighbor': float(neighbor),
-                'spatial': float(stats.get('spatial_sse', 0.0))}
+        terms = {'edge': float(edge), 'neighbor': float(neighbor),
+                 'spatial': float(stats.get('spatial_sse', 0.0))}
+        if self._scales:
+            # Normalized, weighted multi-scale penalty (same units as cost).
+            terms['spatial_scales'] = float(sum(
+                sc['coef'] * sse for sc, sse in
+                zip(self._scales, stats.get('scale_sse', []))))
+        if self._size_nll is not None:
+            terms['size'] = float(stats.get('size_nll', 0.0))
+        return terms
 
     def colorize(self, initial_temp=100.0, final_temp=0.1, cooling_rate=0.995,
                  max_iterations=100000, verbose=True,
