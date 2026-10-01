@@ -1162,7 +1162,7 @@ class DensityModel:
             return self._copy_layout(width, height)
         # Radial geometry is not organized yet (falls back to plain resampling).
         if (self.strategy == "adaptive" and self.organization.get("model", "none") != "none"
-                and self.organization.get("geometry") == "planar"):
+                and self.organization.get("geometry") in ("planar", "radial")):
             return self._organized_layout(rng, width, height, max_proposals)
         return self._resampled_layout(rng, width, height)
 
@@ -1254,10 +1254,12 @@ class DensityModel:
         proposal is used, flagged ``organization_unsatisfied`` and warned.
         """
         org = self.organization
-        if org.get("geometry") != "planar":
-            raise NotImplementedError(
-                "Organized layouts for radial geometry are not implemented yet.")
-        theta0 = _organization.sample_direction(rng)
+        radial = org.get("geometry") == "radial"
+        if radial:
+            shape0 = _grid_shape(width, height, self.grid_step)
+            theta0 = _organization.sample_center(rng, shape0, self.grid_step)
+        else:
+            theta0 = _organization.sample_direction(rng)
         intensity, compartment, band, n_target = self._residual_maps(rng, width, height)
         resid_comp = np.moveaxis(self.band_composition[compartment, band], -1, 0)
         intensity, composition, info = _organization.propose_layout(
@@ -1266,16 +1268,17 @@ class DensityModel:
         out = self._layout(width, height, intensity, composition, compartment,
                            n_target, "resample")
         theta = info["theta"]
+        geom = ({"center": [float(theta[0]), float(theta[1])]} if radial else
+                {"direction": [math.cos(theta), math.sin(theta)], "theta": theta})
         out.organization = {
-            "model": org["model"], "geometry": org["geometry"],
-            "direction": [math.cos(theta), math.sin(theta)], "theta": theta,
+            "model": org["model"], "geometry": org["geometry"], **geom,
             "proposals_tried": info["proposals_tried"], "accepted": info["accepted"],
             "fallback": info["fallback"],
         }
         if not info["accepted"]:
             out.flags = tuple(out.flags) + ("organization_unsatisfied",)
             warnings.warn(
-                f"No direction in {info['proposals_tried']} proposals met the window coverage "
+                f"No direction/center in {info['proposals_tried']} proposals met the window coverage "
                 "and composition criteria; using the best-coverage proposal.", stacklevel=3)
         return out
 

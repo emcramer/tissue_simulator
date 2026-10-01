@@ -490,3 +490,67 @@ def test_organized_layout_unsatisfied_on_narrow_window(layered_model):
     assert lay.organization["fallback"] == "best_of_proposals"
     assert "organization_unsatisfied" in lay.flags
     assert np.all(np.isfinite(lay.intensity))
+
+
+# -- radial organized layouts --------------------------------------------------
+
+def _concentric_region(seed=0, size=200.0):
+    """Core A (r<30), ring B (30-60), periphery C around the window centre."""
+    cells = SpherePacker((size, size, 0.0), {'c': (2.3, 3.0)}, min_spacing=0.3,
+                         seed=seed).pack(max_attempts=400)
+    xy = np.array([c.center[:2] for c in cells])
+    r = np.array([c.radius for c in cells])
+    rng = np.random.default_rng(seed)
+    d = np.linalg.norm(xy - size / 2, axis=1)
+    ring = np.where(d < 30, 0, np.where(d < 60, 1, 2))
+    pure = rng.random(len(r)) < 0.9
+    types = np.where(pure, np.array(['A', 'B', 'C'])[ring], rng.choice(['A', 'B', 'C'], len(r)))
+    return xy[:, 0], xy[:, 1], r, types
+
+
+@pytest.fixture(scope="module")
+def concentric_model():
+    x, y, r, t = _concentric_region(2)
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 200, 200), strategy="adaptive",
+                            n_compartments=1, seed=0)
+
+
+def test_radial_organized_layouts(concentric_model):
+    model = concentric_model
+    assert model.organization["model"].startswith("radial_")
+    centers = []
+    for seed in range(3):
+        lay = model.sample_layout(rng=seed)
+        org = lay.organization
+        assert org["accepted"] is True and org["fallback"] is None
+        assert org["geometry"] == "radial"
+        c = np.array(org["center"])
+        centers.append(c)
+        ny, nx = lay.intensity.shape
+        yy, xx = np.meshgrid((np.arange(ny) + .5) * lay.grid_step,
+                             (np.arange(nx) + .5) * lay.grid_step, indexing="ij")
+        dist = np.hypot(xx - c[0], yy - c[1])
+        mean_d = []
+        for t in range(3):
+            w = lay.intensity * lay.composition[t]
+            mean_d.append((w * dist).sum() / w.sum())
+        assert mean_d[0] < mean_d[1] < mean_d[2]
+        w = (lay.composition * lay.intensity).sum(axis=(1, 2))
+        np.testing.assert_allclose(w / w.sum(), model.proportions, rtol=0.15)
+    for i in range(3):
+        for j in range(i + 1, 3):
+            assert np.linalg.norm(centers[i] - centers[j]) > 15.0
+
+
+def test_ambiguous_control_not_radial():
+    rng = np.random.default_rng(3)
+    xy, r = _rsa_points(1, 150)
+    d = np.linalg.norm(xy - np.array([150.0, 150.0]), axis=1)
+    keep = rng.random(len(r)) < (0.65 + 0.35 * np.exp(-(d / 60.0) ** 2))
+    types = rng.choice(['A', 'B', 'C'], keep.sum())
+    model = DensityModel.fit(xy[keep, 0], xy[keep, 1], r[keep], types,
+                             bounds=(0, 0, SIZE, SIZE), strategy="adaptive", seed=0)
+    org = model.organization
+    assert not org["model"].startswith("radial_")
+    assert org.get("weak_candidate") is None or isinstance(org.get("weak_candidate"), (dict, str))
+    model.sample_layout(rng=0)

@@ -491,11 +491,52 @@ PROPORTION_ABS_TOL = 0.02      # accepted |p'_t - p_t| floor (absolute)
 PROPORTION_REL_TOL = 0.15      # accepted |p'_t - p_t| <= max(abs, rel * p_t)
 DEFAULT_MAX_PROPOSALS = 20     # direction re-draws before the best-coverage fallback
 _LOG_FLOOR = 1e-12             # floor before taking logs of residual maps
+CENTER_MARGIN = 0.10           # radial centers are drawn from the window shrunk by this fraction per side
 
 
 def sample_direction(rng: np.random.Generator) -> float:
     """Draw a planar trend angle ``theta' ~ U(0, 2 pi)`` (one RNG draw)."""
     return float(rng.uniform(0.0, 2.0 * math.pi))
+
+
+def sample_center(rng: np.random.Generator, shape, step: float) -> Tuple[float, float]:
+    """Draw a radial trend centre ``c' ~ U(window shrunk by CENTER_MARGIN per side)``.
+
+    One RNG call (two values), made before the noise fields like the planar angle.
+    """
+    ny, nx = shape
+    w, h = nx * step, ny * step
+    cx, cy = rng.uniform([CENTER_MARGIN * w, CENTER_MARGIN * h],
+                         [(1 - CENTER_MARGIN) * w, (1 - CENTER_MARGIN) * h])
+    return float(cx), float(cy)
+
+
+def _evaluate_on(organization: Dict, s: np.ndarray, shape) -> Tuple[np.ndarray, np.ndarray, float]:
+    dens, comp = profile_along(organization, s.ravel())
+    log_density = np.log(np.maximum(dens, _LOG_FLOOR)).reshape(shape)
+    logits = np.moveaxis(np.log(np.maximum(comp, _LOG_FLOOR)).reshape(shape + (comp.shape[1],)),
+                         -1, 0)
+    knots = np.asarray(organization["s_knots"], dtype=float)
+    span = float(knots[-1] - knots[0])
+    if span <= 0:
+        return log_density, logits, 1.0
+    overlap = min(float(s.max()), knots[-1]) - max(float(s.min()), knots[0])
+    return log_density, logits, float(np.clip(overlap / span, 0.0, 1.0))
+
+
+def evaluate_radial_trend(organization: Dict, center, shape, step: float
+                          ) -> Tuple[np.ndarray, np.ndarray, float]:
+    """Source radial trend around a new centre ``c'`` on a new window.
+
+    ``s' = |p - c'|`` (no offset: radial coordinates are anchored at the centre,
+    so the source ``s`` axis maps directly). Returns the same triple as
+    :func:`evaluate_trend`; coverage is the fraction of the source knot range
+    ``[s_min, s_max]`` represented in the window's range of ``s'``.
+    """
+    ny, nx = shape
+    yy, xx = np.meshgrid((np.arange(ny) + 0.5) * step, (np.arange(nx) + 0.5) * step,
+                         indexing="ij")
+    return _evaluate_on(organization, np.hypot(xx - center[0], yy - center[1]), shape)
 
 
 def evaluate_trend(organization: Dict, theta: float, shape, step: float
@@ -575,26 +616,30 @@ def propose_layout(organization: Dict, theta0: float, rng: np.random.Generator, 
                    step: float,
                    resid_intensity, resid_composition, proportions, n_target: int,
                    max_proposals: int = DEFAULT_MAX_PROPOSALS):
-    """Draw directions until one is accepted (planar geometry).
+    """Draw directions (planar) or centres (radial) until one is accepted.
 
-    ``theta0`` is the first direction, drawn by the caller *before* the noise
-    fields; rejected proposals re-draw only the direction from ``rng`` (the
+    ``theta0`` is the first direction (planar) or centre ``(cx, cy)`` (radial), drawn by the caller *before* the noise
+    fields; rejected proposals re-draw only the direction/centre from ``rng`` (the
     residual maps are reused).
 
     Returns:
-        ``(intensity, composition, info)``; ``info`` has ``theta``,
+        ``(intensity, composition, info)``; ``info`` has ``theta`` (the angle, or the centre for radial),
         ``proposals_tried``, ``accepted``, ``fallback`` (``None`` or
         ``"best_of_proposals"``, the best-coverage proposal then being used).
     """
-    if organization.get("geometry") != "planar":
-        raise NotImplementedError(
-            "Organized layouts for radial geometry are not implemented yet.")
+    radial = organization.get("geometry") != "planar"
     best = None
     tried = 0
     for k in range(max(1, int(max_proposals))):
-        theta = theta0 if k == 0 else sample_direction(rng)
+        if k == 0:
+            theta = theta0
+        else:
+            theta = sample_center(rng, shape, step) if radial else sample_direction(rng)
         tried += 1
-        log_d, logits, coverage = evaluate_trend(organization, theta, shape, step)
+        if radial:
+            log_d, logits, coverage = evaluate_radial_trend(organization, theta, shape, step)
+        else:
+            log_d, logits, coverage = evaluate_trend(organization, theta, shape, step)
         intensity, composition = combine_trend(log_d, logits, resid_intensity,
                                                resid_composition, proportions, n_target, step)
         ok = accept_proposal(coverage, expected_proportions(intensity, composition),
