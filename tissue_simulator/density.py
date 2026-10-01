@@ -48,6 +48,8 @@ from scipy import ndimage, special
 from scipy.spatial import cKDTree
 from scipy.stats import rankdata
 
+from . import _organization
+
 _QUANTILE_LEVELS = np.linspace(0.0, 1.0, 201)
 _N_RADIUS_BINS = 5
 _TREND_R2_LIMIT = 0.3
@@ -58,6 +60,27 @@ _CALIBRATION_REPEATS = 2
 # profile density and composition near boundaries (margins, invasive fronts).
 _BAND_EDGES_UM = (10.0, 20.0, 40.0)
 _MIN_BAND_CELLS = 10
+
+# Adaptive-strategy criteria (all deterministic, RNG-free).
+# Per-type bandwidths: a type with fewer than _TYPE_BW_MIN_CELLS cells, or whose
+# cross-validated likelihood gain over the pooled bandwidth is below
+# _TYPE_BW_MIN_GAIN nats, keeps the pooled bandwidth ("pooled_fallback");
+# otherwise log h_t = (n_t log h_cv + m log h_pool) / (n_t + m) with
+# m = _TYPE_BW_SHRINK_M. Evidence is "cv" when n_t / (n_t + m) >= _TYPE_BW_CV_WEIGHT
+# and "shrunk" otherwise.
+_TYPE_BW_MIN_CELLS = 10
+_TYPE_BW_MIN_GAIN = 2.0
+_TYPE_BW_SHRINK_M = 30.0
+_TYPE_BW_CV_WEIGHT = 0.9
+# Size model: Gaussian of log radius per (type, density bin), shrunk toward the
+# type's pooled Gaussian with m = _SIZE_SHRINK_M pseudo-cells; types with fewer
+# than _SIZE_MIN_TYPE_CELLS cells use the pooled-over-types Gaussian.
+_SIZE_SHRINK_M = 20.0
+_SIZE_MIN_TYPE_CELLS = 10
+_MIN_LOG_SIGMA = 0.02
+# Learned band edges: quantiles of the cells' distance to their compartment edge.
+_BAND_EDGE_QUANTILES = (0.25, 0.5, 0.75)
+_DETREND_FLOOR = 1e-3
 
 
 # ---------------------------------------------------------------------------
@@ -123,23 +146,39 @@ def _helmert_basis(n: int) -> np.ndarray:
 # Intensity maps and compartments
 # ---------------------------------------------------------------------------
 
-def _intensity_grids(iy, ix, type_idx, n_types, shape, step, bandwidth, mask):
-    """Edge-corrected Gaussian kernel intensity per type, in cells per µm²."""
+def _intensity_grids(iy, ix, type_idx, n_types, shape, step, bandwidth, mask, weights=None):
+    """Edge-corrected Gaussian kernel intensity per type, in cells per µm².
+
+    ``bandwidth`` is a scalar or one value per type; ``weights`` (per cell,
+    default 1) are used to detrend counts before smoothing.
+    """
+    if np.ndim(bandwidth) > 0:  # one bandwidth per type
+        sigmas = np.asarray(bandwidth, dtype=float) / step
+        edges = {}
+        grids = np.zeros((n_types,) + tuple(shape))
+        for t in range(n_types):
+            sigma = float(sigmas[t])
+            if sigma not in edges:
+                edges[sigma] = np.where(
+                    mask, np.maximum(_smooth(mask.astype(float), sigma), 1e-6), 1.0)
+            counts = np.zeros(shape)
+            sel = type_idx == t
+            np.add.at(counts, (iy[sel], ix[sel]), 1.0 if weights is None else weights[sel])
+            grids[t] = np.where(mask, _smooth(counts, sigma) / edges[sigma], 0.0) / step ** 2
+        return grids
     sigma = bandwidth / step
     edge = np.where(mask, np.maximum(_smooth(mask.astype(float), sigma), 1e-6), 1.0)
     grids = np.zeros((n_types,) + tuple(shape))
     for t in range(n_types):
         counts = np.zeros(shape)
         sel = type_idx == t
-        np.add.at(counts, (iy[sel], ix[sel]), 1.0)
+        np.add.at(counts, (iy[sel], ix[sel]), 1.0 if weights is None else weights[sel])
         grids[t] = np.where(mask, _smooth(counts, sigma) / edge, 0.0) / step ** 2
     return grids
 
 
-def _select_bandwidth(iy, ix, shape, step, mask, bandwidth_range, n_candidates=10):
-    """Likelihood cross-validation bandwidth for the total intensity."""
-    lo, hi = bandwidth_range
-    candidates = np.geomspace(lo, hi, n_candidates)
+def _bandwidth_scores(iy, ix, shape, step, mask, candidates):
+    """Leave-one-out likelihood cross-validation score of each candidate bandwidth."""
     counts = np.zeros(shape)
     np.add.at(counts, (iy, ix), 1.0)
     floor = 1e-3 * iy.size / (mask.sum() * step ** 2)
@@ -155,7 +194,106 @@ def _select_bandwidth(iy, ix, shape, step, mask, bandwidth_range, n_candidates=1
         leave_one_out = (smoothed[iy, ix] - self_weight) / edge[iy, ix] / step ** 2
         integral = (smoothed / edge)[mask].sum()
         scores.append(float(np.log(np.maximum(leave_one_out, floor)).sum() - integral))
-    return float(candidates[int(np.argmax(scores))])
+    return scores
+
+
+def _select_bandwidth(iy, ix, shape, step, mask, bandwidth_range, n_candidates=10):
+    """Likelihood cross-validation bandwidth for the total intensity.
+
+    Returns ``(bandwidth, at_bound)`` where ``at_bound`` is ``"lower"`` or
+    ``"upper"`` when the best candidate is an end of ``bandwidth_range``
+    (the range may be too narrow) and None otherwise.
+    """
+    lo, hi = bandwidth_range
+    candidates = np.geomspace(lo, hi, n_candidates)
+    scores = _bandwidth_scores(iy, ix, shape, step, mask, candidates)
+    best = int(np.argmax(scores))
+    at_bound = "lower" if best == 0 else ("upper" if best == len(scores) - 1 else None)
+    return float(candidates[best]), at_bound
+
+
+def _auto_bandwidth_range(xs, ys, radii, mask, step) -> Tuple[float, float]:
+    """Data-derived bandwidth search range for the adaptive strategy.
+
+    With ``d_nn`` the median nearest-neighbor distance, ``r_med`` the median
+    radius and ``L`` the shorter side of the tissue-mask bounding box:
+    ``lo = max(step, d_nn, 2 r_med)``, ``hi = max(min(L / 3, 20 d_nn), 3 lo)``.
+    """
+    points = np.column_stack([xs, ys])
+    d_nn = float(np.median(cKDTree(points).query(points, k=2)[0][:, 1]))
+    r_med = float(np.median(radii))
+    rows, cols = np.nonzero(mask)
+    side = min((np.ptp(rows) + 1), (np.ptp(cols) + 1)) * step
+    lo = max(float(step), d_nn, 2.0 * r_med)
+    hi = max(min(side / 3.0, 20.0 * d_nn), 3.0 * lo)
+    return float(lo), float(hi)
+
+
+def _type_bandwidths(iy, ix, type_idx, n_types, shape, step, mask, bandwidth_range,
+                     h_pool, n_candidates=10):
+    """Regularized per-type bandwidths and the evidence behind each.
+
+    Returns ``(array (T,), evidence list)``; see the ``_TYPE_BW_*`` constants.
+    """
+    lo, hi = bandwidth_range
+    grid = list(np.geomspace(lo, hi, n_candidates))
+    candidates = np.array(grid + [h_pool])
+    out = np.full(n_types, float(h_pool))
+    evidence = []
+    for t in range(n_types):
+        sel = type_idx == t
+        n_t = int(sel.sum())
+        if n_t < _TYPE_BW_MIN_CELLS:
+            evidence.append("pooled_fallback")
+            continue
+        scores = np.array(_bandwidth_scores(iy[sel], ix[sel], shape, step, mask, candidates))
+        best = int(np.argmax(scores[:-1]))
+        if scores[best] - scores[-1] < _TYPE_BW_MIN_GAIN:
+            evidence.append("pooled_fallback")
+            continue
+        w = n_t / (n_t + _TYPE_BW_SHRINK_M)
+        out[t] = float(np.clip(np.exp(w * math.log(candidates[best])
+                                      + (1.0 - w) * math.log(h_pool)), lo, hi))
+        evidence.append("cv" if w >= _TYPE_BW_CV_WEIGHT else "shrunk")
+    return out, evidence
+
+
+def _size_model(radii, type_idx, n_types, bins, n_bins):
+    """Gaussian of log radius per (type, density bin), shrunk toward the type's pooled fit.
+
+    ``bins`` is each cell's density bin (the same bins as the radius marks).
+    Shrinkage adds ``_SIZE_SHRINK_M`` pseudo-cells of the type-level mean and
+    variance; types with fewer than ``_SIZE_MIN_TYPE_CELLS`` cells use the
+    all-cell fit (per bin, shrunk to the all-cell pooled fit). Returns
+    ``(mu (T, B), sigma (T, B), fallback type indices)``. RNG-free.
+    """
+    logr = np.log(np.maximum(np.asarray(radii, dtype=float), 1e-6))
+    m = _SIZE_SHRINK_M
+
+    def fit(x, b):
+        mu0 = float(x.mean())
+        var0 = float(x.var())
+        mu = np.full(n_bins, mu0)
+        var = np.full(n_bins, var0)
+        for k in range(n_bins):
+            xb = x[b == k]
+            if xb.size:
+                mu[k] = (xb.sum() + m * mu0) / (xb.size + m)
+                var[k] = (xb.size * float(xb.var()) + m * var0) / (xb.size + m)
+        return mu, np.sqrt(np.maximum(var, _MIN_LOG_SIGMA ** 2))
+
+    all_mu, all_sigma = fit(logr, bins)
+    mu_out = np.zeros((n_types, n_bins))
+    sigma_out = np.zeros((n_types, n_bins))
+    fallbacks = []
+    for t in range(n_types):
+        sel = type_idx == t
+        if sel.sum() < _SIZE_MIN_TYPE_CELLS:
+            mu_out[t], sigma_out[t] = all_mu, all_sigma
+            fallbacks.append(t)
+        else:
+            mu_out[t], sigma_out[t] = fit(logr[sel], bins[sel])
+    return mu_out, sigma_out, fallbacks
 
 
 def _layout_features(lam_types: np.ndarray, mask: np.ndarray):
@@ -247,19 +385,41 @@ def _assign_compartments(points: np.ndarray, centers: np.ndarray,
         counts[j] += n_move
 
 
-def _band_index(labels: np.ndarray, step: float) -> np.ndarray:
+def _band_index(labels: np.ndarray, step: float, edges=_BAND_EDGES_UM) -> np.ndarray:
     """Distance band of each pixel from the edge of its own compartment (-1: no tissue).
 
     Band ``b`` holds pixels whose distance to the nearest pixel of another
-    compartment (or of no tissue) is at most ``_BAND_EDGES_UM[b]``; the last
-    band is the interior. Window edges do not count as compartment edges.
+    compartment (or of no tissue) is at most ``edges[b]`` (default
+    ``_BAND_EDGES_UM``); the last band is the interior. Window edges do not
+    count as compartment edges.
     """
     band = np.full(labels.shape, -1, dtype=int)
     for c in np.unique(labels[labels >= 0]):
         inside = labels == c
         distance = ndimage.distance_transform_edt(inside) * step
-        band[inside] = np.searchsorted(_BAND_EDGES_UM, distance[inside], side='left')
+        band[inside] = np.searchsorted(edges, distance[inside], side='left')
     return band
+
+
+def _edge_distance_map(labels: np.ndarray, step: float) -> np.ndarray:
+    """Distance (µm) of each tissue pixel to the edge of its compartment (0 elsewhere)."""
+    out = np.zeros(labels.shape)
+    for c in np.unique(labels[labels >= 0]):
+        inside = labels == c
+        out[inside] = (ndimage.distance_transform_edt(inside) * step)[inside]
+    return out
+
+
+def _learned_band_edges(distances: np.ndarray, step: float, patch_length: float) -> Tuple[float, ...]:
+    """Band edges from quantiles 0.25/0.5/0.75 of cell-to-compartment-edge distance.
+
+    Clipped to ``[step, max(patch_length, step)]``, rounded to the grid and
+    deduplicated.
+    """
+    q = np.quantile(distances, _BAND_EDGE_QUANTILES)
+    q = np.clip(q, step, max(patch_length, step))
+    q = np.maximum(np.round(q / step) * step, step)
+    return tuple(float(v) for v in np.unique(q))
 
 
 # ---------------------------------------------------------------------------
@@ -486,6 +646,22 @@ class DensityModel:
             heterogeneous than a uniform packing; layouts are then uniform.
         flags: ``"trend"``, ``"patch_length_at_upper_bound"`` (both mean the
             region may not be stationary) or ``"patch_length_at_lower_bound"``.
+            Adaptive fits may add ``"bandwidth_at_lower_bound"``,
+            ``"bandwidth_at_upper_bound"`` and ``"organization:<model>"``.
+        strategy: ``"legacy"`` or ``"adaptive"`` (how the model was fitted).
+        type_bandwidths: Per-type kernel bandwidths (µm); all equal to
+            ``bandwidth`` unless fitted adaptively.
+        band_edges: Distance-band edges (µm) from the compartment edge;
+            ``(10, 20, 40)`` unless learned (adaptive).
+        size_log_mu, size_log_sigma: Mean and standard deviation of log radius
+            per (type, density bin of ``marks.density_edges``), shrunk toward
+            the type-level fit.
+        estimation: Estimation metadata (bandwidth range and whether the best
+            candidate sat at its bound, per-type bandwidth evidence, type
+            counts, size-model fallbacks).
+        organization: Selected spatial trend model (see
+            :mod:`tissue_simulator._organization`); ``{"model": "none"}`` when
+            none was fitted or accepted.
     """
     width: float
     height: float
@@ -514,6 +690,13 @@ class DensityModel:
     flags: Tuple[str, ...] = ()
     homogeneous: bool = False
     heterogeneity: Dict[str, float] = field(default_factory=dict)
+    strategy: str = "legacy"
+    type_bandwidths: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    band_edges: Tuple[float, ...] = _BAND_EDGES_UM
+    size_log_mu: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))
+    size_log_sigma: np.ndarray = field(default_factory=lambda: np.zeros((0, 0)))
+    estimation: Dict = field(default_factory=dict)
+    organization: Dict = field(default_factory=lambda: {"model": "none"})
 
     # -- construction -------------------------------------------------------
 
@@ -523,13 +706,17 @@ class DensityModel:
             bounds: Optional[Tuple[float, float, float, float]] = None,
             mask: Optional[np.ndarray] = None,
             bandwidth: Optional[float] = None,
-            bandwidth_range: Tuple[float, float] = (15.0, 80.0),
+            bandwidth_range=None,
             grid_step: float = 5.0,
             n_compartments: int = 3,
             patch_prior: Optional[Dict[str, float]] = None,
             n_null: int = 19,
             alpha: float = 0.05,
-            seed=None) -> 'DensityModel':
+            seed=None,
+            *,
+            strategy: str = "legacy",
+            per_type_bandwidth: Optional[bool] = None,
+            organization: Optional[bool] = None) -> 'DensityModel':
         """Fit a density model to a 2D point pattern of cells.
 
         Args:
@@ -544,6 +731,9 @@ class DensityModel:
                 they are excluded from every estimate.
             bandwidth: Kernel standard deviation in µm; chosen by likelihood
                 cross-validation within ``bandwidth_range`` when None.
+            bandwidth_range: ``(lo, hi)`` search range in µm, ``"auto"`` for a
+                data-derived range, or None (default): ``(15, 80)`` under the
+                legacy strategy, auto-derived under ``"adaptive"``.
             grid_step: Pixel size of the maps in µm.
             n_compartments: Number of compartments (k-means clusters on log
                 density and the leading composition axis).
@@ -554,7 +744,23 @@ class DensityModel:
                 heterogeneous at all. 0 skips the test.
             alpha: Significance level of that test.
             seed: Seed for k-means, calibration and the heterogeneity test.
+            strategy: ``"legacy"`` (default; results are unchanged from earlier
+                versions) or ``"adaptive"``, which turns on per-type
+                bandwidths, trend (organization) selection with detrending,
+                and learned boundary bands. The size model and estimation
+                metadata are filled in both strategies.
+            per_type_bandwidth: Regularized per-type bandwidths; defaults to
+                ``strategy == "adaptive"``.
+            organization: Fit a planar/radial trend model and detrend before
+                compartments; defaults to ``strategy == "adaptive"``. The
+                result is stored in :attr:`organization` and ignored by layouts
+                of homogeneous models.
         """
+        if strategy not in ("legacy", "adaptive"):
+            raise ValueError(f"strategy must be 'legacy' or 'adaptive', got {strategy!r}.")
+        adaptive = strategy == "adaptive"
+        use_per_type = adaptive if per_type_bandwidth is None else bool(per_type_bandwidth)
+        use_org = adaptive if organization is None else bool(organization)
         xs = np.asarray(x, dtype=float)
         ys = np.asarray(y, dtype=float)
         radii = np.asarray(radius, dtype=float)
@@ -594,13 +800,58 @@ class DensityModel:
         n_types = len(cell_types)
         rng = _as_generator(seed)
 
+        if bandwidth_range is None:
+            range_source = "auto" if adaptive else "legacy_default"
+            bandwidth_range = (_auto_bandwidth_range(xs, ys, radii, mask, grid_step)
+                               if adaptive else (15.0, 80.0))
+        elif isinstance(bandwidth_range, str):
+            if bandwidth_range != "auto":
+                raise ValueError(f"bandwidth_range must be None, 'auto' or (lo, hi), "
+                                 f"got {bandwidth_range!r}.")
+            range_source = "auto"
+            bandwidth_range = _auto_bandwidth_range(xs, ys, radii, mask, grid_step)
+        else:
+            range_source = "user"
+        bandwidth_range = (float(bandwidth_range[0]), float(bandwidth_range[1]))
+        at_bound = None
         if bandwidth is None:
-            bandwidth = _select_bandwidth(iy, ix, shape, grid_step, mask, bandwidth_range)
+            bandwidth, at_bound = _select_bandwidth(iy, ix, shape, grid_step, mask,
+                                                    bandwidth_range)
+            bandwidth_source = "cv"
+        else:
+            bandwidth_source = "user"
         bandwidth = float(bandwidth)
-        lam_types = _intensity_grids(iy, ix, type_idx, n_types, shape, grid_step,
-                                     bandwidth, mask)
-        lam_total = lam_types.sum(axis=0)
+        type_bw = np.full(n_types, bandwidth)
+        bw_evidence = None
+        if use_per_type and bandwidth_source == "cv":
+            type_bw, bw_evidence = _type_bandwidths(iy, ix, type_idx, n_types, shape,
+                                                    grid_step, mask, bandwidth_range, bandwidth)
         proportions = np.bincount(type_idx, minlength=n_types) / type_idx.size
+
+        # Spatial trend (adaptive): select a planar/radial model and detrend by
+        # weighting cells with the inverse trend before smoothing and counting,
+        # so that compartments, bands and patch structure describe the residual
+        # organization. RNG-free.
+        org = {"model": "none"}
+        weights = None
+        trend_factor = None
+        if use_org:
+            org = _organization.fit_organization(xs, ys, type_idx, n_types, mask,
+                                                 grid_step, width, height)
+            if org["model"] != "none":
+                dens_map, comp_map = _organization.source_trend_maps(org, shape, grid_step)
+                trend_factor = np.maximum(dens_map[None] * comp_map / proportions[:, None, None],
+                                          _DETREND_FLOOR)
+                dens_c, comp_c = _organization.profile_along(
+                    org, _organization.coordinate_along(org, xs, ys))
+                weights = 1.0 / np.maximum(
+                    dens_c * comp_c[np.arange(xs.size), type_idx] / proportions[type_idx],
+                    _DETREND_FLOOR)
+                weights = weights * (weights.size / weights.sum())
+        lam_types = _intensity_grids(iy, ix, type_idx, n_types, shape, grid_step,
+                                     bandwidth if bw_evidence is None else type_bw, mask,
+                                     weights)
+        lam_total = lam_types.sum(axis=0)
 
         # Compartments: k-means on per-type intensities, which are linear in
         # cell counts, so splits fall midway between compartments on their
@@ -638,8 +889,14 @@ class DensityModel:
             in_c = cell_compartment == c
             smoothed = lam_total[sel]
             if in_c.any() and smoothed.mean() > 0:
-                factor = (in_c.sum() / (sel.sum() * grid_step ** 2)) / smoothed.mean()
-                composition[c] = np.bincount(type_idx[in_c], minlength=n_types) / in_c.sum()
+                if weights is None:
+                    factor = (in_c.sum() / (sel.sum() * grid_step ** 2)) / smoothed.mean()
+                    composition[c] = np.bincount(type_idx[in_c], minlength=n_types) / in_c.sum()
+                else:
+                    wc = weights[in_c]
+                    factor = (wc.sum() / (sel.sum() * grid_step ** 2)) / smoothed.mean()
+                    composition[c] = np.bincount(type_idx[in_c], weights=wc,
+                                                 minlength=n_types) / wc.sum()
             else:
                 factor = 0.0
                 composition[c] = proportions
@@ -650,22 +907,33 @@ class DensityModel:
         # Boundary profiles: density and composition by distance to the
         # compartment edge, again counted from cells (falls back to the
         # compartment's values where a band holds too few cells).
-        band = _band_index(region_compartments, grid_step)
-        cell_band = band[iy, ix]
-        n_bands = len(_BAND_EDGES_UM) + 1
-        band_quantiles = np.repeat(density_quantiles[:, None, :], n_bands, axis=1)
-        band_composition = np.repeat(composition[:, None, :], n_bands, axis=1)
-        for c in range(k):
-            for b in range(n_bands):
-                sel = (region_compartments == c) & (band == b)
-                in_cb = (cell_compartment == c) & (cell_band == b)
-                smoothed = lam_total[sel]
-                if in_cb.sum() < _MIN_BAND_CELLS or smoothed.mean() <= 0:
-                    continue
-                band_density = in_cb.sum() / (sel.sum() * grid_step ** 2)
-                band_quantiles[c, b] = np.quantile(smoothed * (band_density / smoothed.mean()),
-                                                   _QUANTILE_LEVELS)
-                band_composition[c, b] = np.bincount(type_idx[in_cb], minlength=n_types) / in_cb.sum()
+        def band_stats(edges):
+            band = _band_index(region_compartments, grid_step, edges)
+            cell_band = band[iy, ix]
+            n_bands = len(edges) + 1
+            band_quantiles = np.repeat(density_quantiles[:, None, :], n_bands, axis=1)
+            band_composition = np.repeat(composition[:, None, :], n_bands, axis=1)
+            for c in range(k):
+                for b in range(n_bands):
+                    sel = (region_compartments == c) & (band == b)
+                    in_cb = (cell_compartment == c) & (cell_band == b)
+                    smoothed = lam_total[sel]
+                    if in_cb.sum() < _MIN_BAND_CELLS or smoothed.mean() <= 0:
+                        continue
+                    if weights is None:
+                        band_density = in_cb.sum() / (sel.sum() * grid_step ** 2)
+                        band_comp = np.bincount(type_idx[in_cb], minlength=n_types) / in_cb.sum()
+                    else:
+                        wb = weights[in_cb]
+                        band_density = wb.sum() / (sel.sum() * grid_step ** 2)
+                        band_comp = np.bincount(type_idx[in_cb], weights=wb,
+                                                minlength=n_types) / wb.sum()
+                    band_quantiles[c, b] = np.quantile(
+                        smoothed * (band_density / smoothed.mean()), _QUANTILE_LEVELS)
+                    band_composition[c, b] = band_comp
+            return band_quantiles, band_composition
+
+        band_quantiles, band_composition = band_stats(_BAND_EDGES_UM)
 
         adjacency = np.zeros((k, k))
         for a, b in ((region_compartments[:, :-1], region_compartments[:, 1:]),
@@ -675,12 +943,22 @@ class DensityModel:
         adjacency = adjacency + adjacency.T
         adjacency /= max(adjacency.sum(), 1.0)
 
+        # Put the trend back so stored maps and radius marks describe the real
+        # (not detrended) density; compartments and bands above stay residual.
+        region_lam = lam_types
+        if trend_factor is not None:
+            region_lam = lam_types * trend_factor
+            region_lam *= type_idx.size / (region_lam.sum() * grid_step ** 2)
+
         # Radius marks and hard core from the observed cells.
-        lam_at_cells = lam_total[iy, ix]
+        lam_at_cells = region_lam.sum(axis=0)[iy, ix] if trend_factor is not None \
+            else lam_total[iy, ix]
         edges = np.quantile(lam_at_cells, np.linspace(0, 1, _N_RADIUS_BINS + 1)[1:-1])
         bins = np.searchsorted(edges, lam_at_cells, side='right')
         radii_by_bin = [radii[bins == b] if np.any(bins == b) else radii.copy()
                         for b in range(_N_RADIUS_BINS)]
+        size_mu, size_sigma, size_fallback = _size_model(radii, type_idx, n_types, bins,
+                                                         _N_RADIUS_BINS)
         points = np.column_stack([xs, ys])
         distances, neighbors = cKDTree(points).query(points, k=2)
         ratio = distances[:, 1] / np.maximum(radii + radii[neighbors[:, 1]], 1e-12)
@@ -689,7 +967,7 @@ class DensityModel:
         model = cls(
             width=width, height=height, grid_step=float(grid_step), bandwidth=bandwidth,
             cell_types=cell_types, n_cells=int(xs.size), proportions=proportions,
-            mask=mask, region_intensity=lam_types, region_compartments=region_compartments,
+            mask=mask, region_intensity=region_lam, region_compartments=region_compartments,
             compartment_centers=centers, compartment_fractions=fractions,
             compartment_density_quantiles=density_quantiles,
             compartment_composition=composition, compartment_adjacency=adjacency,
@@ -697,11 +975,47 @@ class DensityModel:
             composition_loading=loading, rho=rho,
             marks=RadiusMarks(density_edges=edges, radii_by_bin=radii_by_bin),
             kappa=kappa, target_overlap_fraction=float(np.mean(ratio < kappa)),
+            strategy=strategy, type_bandwidths=type_bw, size_log_mu=size_mu,
+            size_log_sigma=size_sigma, organization=org,
         )
+        model.estimation = {
+            "strategy": strategy,
+            "bandwidth": bandwidth,
+            "bandwidth_source": bandwidth_source,
+            "bandwidth_range": [bandwidth_range[0], bandwidth_range[1]],
+            "bandwidth_range_source": range_source,
+            "bandwidth_at_bound": at_bound is not None,
+            "bandwidth_bound": at_bound,
+            "per_type_bandwidth": bw_evidence is not None,
+            "type_bandwidths": {t: float(h) for t, h in zip(cell_types, type_bw)},
+            "type_bandwidth_evidence": (None if bw_evidence is None
+                                        else dict(zip(cell_types, bw_evidence))),
+            "type_counts": {t: int(c) for t, c in
+                            zip(cell_types, np.bincount(type_idx, minlength=n_types))},
+            "size_fallbacks": [cell_types[t] for t in size_fallback],
+            "learned_band_edges": False,
+        }
         if n_null > 0:
             model._test_heterogeneity(xs, ys, type_idx, n_null, alpha, rng)
+        if model.homogeneous and org["model"] != "none":
+            # Uniform layouts ignore any trend; keep the candidates for inspection.
+            org = dict(org, model="none", fallback="homogeneous", selected_model=org["model"])
+            model.organization = org
+        if model.homogeneous and adaptive and at_bound is not None:
+            model.flags = model.flags + (f"bandwidth_at_{at_bound}_bound",)
         if not model.homogeneous:
             model._fit_structure(log_density, patch_prior, rng)
+            if adaptive and model.n_compartments > 1:
+                edges = _learned_band_edges(_edge_distance_map(region_compartments,
+                                                               grid_step)[iy, ix],
+                                            grid_step, model.patch_length)
+                model.band_edges = edges
+                model.band_density_quantiles, model.band_composition = band_stats(edges)
+                model.estimation["learned_band_edges"] = True
+            if org["model"] != "none":
+                model.flags = model.flags + (f"organization:{org['model']}",)
+            if adaptive and at_bound is not None:
+                model.flags = model.flags + (f"bandwidth_at_{at_bound}_bound",)
             if not model.stationary:
                 warnings.warn(
                     f"Density model flags {model.flags}: the region may not be stationary; "
@@ -874,7 +1188,7 @@ class DensityModel:
             rng.standard_normal(_noise_shape(shape, pad)), pad)
 
         compartment = labels.reshape(shape)
-        band = _band_index(compartment, self.grid_step)
+        band = _band_index(compartment, self.grid_step, self.band_edges)
         flat_band = band.ravel()
         intensity = np.empty(labels.size)
         for c in range(self.n_compartments):
@@ -897,7 +1211,7 @@ class DensityModel:
 
     def to_dict(self) -> Dict:
         """JSON-serializable representation (see :meth:`from_dict`)."""
-        out = {"format_version": 1}
+        out = {"format_version": 2}
         for f in fields(self):
             value = getattr(self, f.name)
             if isinstance(value, np.ndarray):
@@ -915,13 +1229,15 @@ class DensityModel:
         """Rebuild a model written by :meth:`to_dict`."""
         kwargs = {}
         for f in fields(cls):
+            if f.name not in data:  # format_version 1: keep the legacy default
+                continue
             value = data[f.name]
             if isinstance(value, dict) and "__ndarray__" in value:
                 value = np.array(value["__ndarray__"], dtype=value["dtype"])
             elif f.name == "marks":
                 value = RadiusMarks(np.array(value["density_edges"], dtype=float),
                                     [np.array(r, dtype=float) for r in value["radii_by_bin"]])
-            elif f.name in ("cell_types", "flags"):
+            elif f.name in ("cell_types", "flags", "band_edges"):
                 value = tuple(value)
             kwargs[f.name] = value
         return cls(**kwargs)

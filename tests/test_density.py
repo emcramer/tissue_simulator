@@ -224,3 +224,187 @@ def test_from_tissue_matches_fit():
     a = DensityModel.from_tissue(tissue, n_null=0, seed=0)
     b = DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), n_null=0, seed=0)
     np.testing.assert_array_equal(a.region_compartments, b.region_compartments)
+
+
+# ---------------------------------------------------------------------------
+# Adaptive strategy: estimation, organization, metadata, serialization
+# ---------------------------------------------------------------------------
+
+def _dict_equal(a, b):
+    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+def _gradient_region(seed=1):
+    """Constant-density RSA cells whose P(type A) rises 0.1 -> 0.9 along x."""
+    xy, r = _rsa_points(seed)
+    rng = np.random.default_rng(seed)
+    types = np.where(rng.random(len(r)) < 0.1 + 0.8 * xy[:, 0] / SIZE, 'A', 'B')
+    return xy[:, 0], xy[:, 1], r, types
+
+
+@pytest.fixture(scope="module")
+def gradient_model():
+    x, y, r, t = _gradient_region()
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), n_null=0, seed=0,
+                            strategy="adaptive")
+
+
+def test_legacy_fit_defaults_are_unchanged():
+    x, y, r, t = _nest_region()
+    kw = dict(bounds=(0, 0, SIZE, SIZE), n_compartments=2, seed=0)
+    default = DensityModel.fit(x, y, r, t, **kw)
+    explicit = DensityModel.fit(x, y, r, t, strategy="legacy", bandwidth_range=(15.0, 80.0), **kw)
+    strip = lambda m: {k: v for k, v in m.to_dict().items() if k != "estimation"}
+    assert _dict_equal(strip(default), strip(explicit))
+    assert default.strategy == "legacy"
+    assert default.band_edges == (10.0, 20.0, 40.0)
+    assert default.organization == {"model": "none"}
+    assert default.estimation["bandwidth_range_source"] == "legacy_default"
+    np.testing.assert_array_equal(default.type_bandwidths, default.bandwidth)
+    with pytest.raises(ValueError):
+        DensityModel.fit(x, y, r, t, strategy="fancy", **kw)
+
+
+def test_v1_dict_loads_with_legacy_defaults(nest_model):
+    model, _ = nest_model
+    data = model.to_dict()
+    assert data["format_version"] == 2
+    for key in ("strategy", "type_bandwidths", "band_edges", "size_log_mu", "size_log_sigma",
+                "estimation", "organization"):
+        del data[key]
+    data["format_version"] = 1
+    old = DensityModel.from_dict(json.loads(json.dumps(data)))
+    assert old.strategy == "legacy" and old.band_edges == (10.0, 20.0, 40.0)
+    assert old.organization == {"model": "none"} and old.estimation == {}
+    assert old.type_bandwidths.size == 0
+    layout = old.sample_layout(rng=3)
+    ref = model.sample_layout(rng=3)
+    np.testing.assert_array_equal(layout.intensity, ref.intensity)
+
+
+def test_adaptive_model_round_trips(gradient_model):
+    clone = DensityModel.from_dict(json.loads(json.dumps(gradient_model.to_dict())))
+    assert clone.strategy == "adaptive"
+    assert clone.band_edges == gradient_model.band_edges
+    assert _dict_equal(clone.organization, gradient_model.organization)
+    np.testing.assert_array_equal(clone.size_log_mu, gradient_model.size_log_mu)
+    np.testing.assert_array_equal(clone.type_bandwidths, gradient_model.type_bandwidths)
+
+
+def test_homogeneous_control_has_no_organization():
+    x, y, r, t = _uniform_region()
+    model = DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), seed=0, strategy="adaptive")
+    assert model.homogeneous and model.organization["model"] == "none"
+    # Even with the homogeneity test skipped, no trend reaches the BIC threshold.
+    free = DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), seed=0, n_null=0,
+                            strategy="adaptive")
+    assert free.organization["model"] == "none"
+    assert free.organization["fallback"] == "no_candidate_reached_bic_threshold"
+    assert not any(f.startswith("organization:") for f in free.flags)
+
+
+def test_composition_gradient_selects_planar_composition(gradient_model):
+    org = gradient_model.organization
+    assert org["model"] in ("planar_composition", "planar_both")
+    assert abs(org["direction"][0]) > 0.9
+    assert org["delta_bic"] >= 10.0 and org["bic_threshold"] == 10.0
+    assert org["gradient_strength"]["density_log_span"] < np.log(1.5)
+    assert org["gradient_strength"]["composition_span"] > 0.5
+    assert f"organization:{org['model']}" in gradient_model.flags
+    # Profiles run monotonically along the (signed) direction for type A.
+    comp = np.array(org["composition_profile"])
+    knots = np.array(org["s_knots"])
+    a = gradient_model.cell_types.index('A')
+    slope = np.polyfit(knots, comp[:, a], 1)[0]
+    assert slope * org["direction"][0] > 0
+    np.testing.assert_allclose(comp.sum(axis=1), 1.0, atol=1e-9)
+    # The trend was detrended away: the model is not flagged as a plain trend.
+    assert "trend" not in gradient_model.flags
+    assert {c["model"] for c in org["candidates"]} >= {"planar_both", "radial_both"}
+
+
+def test_organization_selection_is_deterministic(gradient_model):
+    x, y, r, t = _gradient_region()
+    again = DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), n_null=0, seed=5,
+                             strategy="adaptive")
+    assert _dict_equal(again.organization, gradient_model.organization)
+
+
+def test_planar_density_gradient_is_detected():
+    xy, r = _rsa_points(3)
+    rng = np.random.default_rng(3)
+    keep = rng.random(len(r)) < 0.15 + 0.85 * xy[:, 1] / SIZE
+    types = rng.choice(['A', 'B'], int(keep.sum()))
+    model = DensityModel.fit(xy[keep, 0], xy[keep, 1], r[keep], types,
+                             bounds=(0, 0, SIZE, SIZE), n_null=0, seed=0, strategy="adaptive")
+    org = model.organization
+    assert org["model"] == "planar_density"
+    assert abs(org["direction"][1]) > 0.9
+    assert org["gradient_strength"]["density_log_span"] > np.log(2.0)
+    assert org["transition_widths"] == [None, None]
+
+
+def test_rare_type_gets_pooled_bandwidth_and_valid_composition():
+    xy, r = _rsa_points(2)
+    rng = np.random.default_rng(2)
+    types = np.where(rng.random(len(r)) < 0.5, 'A', 'B').astype(object)
+    types[:6] = 'R'
+    model = DensityModel.fit(xy[:, 0], xy[:, 1], r, types.astype(str),
+                             bounds=(0, 0, SIZE, SIZE), n_null=0, seed=0, strategy="adaptive")
+    rare = model.cell_types.index('R')
+    assert model.estimation["type_bandwidth_evidence"]['R'] == "pooled_fallback"
+    assert model.type_bandwidths[rare] == pytest.approx(model.bandwidth)
+    assert np.isfinite(model.type_bandwidths).all() and (model.type_bandwidths > 0).all()
+    np.testing.assert_allclose(model.compartment_composition.sum(axis=1), 1.0, atol=1e-9)
+    np.testing.assert_allclose(model.band_composition.sum(axis=-1), 1.0, atol=1e-9)
+    assert model.estimation["size_fallbacks"] == ['R']
+    assert np.isfinite(model.size_log_mu).all() and (model.size_log_sigma > 0).all()
+
+
+def test_bandwidth_at_bound_is_recorded():
+    x, y, r, t = _nest_region()
+    model = DensityModel.fit(x, y, r, t, bounds=(0, 0, 100, 100), bandwidth_range=(60, 80),
+                             n_null=0, seed=0)
+    assert model.estimation["bandwidth_at_bound"] is True
+    assert model.estimation["bandwidth_range_source"] == "user"
+    assert model.estimation["bandwidth_range"] == [60.0, 80.0]
+    assert 60.0 <= model.bandwidth <= 80.0
+
+
+def test_auto_bandwidth_range_and_learned_band_edges():
+    x, y, r, t = _nest_region()
+    kw = dict(bounds=(0, 0, SIZE, SIZE), n_compartments=2, seed=0)
+    model = DensityModel.fit(x, y, r, t, strategy="adaptive", **kw)
+    lo, hi = model.estimation["bandwidth_range"]
+    assert model.estimation["bandwidth_range_source"] == "auto"
+    assert lo >= 2 * np.median(r) and hi >= 3 * lo
+    edges = model.band_edges
+    assert list(edges) == sorted(set(edges)) and edges[0] >= model.grid_step
+    assert model.band_density_quantiles.shape[1] == len(edges) + 1
+    assert model.estimation["learned_band_edges"] is True
+    layout = model.sample_layout(rng=1)
+    assert np.isfinite(layout.intensity).all() and layout.mode in ("resample", "uniform")
+    # Explicit "auto" works for the legacy strategy too.
+    legacy = DensityModel.fit(x, y, r, t, bandwidth_range="auto", **kw)
+    assert legacy.band_edges == (10.0, 20.0, 40.0)
+    assert legacy.estimation["bandwidth_range_source"] == "auto"
+
+
+def test_size_model_recovers_type_specific_radii():
+    x, y, r, t = _nest_region()
+    r = np.where(t == 'Tumor', 6.0, 3.0) * np.exp(0.05 * np.random.default_rng(0).standard_normal(len(r)))
+    model = DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), n_compartments=2, seed=0)
+    assert model.size_log_mu.shape == (len(model.cell_types), 5)
+    tumor, stroma = model.cell_types.index('Tumor'), model.cell_types.index('Stroma')
+    assert np.exp(model.size_log_mu[tumor]).mean() == pytest.approx(6.0, rel=0.1)
+    assert np.exp(model.size_log_mu[stroma]).mean() == pytest.approx(3.0, rel=0.1)
+    assert (model.size_log_sigma < 0.3).all()
+
+
+def test_band_index_accepts_learned_edges():
+    labels = np.zeros((20, 20), dtype=int)
+    labels[:, 10:] = 1
+    legacy = _band_index(labels, 5.0)
+    custom = _band_index(labels, 5.0, (5.0,))
+    assert legacy.max() == 3 and custom.max() == 1
+    np.testing.assert_array_equal(_band_index(labels, 5.0, (10.0, 20.0, 40.0)), legacy)
