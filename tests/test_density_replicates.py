@@ -183,3 +183,138 @@ def test_mcp_setup_replicate_generator_density_layout(setup):
     assert data["density_layout"] == "resample"
     assert data["density_model"]["n_compartments"] >= 1
     assert server.replicate_generator.density_model is not None
+
+
+# ---------------------------------------------------------------------------
+# Adaptive strategy (multi-scale composition, size compatibility, diagnostics)
+# ---------------------------------------------------------------------------
+
+def _mixed_radii_tissue(seed=0):
+    """Nest tissue with large Tumor cells (5-6 um) and small Stroma cells (3-3.5 um), ~5 % CD8."""
+    rng = np.random.default_rng(seed)
+    packed = SpherePacker((SIZE, SIZE, 1.0), {'c': (3.0, 6.0)}, min_spacing=0.3,
+                          seed=seed).pack(max_attempts=300)
+    nests = np.array([[60.0, 60.0], [140.0, 140.0]])
+    tissue = TissueSection(SIZE, SIZE, 1.0, {'Tumor': (5.0, 6.0), 'Stroma': (3.0, 3.5), 'CD8': (3.0, 3.5)})
+    for cell in packed:
+        inside = (np.linalg.norm(nests - cell.center[:2], axis=1) < 40.0).any()
+        u = rng.random()
+        if inside:
+            cell.cell_type, cell.radius = ('Tumor', rng.uniform(5.0, 6.0)) if u < 0.95 else ('CD8', rng.uniform(3.0, 3.5))
+        elif rng.random() < 0.3:
+            cell.cell_type, cell.radius = ('Stroma', rng.uniform(3.0, 3.5)) if u < 0.95 else ('CD8', rng.uniform(3.0, 3.5))
+        else:
+            continue
+        tissue.cells.append(cell)
+    return tissue
+
+
+@pytest.fixture(scope="module")
+def adaptive_setup():
+    tissue = _mixed_radii_tissue()
+    target = load_target_statistics_from_tissue(tissue, network_mode="radius", network_radius=20.0)
+    target.target_density = None
+    model = DensityModel.from_tissue(tissue, n_null=0, n_compartments=2, seed=0, strategy="adaptive")
+    radii = {'Tumor': (5.0, 6.0), 'Stroma': (3.0, 3.5), 'CD8': (3.0, 3.5)}
+    return tissue, target, model, radii
+
+
+def _adaptive_generator(adaptive_setup, **kwargs):
+    tissue, target, model, radii = adaptive_setup
+    kwargs.setdefault('dims', (SIZE, SIZE, 1.0))
+    dims = kwargs.pop('dims')
+    gen = ReplicateGenerator(target, dims, radii, network_mode="radius", network_radius=20.0,
+                             seed=11, method="graph_coloring", coloring_params=COLORING,
+                             density_model=model, strategy="adaptive", **kwargs)
+    gen._cache_source_reference(tissue)
+    return gen
+
+
+def test_explicit_legacy_strategy_is_identical(setup):
+    t1, s1 = _quiet(_generator(setup).generate_single_replicate, 0)
+    t2, s2 = _quiet(_generator(setup, strategy="legacy").generate_single_replicate, 0)
+    np.testing.assert_array_equal(_as_array(t1), _as_array(t2))
+    assert [c.cell_type for c in t1.cells] == [c.cell_type for c in t2.cells]
+    assert s1.divergence_score == s2.divergence_score
+    assert s1.fidelity is None and s1.separation is not None
+
+
+def test_adaptive_requires_density_model(setup):
+    _, target, _, radii = setup
+    with pytest.raises(ValueError, match="density_model"):
+        ReplicateGenerator(target, (SIZE, SIZE, 1.0), radii, method="graph_coloring",
+                           strategy="adaptive")
+
+
+def test_adaptive_resolves_defaults_and_scales(adaptive_setup):
+    gen = _adaptive_generator(adaptive_setup)
+    assert gen.composition_bin == "auto" and gen.size_weight == 1.0 and gen.diagnostics
+    scales = gen._resolve_composition_scales()
+    assert 1 <= len(scales) <= 3
+    assert all(b / a >= 1.5 for a, b in zip(scales, scales[1:]))
+    assert _adaptive_generator(adaptive_setup, composition_scales=[12.0, 30.0]
+                               )._resolve_composition_scales() == [12.0, 30.0]
+
+
+def test_adaptive_mixed_radii_and_end_to_end_targets(adaptive_setup):
+    tissue, _, _, _ = adaptive_setup
+    gen = _adaptive_generator(adaptive_setup)
+    rep, stats = _quiet(gen.generate_single_replicate, 0)
+    src = {t: np.median([c.radius for c in tissue.cells if c.cell_type == t]) for t in ('Tumor', 'Stroma')}
+    for t in ('Tumor', 'Stroma'):
+        med = np.median([c.radius for c in rep.cells if c.cell_type == t])
+        assert abs(med - src[t]) < 0.5, (t, med, src[t])
+    ks = stats.fidelity['size_ks_by_type']
+    assert all(v < 0.25 for k, v in ks.items() if k in ('Tumor', 'Stroma')), ks
+    assert stats.fidelity['n_components'] >= 1 and stats.fidelity['size_nll']['source'] is not None
+    import json
+    json.dumps(stats.to_dict(), default=float)
+
+    # The colorizer receives finite multi-scale and size terms.
+    from tissue_simulator.spatial_analysis import SpatialNetworkAnalyzer
+    graph = SpatialNetworkAnalyzer().build_network_from_tissue(rep, mode="radius", radius=20.0)
+    mean_deg = 2.0 * graph.number_of_edges() / graph.number_of_nodes()
+    targets = gen._build_colorizer_targets(graph)
+    layout = gen.density_model.sample_layout(rng=1, width=SIZE, height=SIZE)
+    scales, initial = gen._spatial_composition_target(
+        rep, layout, targets['node_counts'], mean_deg, np.random.default_rng(0),
+        bin_sizes=gen._resolve_composition_scales())
+    targets['spatial_composition_scales'] = scales
+    targets['size_compatibility'] = gen._size_compatibility_target(rep, gen.density_model, layout, mean_deg)
+    colorizer = _quiet(GraphColorizer, target_graph=graph, colors=list(gen.cell_types),
+                       target_statistics=targets, seed=0)
+    stat, _ = colorizer._calculate_statistics(graph, initial)
+    terms = colorizer.cost_terms(stat)
+    assert np.isfinite(terms['spatial_scales']) and np.isfinite(terms['size'])
+    assert len(scales) == len(gen._resolve_composition_scales())
+
+
+def test_adaptive_rare_type_count_matches_request(adaptive_setup):
+    _, stats = _quiet(_adaptive_generator(adaptive_setup).generate_single_replicate, 0)
+    assert stats.requested_cell_type_counts['CD8'] > 0
+    assert stats.cell_type_counts.get('CD8', 0) == stats.requested_cell_type_counts['CD8']
+    assert stats.achieved_cell_type_counts == stats.requested_cell_type_counts
+
+
+def test_adaptive_infeasible_packing_reports_shortfall(adaptive_setup):
+    # Infeasible: same cell count and window, but radii ~3x larger than the source's.
+    import copy
+    gen = _adaptive_generator(adaptive_setup)
+    gen.density_model = copy.deepcopy(gen.density_model)
+    gen.density_model.marks.radii_by_bin = [3.0 * r for r in gen.density_model.marks.radii_by_bin]
+    _, stats = _quiet(gen.generate_single_replicate, 0)
+    assert stats.packing_report['dense_bin_fraction_short'] > 0
+    assert stats.separation is not None
+
+
+def test_adaptive_parallel_matches_serial(adaptive_setup):
+    gen = _adaptive_generator(adaptive_setup)
+    serial = _quiet(gen.generate_replicates, 2)
+    try:
+        parallel = _quiet(gen.generate_replicates, 2, parallel=True, max_workers=2)
+    except (OSError, PermissionError, NotImplementedError) as exc:  # pragma: no cover
+        pytest.skip(f"ProcessPool unavailable: {exc}")
+    for (ts, ss), (tp, sp) in zip(serial, parallel):
+        np.testing.assert_array_equal(_as_array(ts), _as_array(tp))
+        assert [c.cell_type for c in ts.cells] == [c.cell_type for c in tp.cells]
+        assert ss.divergence_score == sp.divergence_score
