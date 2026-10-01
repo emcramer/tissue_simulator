@@ -552,3 +552,55 @@ def test_ambiguous_control_not_radial():
     assert not org["model"].startswith("radial_")
     assert org.get("weak_candidate") is None or isinstance(org.get("weak_candidate"), (dict, str))
     model.sample_layout(rng=0)
+
+
+# -- trend null ------------------------------------------------------------
+
+def _blob_region(nests, seed=0, size=300.0, radius=60.0):
+    """Nest-type enrichment in thinned stroma, like ``_nest_region``, on a custom layout."""
+    cells = SpherePacker((size, size, 0.0), {'c': (3.5, 5.0)}, min_spacing=0.3,
+                         seed=seed).pack(max_attempts=300)
+    xy = np.array([c.center[:2] for c in cells])
+    r = np.array([c.radius for c in cells])
+    rng = np.random.default_rng(seed)
+    inside = (np.linalg.norm(xy[:, None] - np.array(nests)[None], axis=2) < radius).any(axis=1)
+    keep = inside | (rng.random(len(r)) < 0.25)
+    types = np.where(inside, np.where(rng.random(len(r)) < 0.9, 'Tumor', 'CD8'),
+                     np.where(rng.random(len(r)) < 0.8, 'Stroma', 'CD8'))
+    return xy[keep, 0], xy[keep, 1], r[keep], types[keep]
+
+
+def _fit_blob(nests):
+    x, y, r, t = _blob_region(nests)
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 300, 300), strategy="adaptive", seed=0)
+
+
+def test_single_blob_is_accepted_as_radial():
+    """One central blob is indistinguishable from a concentric trend in a single
+    window, so it is accepted as radial (the capped-patch null cannot make it)."""
+    org = _fit_blob([(150.0, 150.0)]).organization
+    assert org["model"].startswith("radial_") and org["null"]["p_value"] <= 0.05
+
+
+def test_two_blobs_are_not_radial():
+    org = _fit_blob([(80.0, 80.0), (220.0, 220.0)]).organization
+    assert org["model"] == "none" and org["fallback"] == "stationary_null"
+    assert org["selected_model"] and org["null"]["p_value"] > 0.05
+
+
+def test_null_skipped_when_n_null_is_zero():
+    x, y, r, t = _gradient_region()
+    m = DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), n_null=0, seed=0,
+                         strategy="adaptive")
+    assert m.organization["null"] is None and m.organization["model"].startswith("planar_")
+
+
+def test_gradient_survives_trend_null():
+    x, y, r, t = _gradient_region()
+    org = DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), seed=0,
+                           strategy="adaptive").organization
+    assert org["model"].startswith("planar_")
+    n = org["null"]
+    assert {"n_null", "p_value", "observed_delta_bic", "null_delta_bic_quantiles",
+            "ambiguous", "seconds"} <= set(n)
+    assert n["p_value"] <= 0.05 and n["n_null"] == 19

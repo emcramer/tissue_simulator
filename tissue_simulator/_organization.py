@@ -295,6 +295,7 @@ def _evaluate_candidate(data: _Data, geometry: str, param, components: str) -> O
         "model": f"{geometry}_{components}", "geometry": geometry, "components": components,
         "delta_loglik": float(delta), "n_params": int(k),
         "bic": float(-delta_bic), "delta_bic": float(delta_bic),
+        "delta_bic_per_cell": float(delta_bic / data.n),
         "r2": float(np.clip(delta / binned, 0.0, 1.0)) if binned > 1e-9 else 0.0,
     }
     if geometry == "planar":
@@ -403,6 +404,35 @@ def _none(reason: str, candidates: Optional[List[Dict]] = None,
             "fallback": reason}
 
 
+def _candidate_search(data: _Data, comps: str, variants) -> List[Dict]:
+    """Geometry search (planar angle, radial centre) and every candidate's fit."""
+    candidates: List[Dict] = []
+    p_theta = _search_planar(data, comps)
+    r_center = _search_radial(data, comps)
+    for geometry, param in (("planar", p_theta), ("radial", r_center)):
+        for variant in variants:
+            cand = _evaluate_candidate(data, geometry, param, variant)
+            if cand is not None:
+                candidates.append(cand)
+    return candidates
+
+
+def trend_statistic(xs, ys, type_idx, n_types, mask, grid_step, width, height) -> float:
+    """Maximum ``delta_bic`` over all candidates (the trend-null test statistic).
+
+    Runs exactly the candidate search of :func:`fit_organization` (same
+    geometry search, same variants) but estimates no profiles. Returns
+    ``-inf`` when the data are too few or no candidate is defined.
+    """
+    data = _Data(xs, ys, type_idx, n_types, mask, grid_step, width, height)
+    if data.n < MIN_CELLS:
+        return float("-inf")
+    comps = "both" if data.n_types > 1 else "density"
+    variants = ("density", "composition", "both") if data.n_types > 1 else ("density",)
+    candidates = _candidate_search(data, comps, variants)
+    return max((c["delta_bic"] for c in candidates), default=float("-inf"))
+
+
 def fit_organization(xs, ys, type_idx, n_types, mask, grid_step, width, height) -> Dict:
     """Select and summarize a planar or radial trend in density and composition.
 
@@ -431,14 +461,7 @@ def fit_organization(xs, ys, type_idx, n_types, mask, grid_step, width, height) 
     comps = "both" if data.n_types > 1 else "density"
     variants = ("density", "composition", "both") if data.n_types > 1 else ("density",)
 
-    candidates: List[Dict] = []
-    p_theta = _search_planar(data, comps)
-    r_center = _search_radial(data, comps)
-    for geometry, param in (("planar", p_theta), ("radial", r_center)):
-        for variant in variants:
-            cand = _evaluate_candidate(data, geometry, param, variant)
-            if cand is not None:
-                candidates.append(cand)
+    candidates = _candidate_search(data, comps, variants)
     if not candidates:
         return _none("degenerate_window")
 
@@ -461,7 +484,6 @@ def fit_organization(xs, ys, type_idx, n_types, mask, grid_step, width, height) 
         chosen = best
     if chosen is None:
         return _none(fallback, candidates, weak)
-
     geometry = chosen["geometry"]
     param = chosen["theta"] if geometry == "planar" else tuple(chosen["center"])
     s_cell = _coordinate(geometry, param, data.xs, data.ys)
@@ -471,7 +493,8 @@ def fit_organization(xs, ys, type_idx, n_types, mask, grid_step, width, height) 
     out = {
         "model": chosen["model"], "geometry": geometry, "components": chosen["components"],
         "candidates": candidates, "weak_candidate": weak, "fallback": fallback,
-        "bic_threshold": BIC_THRESHOLD, "delta_bic": chosen["delta_bic"], "r2": chosen["r2"],
+        "bic_threshold": BIC_THRESHOLD, "delta_bic": chosen["delta_bic"],
+        "delta_bic_per_cell": chosen["delta_bic_per_cell"], "r2": chosen["r2"],
         "window_centroid": [float(data.pix_x.mean()), float(data.pix_y.mean())],
     }
     if geometry == "planar":

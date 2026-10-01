@@ -643,6 +643,149 @@ class Layout:
 # Density model
 # ---------------------------------------------------------------------------
 
+def _fit_maps(xs, ys, type_idx, n_types, iy, ix, shape, grid_step, mask, bandwidth,
+              type_bw, bw_evidence, proportions, n_compartments, rng, org=None):
+    """Per-type maps, compartments, quantiles, bands and projection for one pass.
+
+    Shared by the legacy and adaptive strategies. When ``org`` is a selected
+    trend (``org["model"] != "none"``) cells are weighted by the inverse trend
+    (detrending) and the trend is multiplied back into the stored maps;
+    otherwise the maps are the raw (stationary) estimates. Draws RNG only in
+    the k-means step, as the previously inlined code did.
+
+    Returns a dict of everything :meth:`DensityModel.fit` needs from the pass.
+    """
+    weights = None
+    trend_factor = None
+    if org is not None and org["model"] != "none":
+        dens_map, comp_map = _organization.source_trend_maps(org, shape, grid_step)
+        trend_factor = np.maximum(dens_map[None] * comp_map / proportions[:, None, None],
+                                  _DETREND_FLOOR)
+        dens_c, comp_c = _organization.profile_along(
+            org, _organization.coordinate_along(org, xs, ys))
+        weights = 1.0 / np.maximum(
+            dens_c * comp_c[np.arange(xs.size), type_idx] / proportions[type_idx],
+            _DETREND_FLOOR)
+        weights = np.clip(weights, 1.0 / _DETREND_WEIGHT_CAP, _DETREND_WEIGHT_CAP)
+        weights = weights * (weights.size / weights.sum())
+    lam_types = _intensity_grids(iy, ix, type_idx, n_types, shape, grid_step,
+                                 bandwidth if bw_evidence is None else type_bw, mask,
+                                 weights)
+    lam_total = lam_types.sum(axis=0)
+    
+    # Compartments: k-means on per-type intensities, which are linear in
+    # cell counts, so splits fall midway between compartments on their
+    # blurred boundaries. (Composition fractions or log scales would push
+    # splits into the sparser side; normal scores would flatten them.)
+    density, composition_score, loading = _layout_features(lam_types, mask)
+    log_density = np.log(density + 0.01 * density.mean() + 1e-300)
+    pixel_labels = _kmeans(lam_types[:, mask].T / max(float(density.std()), 1e-300),
+                           n_compartments, rng)
+    k = int(pixel_labels.max()) + 1
+    rank = np.empty(k, dtype=int)
+    rank[np.argsort([density[pixel_labels == c].mean() for c in range(k)], kind='stable')] = np.arange(k)
+    pixel_labels = rank[pixel_labels]
+    region_compartments = np.full(shape, -1, dtype=int)
+    region_compartments[mask] = pixel_labels
+    fractions = np.bincount(pixel_labels, minlength=k) / pixel_labels.size
+    
+    # Resampling works on normal scores; express the partition there.
+    u = _normal_scores(log_density)
+    v = (_normal_scores(composition_score) if np.ptp(composition_score) > 1e-12
+         else np.zeros_like(u))
+    centers = np.array([[u[pixel_labels == c].mean(), v[pixel_labels == c].mean()]
+                        for c in range(k)])
+    rho = (float(np.clip(np.corrcoef(u, v)[0, 1], -0.99, 0.99))
+           if np.ptp(u) > 1e-12 and np.ptp(v) > 1e-12 else 0.0)
+    
+    # Each compartment's density level and composition come from the cells
+    # inside it, which undoes the kernel's blurring across compartment
+    # boundaries; the smoothed map only supplies within-compartment variation.
+    cell_compartment = region_compartments[iy, ix]
+    density_quantiles = np.zeros((k, _QUANTILE_LEVELS.size))
+    composition = np.zeros((k, n_types))
+    for c in range(k):
+        sel = region_compartments == c
+        in_c = cell_compartment == c
+        smoothed = lam_total[sel]
+        if in_c.any() and smoothed.mean() > 0:
+            if weights is None:
+                factor = (in_c.sum() / (sel.sum() * grid_step ** 2)) / smoothed.mean()
+                composition[c] = np.bincount(type_idx[in_c], minlength=n_types) / in_c.sum()
+            else:
+                wc = weights[in_c]
+                factor = (wc.sum() / (sel.sum() * grid_step ** 2)) / smoothed.mean()
+                composition[c] = (np.bincount(type_idx[in_c], weights=wc, minlength=n_types)
+                                  + _COMPOSITION_PRIOR_CELLS * proportions
+                                  ) / (wc.sum() + _COMPOSITION_PRIOR_CELLS)
+        else:
+            factor = 0.0
+            composition[c] = proportions
+        lam_types[:, sel] *= factor
+        density_quantiles[c] = np.quantile(smoothed * factor, _QUANTILE_LEVELS)
+    lam_total = lam_types.sum(axis=0)
+    
+    # Boundary profiles: density and composition by distance to the
+    # compartment edge, again counted from cells (falls back to the
+    # compartment's values where a band holds too few cells).
+    def band_stats(edges):
+        band = _band_index(region_compartments, grid_step, edges)
+        cell_band = band[iy, ix]
+        n_bands = len(edges) + 1
+        band_quantiles = np.repeat(density_quantiles[:, None, :], n_bands, axis=1)
+        band_composition = np.repeat(composition[:, None, :], n_bands, axis=1)
+        for c in range(k):
+            for b in range(n_bands):
+                sel = (region_compartments == c) & (band == b)
+                in_cb = (cell_compartment == c) & (cell_band == b)
+                smoothed = lam_total[sel]
+                if in_cb.sum() < _MIN_BAND_CELLS or smoothed.mean() <= 0:
+                    continue
+                if weights is None:
+                    band_density = in_cb.sum() / (sel.sum() * grid_step ** 2)
+                    band_comp = np.bincount(type_idx[in_cb], minlength=n_types) / in_cb.sum()
+                else:
+                    wb = weights[in_cb]
+                    band_density = wb.sum() / (sel.sum() * grid_step ** 2)
+                    band_comp = (np.bincount(type_idx[in_cb], weights=wb, minlength=n_types)
+                                 + _COMPOSITION_PRIOR_CELLS * proportions
+                                 ) / (wb.sum() + _COMPOSITION_PRIOR_CELLS)
+                band_quantiles[c, b] = np.quantile(
+                    smoothed * (band_density / smoothed.mean()), _QUANTILE_LEVELS)
+                band_composition[c, b] = band_comp
+        return band_quantiles, band_composition
+    
+    band_quantiles, band_composition = band_stats(_BAND_EDGES_UM)
+    
+    adjacency = np.zeros((k, k))
+    for a, b in ((region_compartments[:, :-1], region_compartments[:, 1:]),
+                 (region_compartments[:-1, :], region_compartments[1:, :])):
+        both = (a >= 0) & (b >= 0)
+        np.add.at(adjacency, (a[both], b[both]), 1.0)
+    adjacency = adjacency + adjacency.T
+    adjacency /= max(adjacency.sum(), 1.0)
+    
+    # Put the trend back so stored maps and radius marks describe the real
+    # (not detrended) density; compartments and bands above stay residual.
+    region_lam = lam_types
+    if trend_factor is not None:
+        region_lam = lam_types * trend_factor
+        region_lam *= type_idx.size / (region_lam.sum() * grid_step ** 2)
+
+    return dict(lam_types=lam_types, lam_total=lam_total, log_density=log_density,
+            region_compartments=region_compartments, fractions=fractions, centers=centers,
+            rho=rho, k=k, density_quantiles=density_quantiles, composition=composition,
+            band_quantiles=band_quantiles, band_composition=band_composition,
+            adjacency=adjacency, region_lam=region_lam, trend_factor=trend_factor,
+            weights=weights, loading=loading, band_stats=band_stats)
+
+
+_MAP_KEYS = ("lam_types", "lam_total", "log_density", "region_compartments", "fractions",
+             "centers", "rho", "k", "density_quantiles", "composition", "band_quantiles",
+             "band_composition", "adjacency", "region_lam", "trend_factor", "loading",
+             "band_stats")
+
+
 @dataclass
 class DensityModel:
     """Fitted density and compartment model of a source tissue region.
@@ -844,207 +987,123 @@ class DensityModel:
                                                     grid_step, mask, bandwidth_range, bandwidth)
         proportions = np.bincount(type_idx, minlength=n_types) / type_idx.size
 
-        # Spatial trend (adaptive): select a planar/radial model and detrend by
-        # weighting cells with the inverse trend before smoothing and counting,
-        # so that compartments, bands and patch structure describe the residual
-        # organization. RNG-free.
         org = {"model": "none"}
-        weights = None
-        trend_factor = None
         if use_org:
             org = _organization.fit_organization(xs, ys, type_idx, n_types, mask,
                                                  grid_step, width, height)
-            if org["model"] != "none":
-                dens_map, comp_map = _organization.source_trend_maps(org, shape, grid_step)
-                trend_factor = np.maximum(dens_map[None] * comp_map / proportions[:, None, None],
-                                          _DETREND_FLOOR)
-                dens_c, comp_c = _organization.profile_along(
-                    org, _organization.coordinate_along(org, xs, ys))
-                weights = 1.0 / np.maximum(
-                    dens_c * comp_c[np.arange(xs.size), type_idx] / proportions[type_idx],
-                    _DETREND_FLOOR)
-                weights = np.clip(weights, 1.0 / _DETREND_WEIGHT_CAP, _DETREND_WEIGHT_CAP)
-                weights = weights * (weights.size / weights.sum())
-        lam_types = _intensity_grids(iy, ix, type_idx, n_types, shape, grid_step,
-                                     bandwidth if bw_evidence is None else type_bw, mask,
-                                     weights)
-        lam_total = lam_types.sum(axis=0)
+        maps = _fit_maps(xs, ys, type_idx, n_types, iy, ix, shape, grid_step, mask,
+                         bandwidth, type_bw, bw_evidence, proportions, n_compartments,
+                         rng, org=org)
+        (lam_types, lam_total, log_density, region_compartments, fractions, centers, rho, k,
+         density_quantiles, composition, band_quantiles, band_composition, adjacency,
+         region_lam, trend_factor, loading, band_stats) = (
+            maps[n] for n in ("lam_types", "lam_total", "log_density", "region_compartments",
+                              "fractions", "centers", "rho", "k", "density_quantiles",
+                              "composition", "band_quantiles", "band_composition",
+                              "adjacency", "region_lam", "trend_factor", "loading",
+                              "band_stats"))
+        def build(maps, org, het=None, quiet=False):
+            (lam_types, lam_total, log_density, region_compartments, fractions, centers, rho,
+             k, density_quantiles, composition, band_quantiles, band_composition, adjacency,
+             region_lam, trend_factor, loading, band_stats) = (
+                maps[n] for n in _MAP_KEYS)
+            # Radius marks and hard core from the observed cells.
+            lam_at_cells = region_lam.sum(axis=0)[iy, ix] if trend_factor is not None \
+                else lam_total[iy, ix]
+            edges = np.quantile(lam_at_cells, np.linspace(0, 1, _N_RADIUS_BINS + 1)[1:-1])
+            bins = np.searchsorted(edges, lam_at_cells, side='right')
+            radii_by_bin = [radii[bins == b] if np.any(bins == b) else radii.copy()
+                            for b in range(_N_RADIUS_BINS)]
+            size_mu, size_sigma, size_fallback = _size_model(radii, type_idx, n_types, bins,
+                                                             _N_RADIUS_BINS)
+            points = np.column_stack([xs, ys])
+            distances, neighbors = cKDTree(points).query(points, k=2)
+            ratio = distances[:, 1] / np.maximum(radii + radii[neighbors[:, 1]], 1e-12)
+            kappa = float(np.clip(np.quantile(ratio, 0.02), 0.5, 1.5))
 
-        # Compartments: k-means on per-type intensities, which are linear in
-        # cell counts, so splits fall midway between compartments on their
-        # blurred boundaries. (Composition fractions or log scales would push
-        # splits into the sparser side; normal scores would flatten them.)
-        density, composition_score, loading = _layout_features(lam_types, mask)
-        log_density = np.log(density + 0.01 * density.mean() + 1e-300)
-        pixel_labels = _kmeans(lam_types[:, mask].T / max(float(density.std()), 1e-300),
-                               n_compartments, rng)
-        k = int(pixel_labels.max()) + 1
-        rank = np.empty(k, dtype=int)
-        rank[np.argsort([density[pixel_labels == c].mean() for c in range(k)], kind='stable')] = np.arange(k)
-        pixel_labels = rank[pixel_labels]
-        region_compartments = np.full(shape, -1, dtype=int)
-        region_compartments[mask] = pixel_labels
-        fractions = np.bincount(pixel_labels, minlength=k) / pixel_labels.size
-
-        # Resampling works on normal scores; express the partition there.
-        u = _normal_scores(log_density)
-        v = (_normal_scores(composition_score) if np.ptp(composition_score) > 1e-12
-             else np.zeros_like(u))
-        centers = np.array([[u[pixel_labels == c].mean(), v[pixel_labels == c].mean()]
-                            for c in range(k)])
-        rho = (float(np.clip(np.corrcoef(u, v)[0, 1], -0.99, 0.99))
-               if np.ptp(u) > 1e-12 and np.ptp(v) > 1e-12 else 0.0)
-
-        # Each compartment's density level and composition come from the cells
-        # inside it, which undoes the kernel's blurring across compartment
-        # boundaries; the smoothed map only supplies within-compartment variation.
-        cell_compartment = region_compartments[iy, ix]
-        density_quantiles = np.zeros((k, _QUANTILE_LEVELS.size))
-        composition = np.zeros((k, n_types))
-        for c in range(k):
-            sel = region_compartments == c
-            in_c = cell_compartment == c
-            smoothed = lam_total[sel]
-            if in_c.any() and smoothed.mean() > 0:
-                if weights is None:
-                    factor = (in_c.sum() / (sel.sum() * grid_step ** 2)) / smoothed.mean()
-                    composition[c] = np.bincount(type_idx[in_c], minlength=n_types) / in_c.sum()
-                else:
-                    wc = weights[in_c]
-                    factor = (wc.sum() / (sel.sum() * grid_step ** 2)) / smoothed.mean()
-                    composition[c] = (np.bincount(type_idx[in_c], weights=wc, minlength=n_types)
-                                      + _COMPOSITION_PRIOR_CELLS * proportions
-                                      ) / (wc.sum() + _COMPOSITION_PRIOR_CELLS)
-            else:
-                factor = 0.0
-                composition[c] = proportions
-            lam_types[:, sel] *= factor
-            density_quantiles[c] = np.quantile(smoothed * factor, _QUANTILE_LEVELS)
-        lam_total = lam_types.sum(axis=0)
-
-        # Boundary profiles: density and composition by distance to the
-        # compartment edge, again counted from cells (falls back to the
-        # compartment's values where a band holds too few cells).
-        def band_stats(edges):
-            band = _band_index(region_compartments, grid_step, edges)
-            cell_band = band[iy, ix]
-            n_bands = len(edges) + 1
-            band_quantiles = np.repeat(density_quantiles[:, None, :], n_bands, axis=1)
-            band_composition = np.repeat(composition[:, None, :], n_bands, axis=1)
-            for c in range(k):
-                for b in range(n_bands):
-                    sel = (region_compartments == c) & (band == b)
-                    in_cb = (cell_compartment == c) & (cell_band == b)
-                    smoothed = lam_total[sel]
-                    if in_cb.sum() < _MIN_BAND_CELLS or smoothed.mean() <= 0:
-                        continue
-                    if weights is None:
-                        band_density = in_cb.sum() / (sel.sum() * grid_step ** 2)
-                        band_comp = np.bincount(type_idx[in_cb], minlength=n_types) / in_cb.sum()
-                    else:
-                        wb = weights[in_cb]
-                        band_density = wb.sum() / (sel.sum() * grid_step ** 2)
-                        band_comp = (np.bincount(type_idx[in_cb], weights=wb, minlength=n_types)
-                                     + _COMPOSITION_PRIOR_CELLS * proportions
-                                     ) / (wb.sum() + _COMPOSITION_PRIOR_CELLS)
-                    band_quantiles[c, b] = np.quantile(
-                        smoothed * (band_density / smoothed.mean()), _QUANTILE_LEVELS)
-                    band_composition[c, b] = band_comp
-            return band_quantiles, band_composition
-
-        band_quantiles, band_composition = band_stats(_BAND_EDGES_UM)
-
-        adjacency = np.zeros((k, k))
-        for a, b in ((region_compartments[:, :-1], region_compartments[:, 1:]),
-                     (region_compartments[:-1, :], region_compartments[1:, :])):
-            both = (a >= 0) & (b >= 0)
-            np.add.at(adjacency, (a[both], b[both]), 1.0)
-        adjacency = adjacency + adjacency.T
-        adjacency /= max(adjacency.sum(), 1.0)
-
-        # Put the trend back so stored maps and radius marks describe the real
-        # (not detrended) density; compartments and bands above stay residual.
-        region_lam = lam_types
-        if trend_factor is not None:
-            region_lam = lam_types * trend_factor
-            region_lam *= type_idx.size / (region_lam.sum() * grid_step ** 2)
-
-        # Radius marks and hard core from the observed cells.
-        lam_at_cells = region_lam.sum(axis=0)[iy, ix] if trend_factor is not None \
-            else lam_total[iy, ix]
-        edges = np.quantile(lam_at_cells, np.linspace(0, 1, _N_RADIUS_BINS + 1)[1:-1])
-        bins = np.searchsorted(edges, lam_at_cells, side='right')
-        radii_by_bin = [radii[bins == b] if np.any(bins == b) else radii.copy()
-                        for b in range(_N_RADIUS_BINS)]
-        size_mu, size_sigma, size_fallback = _size_model(radii, type_idx, n_types, bins,
-                                                         _N_RADIUS_BINS)
-        points = np.column_stack([xs, ys])
-        distances, neighbors = cKDTree(points).query(points, k=2)
-        ratio = distances[:, 1] / np.maximum(radii + radii[neighbors[:, 1]], 1e-12)
-        kappa = float(np.clip(np.quantile(ratio, 0.02), 0.5, 1.5))
-
-        model = cls(
-            width=width, height=height, grid_step=float(grid_step), bandwidth=bandwidth,
-            cell_types=cell_types, n_cells=int(xs.size), proportions=proportions,
-            mask=mask, region_intensity=region_lam, region_compartments=region_compartments,
-            compartment_centers=centers, compartment_fractions=fractions,
-            compartment_density_quantiles=density_quantiles,
-            compartment_composition=composition, compartment_adjacency=adjacency,
-            band_density_quantiles=band_quantiles, band_composition=band_composition,
-            composition_loading=loading, rho=rho,
-            marks=RadiusMarks(density_edges=edges, radii_by_bin=radii_by_bin),
-            kappa=kappa, target_overlap_fraction=float(np.mean(ratio < kappa)),
-            strategy=strategy, type_bandwidths=type_bw, size_log_mu=size_mu,
-            size_log_sigma=size_sigma, organization=org,
-        )
-        model.estimation = {
-            "strategy": strategy,
-            "detrend_weight_cap": _DETREND_WEIGHT_CAP,
-            "composition_prior_cells": _COMPOSITION_PRIOR_CELLS,
-            "bandwidth": bandwidth,
-            "bandwidth_source": bandwidth_source,
-            "bandwidth_range": [bandwidth_range[0], bandwidth_range[1]],
-            "bandwidth_range_source": range_source,
-            "bandwidth_at_bound": at_bound is not None,
-            "bandwidth_bound": at_bound,
-            "per_type_bandwidth": bw_evidence is not None,
-            "type_bandwidths": {t: float(h) for t, h in zip(cell_types, type_bw)},
-            "type_bandwidth_evidence": (None if bw_evidence is None
-                                        else dict(zip(cell_types, bw_evidence))),
-            "type_counts": {t: int(c) for t, c in
-                            zip(cell_types, np.bincount(type_idx, minlength=n_types))},
-            "size_fallbacks": [cell_types[t] for t in size_fallback],
-            "learned_band_edges": False,
-        }
-        if adaptive:
-            model.estimation["d_nn"] = float(np.median(
-                cKDTree(np.column_stack([xs, ys])).query(np.column_stack([xs, ys]), k=2)[0][:, 1]))
-        if n_null > 0:
-            model._test_heterogeneity(xs, ys, type_idx, n_null, alpha, rng)
-        if model.homogeneous and org["model"] != "none":
-            # Uniform layouts ignore any trend; keep the candidates for inspection.
-            org = dict(org, model="none", fallback="homogeneous", selected_model=org["model"])
-            model.organization = org
-        if model.homogeneous and adaptive and at_bound is not None:
-            model.flags = model.flags + (f"bandwidth_at_{at_bound}_bound",)
-        if not model.homogeneous:
-            model._fit_structure(log_density, patch_prior, rng)
-            if adaptive and model.n_compartments > 1:
-                edges = _learned_band_edges(_edge_distance_map(region_compartments,
-                                                               grid_step)[iy, ix],
-                                            grid_step, model.patch_length)
-                model.band_edges = edges
-                model.band_density_quantiles, model.band_composition = band_stats(edges)
-                model.estimation["learned_band_edges"] = True
-            if org["model"] != "none":
-                model.flags = model.flags + (f"organization:{org['model']}",)
-            if adaptive and at_bound is not None:
+            model = cls(
+                width=width, height=height, grid_step=float(grid_step), bandwidth=bandwidth,
+                cell_types=cell_types, n_cells=int(xs.size), proportions=proportions,
+                mask=mask, region_intensity=region_lam, region_compartments=region_compartments,
+                compartment_centers=centers, compartment_fractions=fractions,
+                compartment_density_quantiles=density_quantiles,
+                compartment_composition=composition, compartment_adjacency=adjacency,
+                band_density_quantiles=band_quantiles, band_composition=band_composition,
+                composition_loading=loading, rho=rho,
+                marks=RadiusMarks(density_edges=edges, radii_by_bin=radii_by_bin),
+                kappa=kappa, target_overlap_fraction=float(np.mean(ratio < kappa)),
+                strategy=strategy, type_bandwidths=type_bw, size_log_mu=size_mu,
+                size_log_sigma=size_sigma, organization=org,
+            )
+            model.estimation = {
+                "strategy": strategy,
+                "detrend_weight_cap": _DETREND_WEIGHT_CAP,
+                "composition_prior_cells": _COMPOSITION_PRIOR_CELLS,
+                "bandwidth": bandwidth,
+                "bandwidth_source": bandwidth_source,
+                "bandwidth_range": [bandwidth_range[0], bandwidth_range[1]],
+                "bandwidth_range_source": range_source,
+                "bandwidth_at_bound": at_bound is not None,
+                "bandwidth_bound": at_bound,
+                "per_type_bandwidth": bw_evidence is not None,
+                "type_bandwidths": {t: float(h) for t, h in zip(cell_types, type_bw)},
+                "type_bandwidth_evidence": (None if bw_evidence is None
+                                            else dict(zip(cell_types, bw_evidence))),
+                "type_counts": {t: int(c) for t, c in
+                                zip(cell_types, np.bincount(type_idx, minlength=n_types))},
+                "size_fallbacks": [cell_types[t] for t in size_fallback],
+                "learned_band_edges": False,
+            }
+            if adaptive:
+                model.estimation["d_nn"] = float(np.median(
+                    cKDTree(np.column_stack([xs, ys])).query(np.column_stack([xs, ys]), k=2)[0][:, 1]))
+            if het is not None:
+                model.heterogeneity, model.homogeneous = het
+            elif n_null > 0:
+                model._test_heterogeneity(xs, ys, type_idx, n_null, alpha, rng)
+            if model.homogeneous and org["model"] != "none":
+                # Uniform layouts ignore any trend; keep the candidates for inspection.
+                org = dict(org, model="none", fallback="homogeneous", selected_model=org["model"])
+                model.organization = org
+            if model.homogeneous and adaptive and at_bound is not None:
                 model.flags = model.flags + (f"bandwidth_at_{at_bound}_bound",)
-            if not model.stationary:
-                warnings.warn(
-                    f"Density model flags {model.flags}: the region may not be stationary; "
-                    "resampled layouts may not resemble it. Consider layout='copy'.",
-                    stacklevel=2)
+            if not model.homogeneous:
+                model._fit_structure(log_density, patch_prior, rng)
+                if adaptive and model.n_compartments > 1:
+                    edges = _learned_band_edges(_edge_distance_map(region_compartments,
+                                                                   grid_step)[iy, ix],
+                                                grid_step, model.patch_length)
+                    model.band_edges = edges
+                    model.band_density_quantiles, model.band_composition = band_stats(edges)
+                    model.estimation["learned_band_edges"] = True
+                if org["model"] != "none":
+                    model.flags = model.flags + (f"organization:{org['model']}",)
+                if adaptive and at_bound is not None:
+                    model.flags = model.flags + (f"bandwidth_at_{at_bound}_bound",)
+                if not model.stationary and not quiet:
+                    warnings.warn(
+                        f"Density model flags {model.flags}: the region may not be stationary; "
+                        "resampled layouts may not resemble it. Consider layout='copy'.",
+                        stacklevel=2)
+            return model
+
+        model = build(maps, dict(org, null=None) if use_org else org)
+        if (use_org and n_null > 0 and model.organization["model"] != "none"
+                and not model.homogeneous):
+            # Decisive trend null: can a stationary patch process (the final
+            # model's residual generator, n_null draws) reproduce the trend
+            # statistic? Accept iff observed >= BIC_THRESHOLD and p <= alpha;
+            # otherwise refit without detrending.
+            null = model._trend_null(rng, n_null, alpha, xs, ys, type_idx, org["delta_bic"])
+            if null["accepted"]:
+                model.organization["null"] = null
+                return model
+            maps0 = _fit_maps(xs, ys, type_idx, n_types, iy, ix, shape, grid_step, mask,
+                              bandwidth, type_bw, bw_evidence, proportions, n_compartments,
+                              rng, org=None)
+            org0 = dict(org, model="none", fallback="stationary_null",
+                        selected_model=org["model"], null=null)
+            model = build(maps0, org0, het=(model.heterogeneity, model.homogeneous))
         return model
 
     @classmethod
@@ -1106,6 +1165,56 @@ class DensityModel:
     @property
     def n_compartments(self) -> int:
         return int(self.compartment_centers.shape[0])
+
+    def _trend_null(self, rng, n_null, alpha, xs, ys, type_idx, observed) -> dict:
+        """Monte Carlo test of the selected trend against stationary layouts.
+
+        Draws ``n_null`` layouts from this (stationary, trend-free) model with
+        :meth:`_residual_maps`, samples ``n_cells`` cells from each as an
+        inhomogeneous Poisson sample (pixel ~ intensity, uniform jitter inside
+        the pixel, type ~ composition at the pixel) and computes
+        :func:`_organization.trend_statistic` on it. ``p = (1 + #{null >=
+        observed}) / (n_null + 1)``; accepted iff ``observed >=
+        BIC_THRESHOLD`` and ``p <= alpha``. ``n_null == 0`` accepts on the
+        BIC threshold alone (``p_value`` None).
+        """
+        import time
+        t0 = time.perf_counter()
+        out = {"n_null": int(n_null), "p_value": None, "observed_delta_bic": float(observed),
+               "null_delta_bic_quantiles": None, "alpha": float(alpha)}
+        if n_null <= 0:
+            out.update(ambiguous=None, accepted=True, seconds=0.0)
+            return out
+        shape = self.mask.shape
+        n_types = len(self.cell_types)
+        gen = self
+        stats = []
+        for _ in range(n_null):
+            intensity, compartment, band, _n = gen._residual_maps(rng, self.width, self.height)
+            w = np.where(self.mask, np.maximum(intensity, 0.0), 0.0).ravel()
+            if w.sum() <= 0:
+                continue
+            pix = rng.choice(w.size, size=self.n_cells, p=w / w.sum())
+            piy, pix_x = np.unravel_index(pix, shape)
+            cx = np.clip((pix_x + rng.random(pix.size)) * self.grid_step, 0, self.width)
+            cy = np.clip((piy + rng.random(pix.size)) * self.grid_step, 0, self.height)
+            comp = self.band_composition[compartment, band][piy, pix_x]
+            cum = np.cumsum(comp, axis=1)
+            cum /= np.maximum(cum[:, -1:], 1e-300)
+            t = np.minimum((rng.random(pix.size)[:, None] > cum).sum(axis=1), n_types - 1)
+            stats.append(_organization.trend_statistic(cx, cy, t, n_types, self.mask,
+                                                       self.grid_step, self.width, self.height))
+        stats = np.array(stats, dtype=float)
+        stats = stats[np.isfinite(stats)]
+        p = float((1 + np.sum(stats >= observed)) / (stats.size + 1))
+        q = (np.quantile(stats, [0.5, 0.95]).tolist() + [float(stats.max())]) if stats.size \
+            else [None, None, None]
+        out.update(n_null=int(stats.size), p_value=p,
+                   null_delta_bic_quantiles={"p50": q[0], "p95": q[1], "max": q[2]},
+                   ambiguous=bool(p > alpha),
+                   accepted=bool(observed >= _organization.BIC_THRESHOLD and p <= alpha),
+                   seconds=float(time.perf_counter() - t0))
+        return out
 
     def _test_heterogeneity(self, xs, ys, type_idx, n_null, alpha, rng) -> None:
         """Monte Carlo test against uniform packings with permuted labels."""
