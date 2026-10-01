@@ -1081,7 +1081,8 @@ class ReplicateGenerator:
         report = tissue.packing_report
         proportions = self.target_stats.cell_type_proportions
         requested = self._round_proportions_to_counts(proportions, int(report.n_target))
-        achieved = self._round_proportions_to_counts(proportions, int(report.n_placed))
+        achieved = {t: int(n) for t, n in tissue_stats.get('cell_types', {}).items()}
+        achieved = {t: achieved.get(t, 0) for t in requested}
         fidelity = None
         if self.diagnostics:
             cells = tissue.cells
