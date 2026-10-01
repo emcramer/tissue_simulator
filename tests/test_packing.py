@@ -7,6 +7,7 @@ from tissue_simulator import Cell
 from tissue_simulator.density import Layout, RadiusMarks
 from tissue_simulator.packing import (
     InhomogeneousPacker, SpatialHashGrid, SpherePacker, _stochastic_round,
+    separation_diagnostics,
 )
 
 
@@ -187,3 +188,46 @@ def test_tissue_generate_cells_routes_layout_to_inhomogeneous_packer():
     tissue = TissueSection(200.0, 200.0, 0.0, {'A': (3.5, 4.5)}, seed=3)
     assert tissue.generate_cells(layout=layout) == layout.n_target
     assert tissue.packing_report.n_placed == layout.n_target
+
+
+def test_report_legacy_quota_and_diagnostics():
+    layout = _step_layout()
+    _, report = _pack_layout(layout)
+    assert report.bin_size == max(layout.bandwidth / 2, 10.0)
+    assert report.quota_floor == report.bin_size and report.quota_floor_source == 'legacy'
+    assert report.bin_shortfall.shape == report.bin_targets.shape
+    assert set(report.clearance_quantiles) == {'p5', 'p50', 'p95'}
+    assert 0.0 <= report.dense_bin_fraction_short <= 1.0
+    d = report.to_dict()
+    assert isinstance(d['bin_shortfall'], list) and isinstance(d['clearance_quantiles'], dict)
+
+
+def test_layout_quota_scale_sets_bin_size():
+    from types import SimpleNamespace
+    layout = _step_layout()
+    ns = SimpleNamespace(**{f: getattr(layout, f) for f in layout.__dataclass_fields__})
+    ns.quota_scale = 15.0
+    packer = InhomogeneousPacker((200.0, 200.0, 0.0), ns, seed=0)
+    packer.pack()
+    assert packer.bin_size == 15.0
+    assert packer.report.quota_floor_source == 'layout'
+    # explicit bin_size wins over the layout scale
+    assert InhomogeneousPacker((200.0, 200.0, 0.0), ns, seed=0, bin_size=20.0).bin_size == 20.0
+
+
+def test_overdense_layout_reports_shortfall_and_overlap():
+    layout = _step_layout(dense=0.0149 * 4, sparse=0.002)
+    _, report = _pack_layout(layout)
+    assert report.dense_bin_fraction_short > 0
+    assert report.clearance_quantiles['p50'] <= 0
+
+
+def test_separation_diagnostics_two_cells():
+    cells = [Cell(center=(0.0, 0.0, 0.0), radius=2.0, cell_type='a'),
+             Cell(center=(9.0, 0.0, 0.0), radius=1.0, cell_type='a')]
+    out = separation_diagnostics(cells)
+    for k in ('p5', 'p50', 'p95'):
+        assert out['clearance_quantiles'][k] == pytest.approx(6.0)
+        assert out['normalized_distance_quantiles'][k] == pytest.approx(3.0)
+    assert out['n_nearest_neighbour'] == 2
+    assert separation_diagnostics(cells[:1])['n_nearest_neighbour'] == 0

@@ -276,6 +276,40 @@ class SpherePacker:
         return cells
 
 
+_QUANTILE_LEVELS = (('p5', 5.0), ('p50', 50.0), ('p95', 95.0))
+
+
+def _separation_quantiles(points: np.ndarray, radii: np.ndarray):
+    """Quantiles of nearest-neighbour (by centre distance) surface gap and d/(ri+rj)."""
+    nan = {k: float('nan') for k, _ in _QUANTILE_LEVELS}
+    n = len(points)
+    if n < 2:
+        return dict(nan), dict(nan), 0
+    from scipy.spatial import cKDTree
+    d, idx = cKDTree(points).query(points, k=2)
+    d, j = d[:, 1], idx[:, 1]
+    rsum = radii + radii[j]
+    gap, norm = d - rsum, d / np.maximum(rsum, 1e-12)
+    return ({k: float(np.percentile(gap, q)) for k, q in _QUANTILE_LEVELS},
+            {k: float(np.percentile(norm, q)) for k, q in _QUANTILE_LEVELS}, n)
+
+
+def separation_diagnostics(cells) -> Dict:
+    """
+    Nearest-neighbour separation of any list of :class:`Cell` objects.
+
+    Returns ``clearance_quantiles`` (p5/p50/p95 of ``d - (r_i + r_j)``),
+    ``normalized_distance_quantiles`` (p5/p50/p95 of ``d / (r_i + r_j)``) and
+    ``n_nearest_neighbour`` (cells with a neighbour; 0 for fewer than 2 cells,
+    quantiles then NaN). The neighbour is the nearest by 3D centre distance.
+    """
+    pts = np.array([c.center for c in cells], dtype=float).reshape(-1, 3)
+    radii = np.array([c.radius for c in cells], dtype=float)
+    gap, norm, n = _separation_quantiles(pts, radii)
+    return {'clearance_quantiles': gap, 'normalized_distance_quantiles': norm,
+            'n_nearest_neighbour': n}
+
+
 @dataclass
 class PackingReport:
     """Diagnostics of one :class:`InhomogeneousPacker` run.
@@ -295,6 +329,15 @@ class PackingReport:
         bin_size: Bin side in µm.
         bin_targets: Cell quota per bin, shape ``(rows, cols)``.
         bin_achieved: Cells per bin after packing.
+        bin_shortfall: ``max(bin_targets - bin_achieved, 0)`` per bin.
+        quota_floor: Quota bin side (µm) taken from ``layout.quota_scale``, or
+            the legacy ``max(bandwidth / 2, 10)`` default.
+        quota_floor_source: ``'layout'`` or ``'legacy'``.
+        clearance_quantiles: p5/p50/p95 of the nearest-neighbour surface gap
+            ``d - (r_i + r_j)`` (negative means overlap).
+        normalized_distance_quantiles: p5/p50/p95 of ``d / (r_i + r_j)``.
+        dense_bin_fraction_short: Fraction of bins with target >= 4 whose
+            achieved count is below 0.9 * target (of all bins).
     """
     n_target: int
     n_placed: int
@@ -309,6 +352,12 @@ class PackingReport:
     bin_size: float
     bin_targets: np.ndarray
     bin_achieved: np.ndarray
+    bin_shortfall: Optional[np.ndarray] = None
+    quota_floor: Optional[float] = None
+    quota_floor_source: Optional[str] = None
+    clearance_quantiles: Optional[Dict[str, float]] = None
+    normalized_distance_quantiles: Optional[Dict[str, float]] = None
+    dense_bin_fraction_short: Optional[float] = None
 
     @property
     def bin_correlation(self) -> float:
@@ -323,6 +372,11 @@ class PackingReport:
         out = {f.name: getattr(self, f.name) for f in fields(self)}
         out['bin_targets'] = self.bin_targets.tolist()
         out['bin_achieved'] = self.bin_achieved.tolist()
+        if self.bin_shortfall is not None:
+            out['bin_shortfall'] = np.asarray(self.bin_shortfall).tolist()
+        for key in ('clearance_quantiles', 'normalized_distance_quantiles'):
+            if out[key] is not None:
+                out[key] = dict(out[key])
         out['bin_correlation'] = self.bin_correlation
         return out
 
@@ -387,8 +441,13 @@ class InhomogeneousPacker:
         self.displacement_cap = (0.5 * layout.marks.median_radius
                                  if displacement_cap is None else float(displacement_cap))
         self.placeholder_type = placeholder_type
-        if bin_size is None:
-            bin_size = max(0.5 * (layout.bandwidth or 20.0), 10.0)
+        scale = getattr(layout, 'quota_scale', None)
+        if bin_size is None and scale is not None:
+            bin_size, self.quota_floor_source = float(scale), 'layout'
+        else:
+            self.quota_floor_source = 'legacy'
+            if bin_size is None:
+                bin_size = max(0.5 * (layout.bandwidth or 20.0), 10.0)
         self.bin_pixels = max(1, int(round(bin_size / layout.grid_step)))
         self.bin_size = self.bin_pixels * layout.grid_step
         self._rng = np.random.default_rng(seed)
@@ -608,6 +667,15 @@ class InhomogeneousPacker:
         for x, y in zip(self._xs, self._ys):
             achieved[self._bin_of(x, y)] += 1
 
+        # Diagnostics only: no RNG use, computed after all placement.
+        target_arr = quotas.astype(float)
+        shortfall = np.maximum(quotas - achieved.reshape(quotas.shape), 0)
+        dense = target_arr >= 4
+        dense_short = float(np.sum(
+            achieved.reshape(quotas.shape)[dense] < 0.9 * target_arr[dense]) / quotas.size)
+        gap_q, norm_q, _ = _separation_quantiles(
+            np.column_stack([self._xs, self._ys, self._zs]), np.asarray(self._rs))
+
         self.report = PackingReport(
             n_target=int(layout.n_target), n_placed=len(self._xs), n_rsa=n_rsa,
             n_inserted=len(deficit), n_relaxed=n_relaxed,
@@ -616,6 +684,10 @@ class InhomogeneousPacker:
             target_overlap_fraction=float(layout.target_overlap_fraction),
             saturated_bins=int(saturated.sum()), bin_size=self.bin_size,
             bin_targets=quotas, bin_achieved=achieved.reshape(quotas.shape),
+            bin_shortfall=shortfall, quota_floor=float(self.bin_size),
+            quota_floor_source=self.quota_floor_source,
+            clearance_quantiles=gap_q, normalized_distance_quantiles=norm_q,
+            dense_bin_fraction_short=dense_short,
         )
 
         cells = []
