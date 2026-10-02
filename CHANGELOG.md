@@ -726,6 +726,7 @@ release-process metadata only.
   integration via Model Context Protocol.
 - Examples, tests, MIT license, and documentation.
 
+[0.1.18]: https://github.com/emcramer/tissue_simulator/compare/v0.1.17...v0.1.18
 [0.1.17]: https://github.com/emcramer/tissue_simulator/compare/v0.1.16...v0.1.17
 [0.1.16]: https://github.com/emcramer/tissue_simulator/compare/v0.1.15...v0.1.16
 [0.1.15]: https://github.com/emcramer/tissue_simulator/compare/v0.1.14...v0.1.15

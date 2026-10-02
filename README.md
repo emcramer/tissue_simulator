@@ -589,7 +589,7 @@ BibTeX from [CITATION.cff](CITATION.cff). BibTeX:
   title     = {Tissue Simulator: 3D simulated biological tissue section
                generator with network-based spatial analysis},
   year      = {2026},
-  version   = {0.1.17},
+  version   = {0.1.18},
   doi       = {10.5281/zenodo.17465675},
   url       = {https://github.com/emcramer/tissue_simulator}
 }
