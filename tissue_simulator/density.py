@@ -539,14 +539,27 @@ def _calibrate_patches(region_labels, n_labels, centers, fractions, rho, step, b
     return length, nu, i == 0, i == lengths.size - 1
 
 
-def _heterogeneity_statistics(iy, ix, type_idx, n_types, shape, step, bandwidth, mask):
-    """Variance of log density and density-weighted composition departure."""
+def _heterogeneity_statistics(iy, ix, type_idx, n_types, shape, step, bandwidth, mask,
+                              comp_bandwidth=None):
+    """Variance of log density and density-weighted composition departure.
+
+    The density statistic always uses the pooled ``bandwidth``. When
+    ``comp_bandwidth`` (one value per type, adaptive strategy) is given, the
+    composition statistic is computed from per-type maps at those bandwidths
+    so that compositional blobs smaller than the pooled bandwidth are not
+    blurred away; None keeps the single-map (legacy) computation exactly.
+    """
     lam = _intensity_grids(iy, ix, type_idx, n_types, shape, step, bandwidth, mask)
     total = lam.sum(axis=0)[mask]
     mean = total.mean()
     t_density = float(np.var(np.log(total + 0.01 * mean))) if mean > 0 else 0.0
     if n_types < 2 or total.sum() <= 0:
         return t_density, 0.0
+    if comp_bandwidth is not None:
+        lam = _intensity_grids(iy, ix, type_idx, n_types, shape, step, comp_bandwidth, mask)
+        total = lam.sum(axis=0)[mask]
+        if total.sum() <= 0:
+            return t_density, 0.0
     global_p = np.bincount(type_idx, minlength=n_types) / type_idx.size
     comp = lam[:, mask] / np.maximum(total, 1e-12)
     safe = np.where(global_p > 0, global_p, 1.0)
@@ -984,6 +997,15 @@ class DensityModel:
                 mask, void_info = _voids.infer_voids(xs, ys, radii, None, grid_step,
                                                      width, height)
                 mask = mask.copy()
+                # Only interior holes are re-placed in layouts, so edge-touching
+                # void components stay tissue in the mask (they remain in
+                # ``void_info`` diagnostics); otherwise n_target is biased.
+                vlab, nvl = ndimage.label(~mask)
+                for k in range(1, nvl + 1):
+                    vy, vx = np.nonzero(vlab == k)
+                    if (vy.min() == 0 or vx.min() == 0 or vy.max() == shape[0] - 1
+                            or vx.max() == shape[1] - 1):
+                        mask[vy, vx] = True
                 mask[iy, ix] = True
             else:
                 void_info = _voids.summarize_components(~mask, grid_step)
@@ -1137,6 +1159,8 @@ class DensityModel:
             # statistic? Accept iff observed >= BIC_THRESHOLD and p <= alpha;
             # otherwise refit without detrending.
             null = model._trend_null(rng, n_null, alpha, xs, ys, type_idx, org["delta_bic"])
+            if null.get("degenerate"):
+                model.flags = model.flags + ("trend_null_degenerate",)
             if null["accepted"]:
                 model.organization["null"] = null
                 return model
@@ -1248,6 +1272,13 @@ class DensityModel:
                                                        self.grid_step, self.width, self.height))
         stats = np.array(stats, dtype=float)
         stats = stats[np.isfinite(stats)]
+        if stats.size == 0:
+            # Every null statistic was non-finite: no evidence either way, so
+            # behave like n_null == 0 (accept on the BIC threshold alone).
+            out.update(n_null=0, ambiguous=None, degenerate=True,
+                       accepted=bool(observed >= _organization.BIC_THRESHOLD),
+                       seconds=float(time.perf_counter() - t0))
+            return out
         p = float((1 + np.sum(stats >= observed)) / (stats.size + 1))
         q = (np.quantile(stats, [0.5, 0.95]).tolist() + [float(stats.max())]) if stats.size \
             else [None, None, None]
@@ -1265,8 +1296,12 @@ class DensityModel:
         shape = self.mask.shape
         n_types = len(self.cell_types)
         iy, ix = _pixel_indices(xs, ys, self.grid_step, shape)
+        comp_bw = (np.asarray(self.type_bandwidths, dtype=float)
+                   if self.strategy == "adaptive" and np.size(self.type_bandwidths) == n_types
+                   else None)
         observed = _heterogeneity_statistics(iy, ix, type_idx, n_types, shape,
-                                             self.grid_step, self.bandwidth, self.mask)
+                                             self.grid_step, self.bandwidth, self.mask,
+                                             comp_bw)
         null_layout = self._uniform_layout(self.width, self.height, self.n_cells,
                                            mask=self.mask)
         null = []
@@ -1282,7 +1317,8 @@ class DensityModel:
                 labels = rng.choice(type_idx, size=len(cells), replace=True)
             niy, nix = _pixel_indices(centers[:, 0], centers[:, 1], self.grid_step, shape)
             null.append(_heterogeneity_statistics(niy, nix, labels, n_types, shape,
-                                                  self.grid_step, self.bandwidth, self.mask))
+                                                  self.grid_step, self.bandwidth, self.mask,
+                                                  comp_bw))
         null = np.array(null).reshape(-1, 2)
         p_density = (1 + np.sum(null[:, 0] >= observed[0])) / (null.shape[0] + 1)
         p_composition = (1 + np.sum(null[:, 1] >= observed[1])) / (null.shape[0] + 1)
@@ -1291,6 +1327,9 @@ class DensityModel:
             "p_density": float(p_density), "p_composition": float(p_composition),
             "n_null": int(null.shape[0]),
         }
+        if comp_bw is not None:
+            self.heterogeneity["composition_bandwidths"] = {
+                t: float(h) for t, h in zip(self.cell_types, comp_bw)}
         self.homogeneous = bool(p_density > alpha and p_composition > alpha)
 
     # -- layouts ------------------------------------------------------------

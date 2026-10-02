@@ -216,6 +216,9 @@ the final detrended model's `_residual_maps` (holes included), sampled as
 inhomogeneous Poisson cell sets, and `trend_statistic` (max delta BIC over the
 candidates) is recomputed on each. `p = (1 + #{null >= observed}) / (n_null + 1)`;
 the trend is accepted iff `observed >= BIC_THRESHOLD` and `p <= alpha` (0.05).
+With `n_null=19` the smallest attainable p is 0.05, so acceptance means no
+null draw reaches the observed value. If every null statistic is non-finite
+the null is reported as degenerate and the BIC threshold alone decides.
 On rejection the model is rebuilt once without detrending and
 `organization["fallback"] == "stationary_null"` (candidates are kept). The
 result is in `organization["null"]`. A bootstrap from the fitted stationary
@@ -240,10 +243,13 @@ adaptive fits; set `n_null=0` to skip it (the BIC threshold alone then decides).
   per-tissue-area `density` and the organization fit all exclude the lumen).
   With a user `mask`, its interior holes are summarized instead (separation
   fallback: one median hole diameter) and the mask is unchanged.
-- Edge-touching components stay void in the mask but are excluded from the size
-  pool unless no interior hole exists. `DensityModel.voids` (also mirrored in
-  `estimation["voids"]`) holds `n_holes`, `equivalent_diameters`, `areas`,
-  `min_center_separation`, `tau`, `all_components`.
+- Only interior components (not touching the window edge) are removed from the
+  tissue mask and re-placed in layouts; edge-touching components are reported
+  but left in the mask, because they are never re-placed and removing them
+  would inflate replicate cell counts. `DensityModel.voids` holds `n_holes`,
+  `equivalent_diameters`, `areas`, `min_center_separation`, `tau` and
+  `all_components`; `estimation["voids"]` carries the same summary without
+  `all_components`.
 - **Placement** (`_voids.place_voids`, in `_residual_maps` after the two noise
   fields; organized layouts draw holes after theta/center): the exact source
   interior hole count, diameters resampled with replacement, disc centers by

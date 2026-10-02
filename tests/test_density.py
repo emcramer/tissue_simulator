@@ -717,3 +717,95 @@ def test_legacy_default_draws_no_void_state():
     m = DensityModel.fit(x, y, r, t, n_null=0, seed=0)
     assert m.voids == {} and "voids" not in m.estimation
     assert m.sample_layout(rng=0).voids == {}
+
+
+# ---------------------------------------------------------------------------
+# Adaptive composition-only nests and homogeneous holes (WP-D)
+# ---------------------------------------------------------------------------
+
+_COMP_NESTS = np.array([[60.0, 70.0], [200.0, 60.0], [90.0, 220.0], [230.0, 210.0]])
+
+
+def _composition_nests_region(seed=0):
+    """Uniform density; four r=38 discs 90 % B inside, stroma 80/10/10 A/B/C."""
+    rng = np.random.default_rng(seed)
+    xy, r = _rsa_points(seed)
+    inside = (np.linalg.norm(xy[:, None] - _COMP_NESTS[None], axis=2) < 38.0).any(axis=1)
+    u = rng.random(len(r))
+    out = np.where(u < 0.8, 'A', np.where(u < 0.9, 'B', 'C'))
+    types = np.where(inside, np.where(rng.random(len(r)) < 0.9, 'B', 'A'), out)
+    return xy[:, 0], xy[:, 1], r, types
+
+
+@pytest.fixture(scope="module")
+def nests_composition_only():
+    x, y, r, t = _composition_nests_region()
+    kw = dict(bounds=(0, 0, SIZE, SIZE), seed=0)
+    return (DensityModel.fit(x, y, r, t, strategy="adaptive", **kw),
+            DensityModel.fit(x, y, r, t, **kw))
+
+
+def test_adaptive_detects_composition_only_nests(nests_composition_only):
+    model, legacy = nests_composition_only
+    het = model.heterogeneity
+    assert "composition_bandwidths" in het
+    assert not model.homogeneous
+    assert het["p_composition"] <= 0.05
+    assert len(set(model.region_compartments[model.mask].tolist())) >= 2
+    lay = model.sample_layout(rng=1)
+    b = list(lay.cell_types).index('B')
+    comp_b = lay.composition[b][lay.compartment >= 0]
+    assert (comp_b > 0.5).mean() >= 0.05
+    assert (comp_b < 0.3).mean() >= 0.5
+    # Legacy tests at the pooled bandwidth; its verdict may stay homogeneous.
+    assert "composition_bandwidths" not in legacy.heterogeneity
+
+
+def _glomeruli_region(seed=0):
+    xy, r = _rsa_points(seed)
+    centers = np.array([[70.0, 80.0], [200.0, 90.0], [140.0, 220.0]])
+    keep = (np.linalg.norm(xy[:, None] - centers[None], axis=2) >= 18.0).all(axis=1)
+    types = np.random.default_rng(seed).choice(['A', 'B'], len(r))
+    return xy[keep, 0], xy[keep, 1], r[keep], types[keep]
+
+
+def test_homogeneous_adaptive_model_keeps_holes():
+    x, y, r, t = _glomeruli_region()
+    model = DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), seed=0,
+                             strategy="adaptive")
+    assert model.voids["n_holes"] >= 1
+    lay = model.sample_layout(rng=3)
+    assert lay.mode == "uniform" or not model.homogeneous
+    if model.homogeneous:
+        assert lay.mode == "uniform"
+        assert lay.voids["n_placed"] == model.voids["n_holes"] >= 1
+        assert (lay.intensity == 0).any() and (lay.compartment == -1).any()
+        assert lay.n_target == int(round(model.density * SIZE * SIZE
+                                         * float((lay.compartment >= 0).mean())))
+
+
+def test_edge_touching_voids_do_not_bias_cell_counts():
+    x, y, r, t = _nest_region()
+    kw = dict(bounds=(0, 0, SIZE, SIZE), seed=0, strategy="adaptive", n_null=0)
+    auto = DensityModel.fit(x, y, r, t, voids="auto", **kw)
+    none = DensityModel.fit(x, y, r, t, voids="none", **kw)
+    assert np.isclose(auto.density, none.density)
+    assert auto.sample_layout(rng=1).n_target == none.sample_layout(rng=1).n_target
+
+
+def test_degenerate_trend_null_accepts_on_bic_and_flags(monkeypatch, gradient_model):
+    from tissue_simulator import _organization
+    assert gradient_model.organization["model"] != "none"
+    x, y, r, t = _gradient_region()
+    calls = []
+
+    def fake(*a, **k):
+        calls.append(1)
+        return -np.inf
+    monkeypatch.setattr(_organization, "trend_statistic", fake)
+    model = DensityModel.fit(x, y, r, t, bounds=(0, 0, SIZE, SIZE), seed=0,
+                             strategy="adaptive")
+    assert calls
+    assert model.organization["model"] != "none"
+    assert model.organization["null"]["degenerate"] is True
+    assert "trend_null_degenerate" in model.flags
