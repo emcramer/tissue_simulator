@@ -296,6 +296,20 @@ Rules, exactly as implemented:
   paired with a strong partner.
 - **Advisory comparison.** The same top-unit test against draws from the fitted
   patch model only sets `units["ambiguous_with_patches"]`; it never drops units.
+- **Unpaired blobs** (kind `blob`; paired `ring_core`/`ring_lumen` keep the
+  CSR-only rule). *Confirmation:* a strong (rank-matched, above the CSR null)
+  H0 bar of the same type at the other scale, with its peak in the blob's
+  footprint and footprint circularity at least
+  `UNIT_SUPPORT_MIN_CIRCULARITY = 0.5` (other shape gates not applied). It is
+  required in every case: with ~12 tests per fit (3 types x 2 scales x 2
+  degrees) at the 95th percentile of 9 draws, a chance bump at one scale is
+  expected; at both it is rare. *Homogeneous model:* the patch null equals the
+  CSR null, so confirmation is the only extra rule. *Inhomogeneous model:* the
+  blob must also exceed the 0.95 quantile of the patch-null maximum persistence
+  (`advisory_draws`, its key); a patch-ambiguous blob is kept only when at least
+  `UNIT_AMBIGUOUS_MIN_BLOBS = 3` distinct confirmed strong blobs of the same
+  type and scale exist (a patch process can make a bump or two, tumor nests
+  repeat). Strong Potts clustering (J=1.5) gives no units; random labels none.
 - **Footprint.** Component of the map at `birth - 0.5 * persistence`
   (`UNIT_FOOTPRINT_LEVEL`). Area must be
   below `MAX_UNIT_AREA_FRACTION = 0.25` of the window and radius at least

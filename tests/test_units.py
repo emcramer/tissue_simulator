@@ -334,3 +334,40 @@ def test_abundant_type_nests(p_b):
     u = _abundant(p_b).units
     assert u and u["n_units"] == 4 and u["kinds"] == {"blob": 4}
     assert all(x["ring_type"] == 'B' for x in u["units"])
+
+
+def _scenario_model(name, seed=0):
+    """Demo scenario tissue (A/B/C labels 50/30/20) fitted adaptively."""
+    xy, r = _points(seed)
+    rng = np.random.default_rng(seed + 1)
+    if name == "random":
+        lab = rng.choice(3, len(xy), p=[0.5, 0.3, 0.2])
+    else:
+        from scipy.spatial import cKDTree
+        j, n = float(name.split(":")[1]), len(xy)
+        nbrs = [np.array([k for k in nb if k != i]) for i, nb in
+                enumerate(cKDTree(xy).query_ball_point(xy, 15.0))]
+        lab = np.repeat(np.arange(3), np.round(np.array([0.5, 0.3, 0.2]) * n).astype(int))[:n]
+        lab = np.concatenate([lab, np.zeros(n - len(lab), int)])
+        rng.shuffle(lab)
+        same = lambda i, l: int((lab[nbrs[i]] == l).sum()) if len(nbrs[i]) else 0
+        for _ in range(60):
+            for _ in range(n):
+                i, k = rng.integers(n, size=2)
+                li, lk = lab[i], lab[k]
+                if li == lk:
+                    continue
+                d = (same(i, lk) - same(i, li)) + (same(k, li) - same(k, lk))
+                if rng.random() < np.exp(min(0.0, j * d)):
+                    lab[i], lab[k] = lk, li
+    return _fit_n((xy[:, 0], xy[:, 1], r, np.array(list("ABC"))[lab]), 19)[0]
+
+
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_random_labels_no_units(seed):
+    assert _scenario_model("random", seed).units == {}
+
+
+def test_strong_potts_no_unpaired_blobs():
+    units = _scenario_model("potts:1.5").units
+    assert all(u["kind"] != "blob" for u in units.get("units", []))

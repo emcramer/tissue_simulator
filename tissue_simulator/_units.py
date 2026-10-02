@@ -113,6 +113,26 @@ UNIT_MIN_BLOB_RADIUS_NN = 2.0
 """Minimum outer radius, in nearest-neighbour distances, of a fine-scale-only blob."""
 MIN_UNIT_RADIUS_PX = 1.5
 """Features smaller than this many pixels in radius are discarded."""
+# Unpaired-blob rules (no core/lumen partner), applied after pairing:
+# (1) inhomogeneous model: the blob must exceed the ``quantile`` of the maximum
+#     persistence of the fitted patch-model null draws (``advisory_draws``) for
+#     its key and be confirmed at the other scale; otherwise it is patch-ambiguous
+#     and needs UNIT_AMBIGUOUS_MIN_BLOBS distinct confirmed same-type, same-scale
+#     blobs (the patch model can make a bump or two, not a repeated set);
+# (2) homogeneous model (no advisory draws; patch null == CSR null): the blob
+#     must be supported at both scales, i.e. a footprint-overlapping strong H0
+#     feature of the same type at the other scale. Family-wise control: ~12
+#     tests (3 types x 2 scales x 2 degrees) per fit at the 95th percentile of
+#     9 draws give a chance bump at one scale; a bump at both is much rarer.
+UNIT_AMBIGUOUS_MIN_BLOBS = 3
+# Patch-ambiguous unpaired blobs (inhomogeneous model; do not beat the patch-null
+# maximum 95th percentile, i.e. rank 0 of the patch null) need at least this many supported strong blobs of
+# the same type and scale (demo nests: 4; Potts J=1.5 chance clusters: fewer).
+UNIT_SUPPORT_MIN_CIRCULARITY = 0.5
+# Other-scale support must have footprint circularity >= this (looser than the
+# 0.6 detection gate: a real nest's fine-scale footprint scored 0.60 and was lost
+# by sampling noise, a chance bump scored 0.45).
+# Paired units (ring_core, ring_lumen) keep the CSR-only rule.
 UNIT_WEAK_QUANTILE = 0.5
 """Null quantile of the max persistence above which a feature is *weak*
 evidence. A weak feature is kept only when paired (a lumen inside a ring or
@@ -359,7 +379,7 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
                 if (_circularity(foot0, bar["peak"]) < UNIT_MIN_CIRCULARITY
                         or f[tuple(bar["peak"])] < need * out_mean):
                     continue
-                features.append({"degree": 0, "type": t, "strong": bool(bar["persistence"] > _at(rank[f"{name}:h0{suffix}"], i)), "scale": scales[si], "center": center(bar["peak"]),
+                features.append({"degree": 0, "rank": i, "type": t, "strong": bool(bar["persistence"] > _at(rank[f"{name}:h0{suffix}"], i)), "scale": scales[si], "center": center(bar["peak"]),
                                  "peak": tuple(bar["peak"]), "outer": r_px * grid_step, "inner": 0.0,
                                  "foot": _filled(comp), "persistence": float(bar["persistence"]),
                                  "score": float(bar["persistence"] / max(_at(rank[f"{name}:h0{suffix}"], i), 1e-300))})
@@ -375,7 +395,7 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
                 foot = _filled(ring_lab == np.bincount(near[near > 0]).argmax())
                 if _circularity(foot, rc) < UNIT_MIN_CIRCULARITY:
                     continue
-                features.append({"degree": 1, "type": t, "strong": bool(bar["persistence"] > _at(rank[f"{name}:h1{suffix}"], i)), "scale": scales[si], "center": center(rc), "peak": rc,
+                features.append({"degree": 1, "rank": i, "type": t, "strong": bool(bar["persistence"] > _at(rank[f"{name}:h1{suffix}"], i)), "scale": scales[si], "center": center(rc), "peak": rc,
                                  "outer": outer * grid_step,
                                  "inner": math.sqrt(float(basin.sum()) / math.pi) * grid_step,
                                  "foot": foot, "persistence": float(bar["persistence"]),
@@ -395,7 +415,7 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
         unit = {"kind": "blob", "center": ft["center"], "outer_radius": float(ft["outer"]),
                 "inner_radius": float(ft["inner"]), "ring_type": cell_types[ft["type"]],
                 "core_type": None, "persistence": ft["persistence"], "score": ft["score"],
-                "scale": ft["scale"],
+                "scale": ft["scale"], "_ft": ft,
                 "key": f"{cell_types[ft['type']]}:h{ft['degree']}"
                        + (f"@{ft['scale']:g}" if n_scales > 1 else "")}
         cy_, cx_ = (float(v) for v in ndi.center_of_mass(ft["foot"]))
@@ -424,8 +444,62 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
     for _, u in units:
         x, y = u["center"]
         u["edge_touching"] = bool(min(x, y, width - x, height - y) < u["outer_radius"])
+    homogeneous = not advisory_draws
+    patch_cache: dict = {}
+
+    def patch_thr(key, deg, si, t):
+        if key not in patch_cache:
+            fn = superlevel_h0 if deg == 0 else superlevel_h1
+            vals = [_top(fn(np.asarray(ln, float).reshape(lam_types.shape)[si, t], full))
+                    for ln, _ in advisory_draws]
+            patch_cache[key] = _rank_thresholds(vals, quantile)
+        return patch_cache[key]
+
+    def other_scale_support(ft):
+        """A strong (rank-matched, above the CSR null) H0 bar of the same type at
+        the other scale whose peak lies in the blob's footprint (no shape gates:
+        the confirmation need only be a significant bump)."""
+        name = cell_types[ft["type"]]
+        for sj in range(n_scales):
+            if scales[sj] == ft["scale"]:
+                continue
+            key = f"{name}:h0@{scales[sj]:g}"
+            for j, bar in enumerate(bars0[sj, ft["type"]][:RANK_DEPTH]):
+                if (bar["persistence"] > _at(rank[key], j) and ft["foot"][tuple(bar["peak"])]
+                        and _circularity(_filled(_blob_geometry(lam_types[sj, ft["type"]], bar)[1]),
+                                         bar["peak"]) >= UNIT_SUPPORT_MIN_CIRCULARITY):
+                    return True
+        return False
+
+    def unpaired_ok(u):
+        """Extra evidence for unpaired blobs (``UNIT_UNPAIRED_*`` rules)."""
+        ft = u["_ft"]
+        if homogeneous:  # patch null == CSR null: demand support at both scales
+            return other_scale_support(ft)
+        si = list(scales).index(ft["scale"])
+        thr_p = patch_thr(u["key"], ft["degree"], si, ft["type"])
+        if ft["persistence"] > _at(thr_p, 0) and other_scale_support(ft):
+            return True  # beats the patch model's null (and is confirmed at both scales)
+        # Patch-ambiguous: the fitted patch model reproduces a bump this strong.
+        # A patch process can make one or two; accept only a repeated set of
+        # supported same-key blobs (>= UNIT_AMBIGUOUS_MIN_BLOBS).
+        same = [g for g in features if g["degree"] == ft["degree"] and g["type"] == ft["type"]
+                and g["scale"] == ft["scale"] and g["strong"] and other_scale_support(g)]
+        distinct = []
+        for g in same:  # one bump seen at several ranks/footprints counts once
+            if not any(h["foot"][g["peak"]] or g["foot"][h["peak"]] for h in distinct):
+                distinct.append(g)
+        return len(distinct) >= UNIT_AMBIGUOUS_MIN_BLOBS
+
+    for _, u in units:
+        if u["kind"] == "blob" and "_ft" in u:
+            u["_ok"] = unpaired_ok(u)
     keep = [u for i, u in units if i not in consumed
+            and (u["kind"] != "blob" or u.get("_ok", True))
             and (not u["edge_touching"] or u["score"] >= UNIT_EDGE_MIN_SCORE)]
+    for _, u in units:
+        u.pop("_ft", None)
+        u.pop("_ok", None)
 
     units = sorted(keep, key=lambda u: (u["kind"] == "blob", -u["score"]))
     kept = []
