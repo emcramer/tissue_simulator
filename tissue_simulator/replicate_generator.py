@@ -21,7 +21,8 @@ from scipy.spatial import cKDTree
 
 from .tissue import TissueSection, Cell, load_tissue_from_csv
 from .packing import SpherePacker, separation_diagnostics
-from .density import DensityModel
+from .density import DensityModel, _intensity_grids, _pixel_indices
+from ._persistence import superlevel_h0, persistence_distance
 from .spatial_analysis import SpatialNetworkAnalyzer, InteractionStatistics
 from .graph_coloring import GraphColorizer, color_graph_to_targets
 from .power_analysis import compare_initialization_variance
@@ -138,7 +139,8 @@ def fidelity_diagnostics(x, y, radii, types, edges, *, cell_types, model=None, l
     ``nn_distance_quantiles`` (p5/p50/p95 by type), ``mixing_index`` (same-type
     fraction of graph-neighbour ends by type), ``organization_rmse``,
     ``interface_fraction`` (edges joining different types), ``n_components``,
-    ``n_holes`` (layout-expected > 2 cells but none placed, at ``finest_bin``).
+    ``n_holes`` (layout-expected > 2 cells but none placed, at ``finest_bin``),
+    ``persistence_distance`` (per type, H0 Wasserstein-1 source vs replicate KDE maps).
     Entries that cannot be computed are None.
     """
     x, y, radii = (np.asarray(v, dtype=float) for v in (x, y, radii))
@@ -206,7 +208,44 @@ def fidelity_diagnostics(x, y, radii, types, edges, *, cell_types, model=None, l
         have = np.bincount(cb, minlength=rows * cols)
         holes = int(np.sum((expected > HOLE_MIN_EXPECTED) & (have == 0)))
     out['n_holes'] = holes
+    out['persistence_distance'] = _persistence_distance_by_type(model, layout, x, y, types, cell_types)
     return out
+
+
+def _persistence_distance_by_type(model, layout, x, y, types, cell_types):
+    """Per-type Wasserstein-1 distance (``drop_essential=True``) between the H0
+    superlevel barcodes of the source's per-type intensity maps
+    (``model.region_intensity``) and of the replicate's KDE maps at the model's
+    per-type bandwidths on the same grid. None when unavailable."""
+    try:
+        if model is None or layout is None or not len(x):
+            return None
+        src = np.asarray(model.region_intensity, dtype=float)
+        shape = tuple(model.mask.shape)
+        names = list(model.cell_types)
+        if src.ndim != 3 or tuple(layout.intensity.shape) != shape:
+            return None
+        bw = np.asarray(model.type_bandwidths, dtype=float)
+        if bw.size != len(names):
+            bw = np.full(len(names), float(model.bandwidth))
+        index = {t: i for i, t in enumerate(names)}
+        tid = np.array([index.get(t, -1) for t in types])
+        keep = tid >= 0
+        iy, ix = _pixel_indices(np.asarray(x)[keep], np.asarray(y)[keep], model.grid_step, shape)
+        rep = _intensity_grids(iy, ix, tid[keep], len(names), shape, model.grid_step, bw,
+                               model.mask)
+        out = {}
+        for t in cell_types:
+            if t not in index:
+                continue
+            k = index[t]
+            d = persistence_distance(superlevel_h0(src[k], mask=model.mask),
+                                     superlevel_h0(rep[k], mask=model.mask),
+                                     drop_essential=True)
+            out[t] = float(d) if np.isfinite(d) else None
+        return out
+    except (ValueError, IndexError, KeyError, AttributeError):
+        return None
 
 
 def _resolve_scale_list(candidates, max_side) -> List[float]:
@@ -276,6 +315,7 @@ class ReplicateStatistics:
     fidelity: Optional[Dict] = None
     separation: Optional[Dict] = None
     layout_voids: Optional[Dict] = None
+    layout_units: Optional[Dict] = None
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
@@ -1111,6 +1151,7 @@ class ReplicateGenerator:
             fidelity=fidelity,
             separation=separation_diagnostics(tissue.cells),
             layout_voids=dict(layout.voids) if layout.voids else None,
+            layout_units=dict(layout.units) if getattr(layout, 'units', None) else None,
         )
         return tissue, replicate_stats
 

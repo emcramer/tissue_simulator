@@ -273,6 +273,76 @@ Known limits: the void edge and the compartment edge share one band axis
 ducts or elongated lumens (elongation is recorded, not used); inference needs
 holes of at least ~`tau` radius.
 
+## Persistent homology unit detection
+
+Adaptive fits (`units="auto"`, the default; `"none"` disables) look for compact
+*units*: tumor nests (blobs), follicles (a ring of one type around a core of
+another) and glomeruli/arteries (a ring around an empty lumen). Detection is in
+`_units.detect_units` on the per-type intensity maps (`_persistence.superlevel_h0/h1`).
+Plainly: **H0 blobs plus footprint pairing are the primary detector**; H1 rings
+contribute only at the finer scale (`UNIT_BANDWIDTH_SCALES = (1.0, 0.5)`, the
+second being half the per-type bandwidth), where a ring is not smoothed into a
+blob. A feature is kept when its persistence exceeds the
+`UNIT_NULL_QUANTILE = 0.95` quantile of the max persistence over `UNIT_NULL_DRAWS = 9`
+stationary null layouts packed by `InhomogeneousPacker` (the null reuses the
+residual generator, so hard core and composition match the source). A *weak*
+feature (above the `UNIT_WEAK_QUANTILE = 0.5` null quantile only) is kept only
+when paired with a strong partner. `UNIT_FALLBACK_FRACTION = 0.5` of the map's own
+maximum persistence replaces the null when `n_null == 0`. Footprints larger than
+`MAX_UNIT_AREA_FRACTION = 0.25` of the window, smaller than `MIN_UNIT_RADIUS_PX = 1.5`
+pixels, or fine-scale-only blobs (`FINE_ONLY_BLOBS_ALLOWED = False`; minimum radius
+`UNIT_MIN_BLOB_RADIUS_NN = 2.0` nearest-neighbour distances) are discarded. Kinds:
+`blob`, `ring_core`, `ring_lumen` (the lumen is paired from the empty-space map).
+`model.units` holds the units (`center`, `outer_radius`, `inner_radius`, `ring_type`,
+`core_type`, `persistence`, `score`, `scale`, `edge_touching`), `kinds`, `thresholds`,
+`min_center_separation` and, after the profile fit, `profiles` and `d_nn`.
+
+## Germ-grain layouts
+
+`_grains.fit_unit_profiles` pools, per kind, the density relative to the window
+mean and the type composition against the normalized distance `s = r / R_outer`
+on `DEFAULT_N_KNOTS = 8` equal bins of `[0, S_MAX = 1.5]` (`PROFILE_PRIOR_CELLS = 5`
+Dirichlet pseudo-cells toward the global mix; `DENSITY_FLOOR = 0.05` for empty
+non-lumen knots; lumen knots have density 0). Fitting is RNG-free and runs in `fit`
+after detection; profiles are stored in `model.units["profiles"]` (JSON-friendly;
+`from_dict` tolerates their absence).
+
+`sample_layout` (adaptive, units present, `layout="resample"`, homogeneous models
+included) draws every existing field first (noise fields; theta/center for organized
+layouts; the legacy-compatible voids) and then `_grains.place_grains` with the exact
+source counts per kind, radii resampled with replacement and hard-core centers at
+`model.units["min_center_separation"]` (`UNIT_PLACEMENT_TRIES = 500` draws per
+grain). `rasterize_grains` yields an intensity factor, grain composition and a lumen
+mask; intensity = residual x factor (lumen -> 0, compartment -1), composition = grain
+composition inside grains and the residual elsewhere, `n_target =
+round(density W H tissue_fraction)` and the intensity is renormalized to it.
+`Layout.units` holds the placed dict; `"units_unsatisfied"` is flagged on shortfall.
+`rasterize_grains` is given `inner_radii = 0` for non-lumen kinds (a core is not a
+void).
+
+Precedence (constants `UNIT_OWNS_LUMEN`, `UNIT_OWNS_RADIAL` in `density.py`):
+
+- Units own their lumens: a void whose centroid lies inside a unit's outer radius is
+  dropped from the placement pool (a filtered copy; `model.voids` and its diagnostics
+  are untouched), so holes are not placed twice.
+- A radial trend whose center lies inside a unit's outer radius is skipped for
+  sampling (`Layout.organization = {"model": "none", "fallback": "units"}`; the
+  organization stays recorded on the model). Planar trends coexist with units: grains
+  are applied after the trend.
+
+Replicate diagnostics: `ReplicateStatistics.layout_units` and
+`fidelity["persistence_distance"]` (per type, Wasserstein-1 between H0 barcodes of the
+source and replicate KDE maps at the model's type bandwidths, essential bar dropped).
+
+Known limits of units: discs only (no elongated or irregular units); fitted radii are
+biased about 20 % low (the smoothed footprint is smaller than the true edge), so
+placed grains are slightly small; units touching the window edge are detected but
+censored (`edge_touching`) and re-placed as full discs inside the window; the null
+costs `UNIT_NULL_DRAWS` packings per fit (seconds, scales with cell count); and the
+source's smallest center separation can be infeasible for several large units in the
+same window (for example four r = 38 blobs in 300 um), so grains may fall short and
+`units_unsatisfied` is flagged.
+
 ## Composition constraints and size compatibility
 
 - Multi-scale composition (`ReplicateGenerator._resolve_composition_scales`).
@@ -301,7 +371,7 @@ Adaptive generators default to `diagnostics=True`; legacy to off. Per replicate
 and normalized nearest-neighbor distance quantiles, plus count) and `fidelity`
 (`fidelity_diagnostics`): `size_nll` (replicate vs source), `size_ks_by_type`,
 `nn_distance_quantiles` (p5/p50/p95; `NN_QUANTILES`), `mixing_index`,
-`organization_rmse`, `interface_fraction`, `n_components`, `n_holes` (bins whose
+`organization_rmse`, `interface_fraction`, `n_components`, `persistence_distance`, `n_holes` (bins whose
 layout-expected count exceeds `HOLE_MIN_EXPECTED = 2` but hold no cell, at the
 finest scale). Entries that cannot be computed are None. Source reference
 values are cached by `ReplicateGenerator._cache_source_reference(tissue)`

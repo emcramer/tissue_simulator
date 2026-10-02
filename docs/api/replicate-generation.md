@@ -158,7 +158,11 @@ adaptive), `max_proposals` (organization re-draws, default 20).
 `DensityModel.fit` accepts `strategy`, `bandwidth_range` (`(lo, hi)`, `"auto"`
 or None), `per_type_bandwidth` and `organization`. It also takes `voids` (`"auto"`/`"none"`; default `"auto"` under
 adaptive): lumens and holes in the source are inferred and re-placed in each
-layout, reported as `layout_voids` on the replicate statistics. Criteria and limits are in
+layout, reported as `layout_voids` on the replicate statistics. `units` (`"auto"`/`"none"`;
+default `"auto"` under adaptive) detects compact units (nests, follicles, glomeruli) by persistent
+homology and re-places them as germ-grain units with fitted radial profiles; they appear as
+`layout_units` and take precedence over voids inside them and over a radial trend centered in a
+unit. Criteria and limits are in
 [the design notes](../notes/density-aware-packing.md).
 
 Design, ablations and known limits are in
@@ -463,9 +467,13 @@ stats = ReplicateStatistics(
   `direction`/`center`, `proposals_tried`, `accepted`, `fallback`)
 - `layout_voids`: placed voids of the layout (`centers`, `radii`, `n_requested`,
   `n_placed`, `anchored`); None when the model has none
+- `layout_units`: placed units of the layout (`centers`, `outer_radii`,
+  `inner_radii`, `kinds`, `n_requested`, `n_placed`, `shortfall`, `anchored`);
+  None when the model has none
 - `fidelity`: diagnostics against the source (`size_nll`, `size_ks_by_type`,
   `nn_distance_quantiles`, `mixing_index`, `organization_rmse`,
-  `interface_fraction`, `n_components`, `n_holes`); None unless
+  `interface_fraction`, `n_components`, `n_holes`, `persistence_distance`
+  per type: H0 Wasserstein-1 of source vs replicate KDE maps); None unless
   `diagnostics` is on. Evidence, not calibrated intervals.
 - `separation`: nearest-neighbor `clearance_quantiles`,
   `normalized_distance_quantiles` and `n_nearest_neighbour`

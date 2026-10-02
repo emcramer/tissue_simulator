@@ -76,7 +76,7 @@ def test_place_separation_and_repro():
 
 def test_place_shortfall_and_anchor():
     s = G.place_grains(np.random.default_rng(0), (20, 20), 5.0,
-                       _units("blob", 0, 20), 90.0)
+                       _units("blob", 0, 40), 90.0)
     assert s["n_placed"] < s["n_requested"]
     a = _place(anchor=(100.0, 120.0))
     assert a["anchored"] and a["centers"][0] == [100.0, 120.0]
@@ -132,7 +132,30 @@ def test_floor_and_shortfall_key():
                     "inner_radius": 0.0}]}
     pr = G.fit_unit_profiles([200.0], [200.0], [0], 1, [3.0], u, 300, 300)["blob"]
     assert min(pr["density_rel"]) >= G.DEFAULT_N_KNOTS * 0 + G.DENSITY_FLOOR
-    s = G.place_grains(np.random.default_rng(0), (20, 20), 5.0, _units("blob", 0, 20), 90.0)
+    s = G.place_grains(np.random.default_rng(0), (20, 20), 5.0, _units("blob", 0, 40), 90.0)
     assert s["shortfall"] == s["n_requested"] - s["n_placed"] > 0
     a = _place(anchor=(-50.0, 1e4))
     assert a["centers"][0] == [0.0, 300.0]
+
+
+def test_core_not_void_and_relaxed_separation():
+    k = [0.1, 0.5, 1.0, 1.4]
+    prof = {"ring_core": {"s_knots": k, "density_rel": [1.5, 2.0, 2.0, 1.0],
+                          "composition": [[0.0, 0.0, 1.0]] * 2 + [[0.0, 1.0, 0.0]] * 2},
+            "ring_lumen": dict(_profiles()["ring_lumen"], composition=[[0.0, 0.0, 1.0]] * 4)}
+    for kind, empty in (("ring_core", False), ("ring_lumen", True)):
+        pl = {"centers": [[100.0, 100.0]], "outer_radii": [50.0], "inner_radii": [20.0],
+              "kinds": [kind]}
+        f, comp, g, v = G.rasterize_grains(pl, prof, SHAPE, 5.0, [1 / 3] * 3)
+        assert (f[19, 19] == 0) == empty and v[19, 19] == empty
+        if not empty:
+            assert f[19, 19] > 0 and comp[:, 19, 19].argmax() == 2
+    flags = []
+    for seed in range(6):
+        r = G.place_grains(np.random.default_rng(seed), (60, 60), 5.0,
+                           _units("blob", 0, 38, n=3) | {"units": _units("blob", 0, 38)["units"]
+                           + [{"kind": "blob", "center": [1, 1], "outer_radius": 38.0,
+                               "inner_radius": 0.0}]}, 140.0)
+        assert r["n_placed"] == 4
+        flags.append(r["separation_relaxed"])
+    assert any(flags)

@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 import pytest
 
-from tissue_simulator import DensityModel, ReplicateGenerator, TissueSection
+from tissue_simulator import Cell, DensityModel, ReplicateGenerator, TissueSection
 from tissue_simulator.graph_coloring import GraphColorizer
 from tissue_simulator.packing import SpherePacker
 from tissue_simulator.replicate_generator import load_target_statistics_from_tissue
@@ -363,7 +363,8 @@ def test_adaptive_replicate_respects_placed_void():
         tissue.cells.append(cell)
     target = load_target_statistics_from_tissue(tissue, network_mode="radius", network_radius=20.0)
     target.target_density = None
-    model = DensityModel.from_tissue(tissue, n_null=0, seed=0, strategy="adaptive")
+    model = DensityModel.from_tissue(tissue, n_null=0, seed=0, strategy="adaptive",
+                                 units="none")  # tests the voids path
     gen = ReplicateGenerator(target, (SIZE, SIZE, 1.0), {t: (2.3, 3.0) for t in TYPES},
                              network_mode="radius", network_radius=20.0, seed=11,
                              method="graph_coloring",
@@ -382,3 +383,44 @@ def test_adaptive_replicate_respects_placed_void():
     # raster hole boundary (cells are drawn from pixels next to the hole).
     assert depth.max() <= 0.5 * med + 0.5 * np.sqrt(2.0) * model.grid_step
     assert "layout_voids" in stats.to_dict()
+
+
+@pytest.fixture(scope="module")
+def follicle_setup():
+    """Three C-core / B-ring follicles in A stroma (300 um), adaptive model with units."""
+    from .test_units import FOLLICLES, _distance, _fit, _points, _stroma
+    size = 300.0
+    xy, r = _points(2)
+    rng = np.random.default_rng(2)
+    d = _distance(xy, FOLLICLES)
+    t = np.where(d < 16, 'C', np.where(d < 38, 'B', _stroma(xy, rng, 0.03)))
+    model = _fit(xy[:, 0], xy[:, 1], r, t)
+    tissue = TissueSection(size, size, 1.0, {c: (3.5, 5.0) for c in ('A', 'B', 'C')})
+    for (x, y), rad, typ in zip(xy, r, t):
+        tissue.cells.append(Cell((x, y, 0.5), rad, str(typ)))
+    target = load_target_statistics_from_tissue(tissue, network_mode="radius", network_radius=20.0)
+    target.target_density = None
+    return tissue, target, model, size
+
+
+def test_follicle_replicate_places_units_and_reports_persistence(follicle_setup):
+    tissue, target, model, size = follicle_setup
+    assert model.units["n_units"] == 3
+    gen = ReplicateGenerator(
+        target, (size, size, 1.0), {c: (3.5, 5.0) for c in ('A', 'B', 'C')},
+        network_mode="radius", network_radius=20.0, seed=11, method="graph_coloring",
+        coloring_params=dict(cooling_rate=0.99, max_iterations=300),
+        density_model=model, strategy="adaptive")
+    gen._cache_source_reference(tissue)
+    rep, stats = _quiet(gen.generate_single_replicate, 0)
+    assert stats.layout_units["n_placed"] == 3
+    pd_ = stats.fidelity["persistence_distance"]
+    assert pd_ is not None and all(v is not None and np.isfinite(v) for v in pd_.values())
+    import json
+    json.dumps(stats.to_dict(), default=float)
+    xy = np.array([c.center[:2] for c in rep.cells])
+    types = np.array([c.cell_type for c in rep.cells])
+    in_core = np.zeros(len(xy), bool)
+    for c, R in zip(stats.layout_units["centers"], stats.layout_units["outer_radii"]):
+        in_core |= np.linalg.norm(xy - np.array(c), axis=1) < 0.4 * R  # core is s < 16/38
+    assert in_core.sum() >= 5 and (types[in_core] == 'C').mean() > 0.5

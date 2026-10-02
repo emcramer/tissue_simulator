@@ -50,6 +50,7 @@ from scipy.stats import rankdata
 
 from . import _organization
 from . import _units
+from . import _grains
 from . import _voids
 
 _QUANTILE_LEVELS = np.linspace(0.0, 1.0, 201)
@@ -90,6 +91,19 @@ _MIN_LOG_SIGMA = 0.02
 # Learned band edges: quantiles of the cells' distance to their compartment edge.
 _BAND_EDGE_QUANTILES = (0.25, 0.5, 0.75)
 _DETREND_FLOOR = 1e-3
+
+UNIT_OWNS_LUMEN = True
+"""Precedence: a void whose centroid lies inside a unit's outer radius is not placed
+by the voids path (the unit's lumen is); diagnostics keep it."""
+
+UNIT_PLACEMENT_TRIES = 500
+"""Center draws per grain in :func:`_grains.place_grains` (cheap; the source's
+smallest center separation can be a tight constraint for several large units)."""
+
+UNIT_OWNS_RADIAL = True
+"""Precedence: a radial trend centered inside a unit's outer radius is skipped for
+sampling (layout.organization = {"model": "none", "fallback": "units"}); planar
+trends coexist with units (grains are applied after the trend)."""
 
 
 # ---------------------------------------------------------------------------
@@ -625,6 +639,10 @@ class Layout:
         quota_scale: Adaptive quota bin size in µm, ``max(bandwidth / 2,
             max(2 d_nn, 2 grid_step, sqrt(4 / mean_density)))`` snapped to the
             grid; None for legacy layouts.
+        units: Placed germ-grain units (``place_grains`` dict: ``centers``,
+            ``outer_radii``, ``inner_radii``, ``kinds``, ``n_requested``,
+            ``n_placed``, ``shortfall``, ``anchored``); empty when the model
+            has no units. ``"units_unsatisfied"`` is in ``flags`` on shortfall.
     """
     width: float
     height: float
@@ -644,6 +662,7 @@ class Layout:
     organization: Dict = field(default_factory=dict)
     quota_scale: Optional[float] = None
     voids: Dict = field(default_factory=dict)
+    units: Dict = field(default_factory=dict)
 
     def pixel(self, x: float, y: float) -> Tuple[int, int]:
         ny, nx = self.intensity.shape
@@ -1167,6 +1186,12 @@ class DensityModel:
         def finish(model):
             if adaptive and units == "auto":
                 model._detect_units(rng, xs, ys, type_idx, n_null)
+                if model.units.get("units"):
+                    model.units["profiles"] = _grains.fit_unit_profiles(
+                        xs[inside], ys[inside], type_idx[inside], n_types, radii[inside],
+                        model.units, width, height)
+                    if "d_nn" not in model.units and "d_nn" in model.estimation:
+                        model.units["d_nn"] = model.estimation["d_nn"]
             return model
 
         model = build(maps, dict(org, null=None) if use_org else org)
@@ -1310,7 +1335,7 @@ class DensityModel:
     def _detect_units(self, rng, xs, ys, type_idx, n_null) -> None:
         """Detect units (:func:`_units.detect_units`) and store them in :attr:`units`.
 
-        The observed per-type maps are plain kernel intensities at the
+        The observed per-type maps are plain kernel intensities (inverse-trend weighted when an organization trend was accepted) at the
         per-type bandwidths times each of ``_units.UNIT_BANDWIDTH_SCALES`` over the full grid (void pixels stay in the
         domain so lumens form basins), plus the empty-space distance map.
         Null draws (``min(n_null, UNIT_NULL_DRAWS)``) come from
@@ -1333,13 +1358,27 @@ class DensityModel:
         if bw.size != n_types:
             bw = np.full(n_types, self.bandwidth)
 
-        def maps_of(cx, cy, t):
+        def maps_of(cx, cy, t, weights=None):
             iy, ix = _pixel_indices(cx, cy, step, shape)
-            return (np.stack([_intensity_grids(iy, ix, t, n_types, shape, step, bw * m, full)
+            return (np.stack([_intensity_grids(iy, ix, t, n_types, shape, step, bw * m, full,
+                                               weights)
                               for m in _units.UNIT_BANDWIDTH_SCALES]),
                     _units.empty_space_map(cx, cy, shape, step))
 
-        lam, empty = maps_of(xs, ys, type_idx)
+        weights = None
+        org = self.organization
+        if org.get("model", "none") != "none":
+            # Units are residual structure: with an accepted trend, weight each
+            # cell by the inverse trend (same clipping as _fit_maps) so the
+            # observed maps are detrended, like the stationary null layouts.
+            dens_c, comp_c = _organization.profile_along(
+                org, _organization.coordinate_along(org, xs, ys))
+            weights = 1.0 / np.maximum(
+                dens_c * comp_c[np.arange(xs.size), type_idx] / self.proportions[type_idx],
+                _DETREND_FLOOR)
+            weights = np.clip(weights, 1.0 / _DETREND_WEIGHT_CAP, _DETREND_WEIGHT_CAP)
+            weights = weights * (weights.size / weights.sum())
+        lam, empty = maps_of(xs, ys, type_idx, weights)
         draws = []
         n_draws = min(int(n_null), _units.UNIT_NULL_DRAWS)
         if n_draws > 0:
@@ -1437,6 +1476,8 @@ class DensityModel:
         rng = _as_generator(rng)
         width = self.width if width is None else float(width)
         height = self.height if height is None else float(height)
+        if self._units_active() and (self.homogeneous or layout == "resample"):
+            return self._units_layout(rng, width, height, layout, max_proposals)
 
         if self.homogeneous:
             if self._has_voids():
@@ -1456,6 +1497,84 @@ class DensityModel:
                 and self.organization.get("geometry") in ("planar", "radial")):
             return self._organized_layout(rng, width, height, max_proposals)
         return self._resampled_layout(rng, width, height)
+
+    # -- units (germ-grain) -------------------------------------------------
+
+    def _units_active(self) -> bool:
+        return (self.strategy == "adaptive" and bool(self.units.get("units"))
+                and bool(self.units.get("profiles")))
+
+    def _unit_free_voids(self) -> Dict:
+        """Copy of :attr:`voids` without holes owned by a unit (precedence rule
+        :data:`UNIT_OWNS_LUMEN`): interior holes whose centroid lies inside a
+        unit's outer radius are dropped from the placement pool. Diagnostics
+        (``all_components``) are kept; ``self.voids`` is not modified."""
+        if not self._has_voids():
+            return self.voids
+        us = self.units["units"]
+
+        def owned(c):
+            return any(math.hypot(c["centroid"][0] - u["center"][0],
+                                  c["centroid"][1] - u["center"][1]) <= u["outer_radius"]
+                       for u in us)
+
+        comps = self.voids.get("all_components", [])
+        keep = [c for c in comps if not c["edge_touching"] and not owned(c)]
+        out = dict(self.voids)
+        out["n_holes"] = len(keep)
+        if keep:
+            out["equivalent_diameters"] = [c["equivalent_diameter"] for c in keep]
+        out["dropped_for_units"] = sum(1 for c in comps if not c["edge_touching"]) - len(keep)
+        return out
+
+    def _radial_center_in_unit(self) -> bool:
+        """Precedence rule :data:`UNIT_OWNS_RADIAL`: a radial trend centered inside
+        a unit is replaced by the unit."""
+        org = self.organization
+        c = org.get("center")
+        if org.get("model", "none") == "none" or org.get("geometry") != "radial" or c is None:
+            return False
+        return any(math.hypot(c[0] - u["center"][0], c[1] - u["center"][1]) <= u["outer_radius"]
+                   for u in self.units["units"])
+
+    def _units_layout(self, rng, width, height, layout, max_proposals) -> Layout:
+        """Residual layout (all existing draws) with germ-grain units on top.
+
+        Grains are placed after every other draw (noise fields; theta/center for
+        organized layouts), rasterized with the fitted profiles, and multiply the
+        residual intensity (lumen pixels -> 0, compartment -1); inside grains the
+        composition is the grain composition. ``n_target`` follows the tissue
+        fraction (voids and lumens excluded) and the intensity is renormalized to it.
+        """
+        import dataclasses
+        skip = self._radial_center_in_unit()
+        view = dataclasses.replace(
+            self, units={}, voids=self._unit_free_voids(),
+            organization=({"model": "none"} if skip else self.organization))
+        out = view.sample_layout(rng, width, height, layout, max_proposals=max_proposals)
+        if skip:
+            out.organization = {"model": "none", "fallback": "units"}
+        shape = out.intensity.shape
+        step = self.grid_step
+        placed = _grains.place_grains(rng, shape, step, self.units,
+                                      self.units.get("min_center_separation"),
+                                      max_tries=UNIT_PLACEMENT_TRIES)
+        factor, comp, gmask, vmask = _grains.rasterize_grains(
+            placed, self.units["profiles"], shape, step, self.proportions)
+        intensity = np.where(vmask, 0.0, out.intensity * factor)
+        composition = np.where(gmask[None], comp, out.composition)
+        composition = np.maximum(composition, 0.0)
+        composition = composition / np.maximum(composition.sum(axis=0, keepdims=True), 1e-300)
+        out.compartment = np.where(vmask, -1, out.compartment)
+        tissue = (out.compartment >= 0)
+        n_target = int(round(self.density * width * height * float(tissue.mean())))
+        out.intensity = self._normalize(intensity, n_target)
+        out.composition = composition
+        out.n_target = n_target
+        out.units = placed
+        if placed["shortfall"] > 0:
+            out.flags = tuple(out.flags) + ("units_unsatisfied",)
+        return out
 
     def _layout(self, width, height, intensity, composition, compartment, n_target,
                 mode, marks=None) -> Layout:

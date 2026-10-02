@@ -199,3 +199,13 @@ def test_potts_clustering_control(seed):
     n = model.units.get("n_units", 0)
     print("potts", seed, n)
     assert n <= 1
+
+
+def test_layered_trend_gives_no_units():
+    """Residual structure only: an accepted planar trend must not yield units."""
+    from tests.test_density import _layered_region
+    x, y, r, t = _layered_region(2)
+    model = DensityModel.fit(x, y, r, t, bounds=(0, 0, 240.0, 120.0), strategy="adaptive",
+                             seed=0)
+    assert model.organization["model"].startswith("planar")
+    assert model.units == {}

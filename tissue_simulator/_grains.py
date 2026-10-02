@@ -23,6 +23,9 @@ DENSITY_FLOOR = 0.05
 AREA_GRID_PIXELS = 150
 """Pixels along the shorter window side when estimating in-window annulus areas."""
 
+RELAX_MARGIN = 5.0
+"""Extra micrometers added to the sum of outer radii when separation is relaxed."""
+
 KINDS = ("blob", "ring_core", "ring_lumen")
 """Unit kinds understood by this module."""
 
@@ -108,13 +111,22 @@ def fit_unit_profiles(xs, ys, type_idx, n_types, radii, units, width, height,
     return out
 
 
+def _sep(min_separation, r_q, R, relax):
+    base = r_q + R
+    if min_separation is None:
+        return base
+    return min(min_separation, base + RELAX_MARGIN) if relax else min_separation
+
+
 def place_grains(rng, shape, grid_step, units_summary, min_separation, max_tries=50,
                  anchor=None):
     """Place the source number of units per kind with hard-core centers.
 
     Outer radii are drawn first (per kind, with replacement; inner radius =
     outer * kind mean inner ratio), then centers, largest unit first. Discs lie
-    inside the window (radius clipped to half the window). Separation is
+    inside the window (radius clipped to half the window). After ``max_tries`` at the requested separation the remaining grains retry with
+    it relaxed to sum of outer radii + ``RELAX_MARGIN`` (``separation_relaxed``
+    set True). Separation is
     ``min_separation`` (fallback: sum of the two outer radii). A unit failing
     ``max_tries`` is skipped and reported as ``shortfall`` (= n_requested -
     n_placed). ``min_separation=None`` means the sum-of-radii fallback, 0 means no
@@ -140,7 +152,8 @@ def place_grains(rng, shape, grid_step, units_summary, min_separation, max_tries
             kinds.append(kind)
     n = len(outer)
     placed = {"centers": [], "outer_radii": [], "inner_radii": [], "kinds": [],
-              "n_requested": n, "n_placed": 0, "shortfall": n, "anchored": False}
+              "n_requested": n, "n_placed": 0, "shortfall": n, "anchored": False,
+              "separation_relaxed": False}
     order = sorted(range(n), key=lambda i: -outer[i])
     centers = []
     for rank, i in enumerate(order):
@@ -150,12 +163,15 @@ def place_grains(rng, shape, grid_step, units_summary, min_separation, max_tries
             placed["anchored"] = True
         else:
             c = None
-            for _ in range(max_tries):
-                cand = (rng.uniform(R, W - R), rng.uniform(R, H - R))
-                if all(math.hypot(cand[0] - q[0], cand[1] - q[1])
-                       >= (q[2] + R if min_separation is None else min_separation)
-                       for q in centers):
-                    c = cand
+            for relax in (False, True):
+                for _ in range(max_tries):
+                    cand = (rng.uniform(R, W - R), rng.uniform(R, H - R))
+                    if all(math.hypot(cand[0] - q[0], cand[1] - q[1])
+                           >= _sep(min_separation, q[2], R, relax) for q in centers):
+                        c = cand
+                        break
+                if c is not None:
+                    placed["separation_relaxed"] |= relax
                     break
             if c is None:
                 continue
@@ -199,9 +215,8 @@ def rasterize_grains(placed, profiles, shape, grid_step, proportions):
         cmp_ = np.asarray(prof["composition"])
         sw = s[win]
         f = np.interp(sw, knots, dens)
-        lumen = sw < (r_in / R)
-        if kind == "ring_lumen" or lumen.any():
-            f = np.where(lumen, 0.0, f)
+        lumen = (sw < (r_in / R)) if kind == "ring_lumen" else np.zeros(sw.shape, bool)
+        f = np.where(lumen, 0.0, f)
         factor[win] = f
         void[win] = lumen
         for t in range(comp.shape[0]):

@@ -3,6 +3,7 @@
 import json
 
 import numpy as np
+from scipy import ndimage as ndi
 import pytest
 from scipy.stats import ks_2samp
 
@@ -428,7 +429,8 @@ def _layered_region(seed=0, w=240.0, h=120.0):
 @pytest.fixture(scope="module")
 def layered_model():
     x, y, r, t = _layered_region(2)
-    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 240, 120), strategy="adaptive", seed=0)
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 240, 120), strategy="adaptive", seed=0,
+                            units="none")  # tests the planar trend path, not units
 
 
 def test_organized_layouts(layered_model):
@@ -510,7 +512,8 @@ def _concentric_region(seed=0, size=200.0):
 @pytest.fixture(scope="module")
 def concentric_model():
     x, y, r, t = _concentric_region(2)
-    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 200, 200), strategy="adaptive", seed=0)
+    return DensityModel.fit(x, y, r, t, bounds=(0, 0, 200, 200), strategy="adaptive", seed=0,
+                            units="none")  # tests the radial path; units take precedence otherwise
 
 
 def test_radial_organized_layouts(concentric_model):
@@ -637,7 +640,7 @@ def _components(zero):
 def ring_lumen_model():
     x, y, r, t = _ring_lumen_region()
     return DensityModel.fit(x, y, r, t, bounds=(0, 0, 200, 200), strategy="adaptive",
-                            seed=0, n_null=0)
+                            seed=0, n_null=0, units="none")  # tests the voids path
 
 
 @pytest.fixture(scope="module")
@@ -809,3 +812,112 @@ def test_degenerate_trend_null_accepts_on_bic_and_flags(monkeypatch, gradient_mo
     assert model.organization["model"] != "none"
     assert model.organization["null"]["degenerate"] is True
     assert "trend_null_degenerate" in model.flags
+
+
+# -- germ-grain unit layouts ------------------------------------------------
+
+from .test_units import (  # noqa: E402  (module-scoped fixtures reused here)
+    FOLLICLES, GLOMERULI, BLOBS, _fit as _unit_fit, _points as _unit_points,
+    follicles, glomeruli, artery, blobs,
+)
+
+
+def _grain_s(layout, k):
+    """Normalized distance map s = r / R_outer of placed grain k."""
+    ny, nx = layout.intensity.shape
+    gy, gx = np.mgrid[0:ny, 0:nx]
+    c = layout.units["centers"][k]
+    r = np.hypot((gx + 0.5) * layout.grid_step - c[0], (gy + 0.5) * layout.grid_step - c[1])
+    return r / layout.units["outer_radii"][k]
+
+
+def _sample_units(model, seeds=(0, 1, 2)):
+    return [model.sample_layout(rng=s) for s in seeds]
+
+
+def _basic_checks(lay):
+    assert np.isfinite(lay.composition).all() and np.isfinite(lay.intensity).all()
+    np.testing.assert_allclose(lay.composition.sum(axis=0), 1.0, atol=1e-9)
+    assert (lay.intensity >= 0).all()
+
+
+def test_follicle_layouts_place_new_c_core_b_ring_grains(follicles):
+    assert follicles.units["n_units"] == 3 and "profiles" in follicles.units
+    moved = 0
+    for lay in _sample_units(follicles):
+        _basic_checks(lay)
+        assert lay.units["n_placed"] == 3 and "units_unsatisfied" not in lay.flags
+        centers = np.array(lay.units["centers"])
+        src = np.array(FOLLICLES, float)
+        far = np.linalg.norm(centers[:, None] - src[None], axis=2).min(axis=1).max()
+        moved += far > 10.0
+        ci, bi = follicles.cell_types.index('C'), follicles.cell_types.index('B')
+        for k in range(3):
+            s = _grain_s(lay, k)
+            core, ring = s < 0.3, (s > 0.5) & (s < 1.0)
+            assert lay.composition[ci][core].mean() > 0.5
+            assert lay.composition[bi][ring].mean() > 0.5
+            assert lay.intensity[core].min() > 0  # a core is not a lumen
+    assert moved >= 2
+
+
+def test_glomerulus_lumens_are_unit_holes_not_duplicated(glomeruli):
+    for lay in _sample_units(glomeruli):
+        _basic_checks(lay)
+        assert lay.units["n_placed"] == 3
+        zero = lay.intensity == 0
+        labels, n = ndi.label(zero)
+        assert n == 3
+        found = (np.array(ndi.center_of_mass(zero, labels, range(1, n + 1)))[:, ::-1] + 0.5) * lay.grid_step
+        centers = np.array(lay.units["centers"])
+        assert np.linalg.norm(found[:, None] - centers[None], axis=2).min(axis=1).max() < 5.0
+        assert not lay.voids or lay.voids.get("n_placed", 0) == 0
+
+
+def test_artery_unit_takes_precedence_over_radial_path(artery):
+    for lay in _sample_units(artery):
+        _basic_checks(lay)
+        assert lay.units["n_placed"] == 1
+        _, n = ndi.label(lay.intensity == 0)
+        assert n == 1
+        if artery.organization.get("model", "none") != "none":
+            assert lay.organization == {"model": "none", "fallback": "units"}
+
+
+def test_blob_layouts_are_b_dominant_inside(blobs):
+    bi = blobs.cell_types.index('B')
+    assert blobs.units["n_units"] == 4
+    assert max(l.units["n_placed"] for l in _sample_units(blobs, range(6))) == 4
+    for lay in _sample_units(blobs):
+        _basic_checks(lay)
+        # The source's min center separation (140 um in a 300 um window) can be
+        # infeasible for four grains: a shortfall is reported, never silent.
+        assert lay.units["n_placed"] + lay.units["shortfall"] == 4
+        assert ("units_unsatisfied" in lay.flags) == (lay.units["shortfall"] > 0)
+        for k in range(lay.units["n_placed"]):
+            assert lay.composition[bi][_grain_s(lay, k) < 1.0].mean() > 0.5
+
+
+def test_uniform_control_layout_matches_units_none():
+    xy, r = _unit_points(5)
+    t = np.random.default_rng(5).choice(['A', 'B', 'C'], len(r))
+    a = _unit_fit(xy[:, 0], xy[:, 1], r, t)
+    b = _unit_fit(xy[:, 0], xy[:, 1], r, t, units="none")
+    la, lb = a.sample_layout(rng=3), b.sample_layout(rng=3)
+    assert a.units == {} and la.units == {}
+    assert np.array_equal(la.intensity, lb.intensity)
+    assert np.array_equal(la.composition, lb.composition)
+
+
+def test_units_profiles_round_trip(follicles):
+    again = DensityModel.from_dict(json.loads(json.dumps(follicles.to_dict())))
+    assert again.units == follicles.units and again.units["profiles"]
+    a, b = follicles.sample_layout(rng=4), again.sample_layout(rng=4)
+    assert np.array_equal(a.intensity, b.intensity)
+
+
+def test_unit_free_voids_is_a_copy(glomeruli):
+    before = json.dumps(glomeruli.voids, sort_keys=True, default=float)
+    free = glomeruli._unit_free_voids()
+    assert json.dumps(glomeruli.voids, sort_keys=True, default=float) == before
+    assert free.get("n_holes", 0) == 0 or free is not glomeruli.voids
