@@ -143,9 +143,14 @@ and `ReplicateGenerator(..., method="graph_coloring", density_model=model)`.
   below the smoothing bandwidth. Use it for regions flagged `"trend"` or
   `"patch_length_at_upper_bound"`, where resampling assumes a stationarity
   the region does not have.
-- **`composition_weight`** (default 4.0) scales the composition term, which is
-  multiplied by the squared mean degree of each replicate graph. Larger values
-  trade pair-fraction accuracy for composition accuracy.
+- **`composition_weight`** scales the composition term. Under the legacy
+  strategy it is multiplied by the squared mean degree of each replicate graph
+  (default 4.0, unchanged). Under `strategy="adaptive"` the term is calibrated
+  per replicate so the value is its size relative to the edge-count term for a
+  shuffled labeling (default 1.0; a multi-seed sweep on twelve synthetic
+  scenarios showed 4.0 over-constrains strongly clustered samples under the
+  mechanical graph). Larger values trade pair-fraction accuracy for
+  composition accuracy.
 - Regions that are no more heterogeneous than a uniform packing
   (`model.homogeneous`) get uniform layouts.
 - For a 2D source, use a thin slab (thickness about 1 µm) so replicate graphs

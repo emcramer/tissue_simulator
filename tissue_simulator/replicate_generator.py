@@ -41,6 +41,8 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 MAX_COMPOSITION_SCALES = 3        # at most this many composition bin sizes
+LEGACY_COMPOSITION_WEIGHT = 4.0   # legacy scale: multiplied by mean_degree**2 (unchanged)
+ADAPTIVE_COMPOSITION_WEIGHT = 1.0  # calibrated scale: composition term == edge term for a shuffled labeling
 MIN_SCALE_RATIO = 1.5             # successive auto scales differ by at least this factor
 MIN_AUTO_SCALE_UM = 10.0          # smallest auto composition bin side
 HOLE_MIN_EXPECTED = 2.0           # a bin is a "hole" if its layout-expected count exceeds this and it holds no cell
@@ -350,7 +352,7 @@ class ReplicateGenerator:
                  de_params: Optional[Dict] = None,
                  density_model: Optional[DensityModel] = None,
                  layout: str = "resample",
-                 composition_weight: float = 4.0,
+                 composition_weight: Optional[float] = None,
                  composition_bin: Union[float, str, None] = None,
                  packing_params: Optional[Dict] = None,
                  *,
@@ -409,12 +411,14 @@ class ReplicateGenerator:
             layout: ``"resample"`` (a new arrangement of dense and sparse
                 compartments per replicate) or ``"copy"`` (the region's own
                 maps). Used only with ``density_model``.
-            composition_weight: Weight of the spatial-composition term. It is
-                multiplied by the squared mean degree of each replicate graph,
-                which keeps its pull comparable to the edge-count term across
-                graph sizes. The default 4.0 was chosen by ablation on
-                synthetic nest processes (larger values trade pair-fraction
-                accuracy for composition accuracy).
+            composition_weight: Weight of the spatial-composition term. Under
+                the legacy strategy it is multiplied by the squared mean degree
+                of each replicate graph (default ``LEGACY_COMPOSITION_WEIGHT`` =
+                4.0, unchanged from earlier releases). Under ``"adaptive"`` the
+                term is calibrated per replicate so that ``composition_weight``
+                is its size relative to the edge-count term for a shuffled
+                labeling (default ``ADAPTIVE_COMPOSITION_WEIGHT`` = 1.0; larger
+                values trade pair-fraction accuracy for composition accuracy).
             composition_bin: Side in µm of the composition bins.
             packing_params: Extra keyword arguments for
                 :class:`~tissue_simulator.packing.InhomogeneousPacker`.
@@ -468,6 +472,9 @@ class ReplicateGenerator:
         self.radius_optimizer = radius_optimizer
         self.density_model = density_model
         self.layout = layout
+        if composition_weight is None:
+            composition_weight = (ADAPTIVE_COMPOSITION_WEIGHT if strategy == "adaptive"
+                                  else LEGACY_COMPOSITION_WEIGHT)
         self.composition_weight = float(composition_weight)
         # Strategy resolution: adaptive -> multi-scale 'auto' composition, size
         # compatibility weight 1.0, diagnostics on; legacy -> 40 um single bin,

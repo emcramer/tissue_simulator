@@ -396,7 +396,8 @@ same window (for example four r = 38 blobs in 300 um), so grains may fall short 
   `MAX_COMPOSITION_SCALES = 3`, `MIN_AUTO_SCALE_UM = 10`. Expected bin counts
   are the layout composition (Sinkhorn-rescaled to node counts), unshrunk.
   Passed to the annealer as `spatial_composition_scales`; each scale's weight is
-  calibrated so the summed spatial term equals `composition_weight` (default 4.0)
+  calibrated so the summed spatial term equals `composition_weight` (default
+  `ADAPTIVE_COMPOSITION_WEIGHT = 1.0`; legacy keeps 4.0 on its own scale)
   times the edge-count SSE of a shuffled warm-start labeling (recorded in
   `fidelity['composition_weight_effective']` / `['composition_calibration']`).
   Unit profiles use equal-count radial bins (`PROFILE_MIN_CELLS = 10`) and a
