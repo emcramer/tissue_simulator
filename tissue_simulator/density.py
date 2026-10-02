@@ -49,6 +49,7 @@ from scipy.spatial import cKDTree
 from scipy.stats import rankdata
 
 from . import _organization
+from . import _units
 from . import _voids
 
 _QUANTILE_LEVELS = np.linspace(0.0, 1.0, 201)
@@ -879,6 +880,7 @@ class DensityModel:
     estimation: Dict = field(default_factory=dict)
     organization: Dict = field(default_factory=lambda: {"model": "none"})
     voids: Dict = field(default_factory=dict)
+    units: Dict = field(default_factory=dict)
 
     # -- construction -------------------------------------------------------
 
@@ -899,7 +901,8 @@ class DensityModel:
             strategy: str = "legacy",
             per_type_bandwidth: Optional[bool] = None,
             organization: Optional[bool] = None,
-            voids: Optional[str] = None) -> 'DensityModel':
+            voids: Optional[str] = None,
+            units: Optional[str] = None) -> 'DensityModel':
         """Fit a density model to a 2D point pattern of cells.
 
         Args:
@@ -945,7 +948,17 @@ class DensityModel:
                 interior holes are summarized instead. Layouts then place the
                 same number of holes (sizes resampled from the source) at new
                 positions.
+            units: ``"auto"`` or ``"none"``; defaults to ``"auto"`` under
+                ``"adaptive"`` and ``"none"`` under ``"legacy"``. Detects compact
+                units (blobs, rings with a core or lumen) by persistent homology
+                of the per-type intensity maps, with thresholds from stationary
+                null draws (drawn after all other fit draws); stored in
+                :attr:`units`.
         """
+        if units is None:
+            units = "auto" if strategy == "adaptive" else "none"
+        if units not in ("auto", "none"):
+            raise ValueError(f"units must be None, 'auto' or 'none', got {units!r}.")
         if voids is None:
             voids = "auto" if strategy == "adaptive" else "none"
         if voids not in ("auto", "none"):
@@ -1151,6 +1164,11 @@ class DensityModel:
                         stacklevel=2)
             return model
 
+        def finish(model):
+            if adaptive and units == "auto":
+                model._detect_units(rng, xs, ys, type_idx, n_null)
+            return model
+
         model = build(maps, dict(org, null=None) if use_org else org)
         if (use_org and n_null > 0 and model.organization["model"] != "none"
                 and not model.homogeneous):
@@ -1163,14 +1181,14 @@ class DensityModel:
                 model.flags = model.flags + ("trend_null_degenerate",)
             if null["accepted"]:
                 model.organization["null"] = null
-                return model
+                return finish(model)
             maps0 = _fit_maps(xs, ys, type_idx, n_types, iy, ix, shape, grid_step, mask,
                               bandwidth, type_bw, bw_evidence, proportions, n_compartments,
                               rng, org=None)
             org0 = dict(org, model="none", fallback="stationary_null",
                         selected_model=org["model"], null=null)
             model = build(maps0, org0, het=(model.heterogeneity, model.homogeneous))
-        return model
+        return finish(model)
 
     @classmethod
     def from_tissue(cls, tissue, **kwargs) -> 'DensityModel':
@@ -1288,6 +1306,70 @@ class DensityModel:
                    accepted=bool(observed >= _organization.BIC_THRESHOLD and p <= alpha),
                    seconds=float(time.perf_counter() - t0))
         return out
+
+    def _detect_units(self, rng, xs, ys, type_idx, n_null) -> None:
+        """Detect units (:func:`_units.detect_units`) and store them in :attr:`units`.
+
+        The observed per-type maps are plain kernel intensities at the
+        per-type bandwidths times each of ``_units.UNIT_BANDWIDTH_SCALES`` over the full grid (void pixels stay in the
+        domain so lumens form basins), plus the empty-space distance map.
+        Null draws (``min(n_null, UNIT_NULL_DRAWS)``) come from
+        :meth:`_residual_maps` of a copy of this model without voids (uniform
+        intensity and global proportions when the model is homogeneous), using
+        ``rng`` after every other fit draw. Each draw samples ``n_cells`` cells
+        by packing the layout with :class:`~.packing.InhomogeneousPacker` (the replicate
+        pipeline, so the hard core matches the source's empty-space statistics,
+        which a Poisson sample would not), draws types from the layout
+        composition, and maps the cells with the same estimators as the data. With ``n_null == 0``
+        thresholds fall back to ``UNIT_FALLBACK_FRACTION`` of each map's own
+        maximum persistence.
+        """
+        import dataclasses
+        shape = self.mask.shape
+        n_types = len(self.cell_types)
+        step = self.grid_step
+        full = np.ones(shape, dtype=bool)
+        bw = np.asarray(self.type_bandwidths, dtype=float)
+        if bw.size != n_types:
+            bw = np.full(n_types, self.bandwidth)
+
+        def maps_of(cx, cy, t):
+            iy, ix = _pixel_indices(cx, cy, step, shape)
+            return (np.stack([_intensity_grids(iy, ix, t, n_types, shape, step, bw * m, full)
+                              for m in _units.UNIT_BANDWIDTH_SCALES]),
+                    _units.empty_space_map(cx, cy, shape, step))
+
+        lam, empty = maps_of(xs, ys, type_idx)
+        draws = []
+        n_draws = min(int(n_null), _units.UNIT_NULL_DRAWS)
+        if n_draws > 0:
+            from .packing import InhomogeneousPacker
+            gen = dataclasses.replace(self, voids={})
+            for _ in range(n_draws):
+                if self.homogeneous:  # no fitted structure: uniform packing, global mix
+                    lay = gen._uniform_layout(self.width, self.height, self.n_cells)
+                    bins = max(self.width, self.height)
+                else:
+                    lay = gen._resampled_layout(rng, self.width, self.height)
+                    bins = None
+                cells = InhomogeneousPacker((self.height, self.width, 0.0), lay, seed=rng,
+                                            bin_size=bins).pack()
+                if len(cells) < 10:
+                    continue
+                centers = np.array([c.center[:2] for c in cells])
+                cx, cy = centers[:, 0], centers[:, 1]
+                piy, pix_x = _pixel_indices(cx, cy, step, shape)
+                comp = lay.composition[:, piy, pix_x].T
+                cum = np.cumsum(comp, axis=1)
+                cum /= np.maximum(cum[:, -1:], 1e-300)
+                t = np.minimum((rng.random(len(cells))[:, None] > cum).sum(axis=1), n_types - 1)
+                draws.append(maps_of(cx, cy, t))
+        self.units = _units.detect_units(lam, self.cell_types, empty, step, self.mask, draws,
+                                    d_nn=self.estimation.get("d_nn"))
+        if self.units:
+            self.estimation["units"] = {k: self.units[k] for k in (
+                "n_units", "kinds", "thresholds", "min_center_separation", "radii", "null_draws")}
+            self.estimation["units"]["barcode_top"] = self.units.pop("barcode_top")
 
     def _test_heterogeneity(self, xs, ys, type_idx, n_null, alpha, rng) -> None:
         """Monte Carlo test against uniform packings with permuted labels."""
