@@ -394,9 +394,13 @@ same window (for example four r = 38 blobs in 300 um), so grains may fall short 
   max(patch_length, 2 first_band_edge), min(W, H)/4]`, deduplicated so
   successive scales differ by `MIN_SCALE_RATIO = 1.5`, at most
   `MAX_COMPOSITION_SCALES = 3`, `MIN_AUTO_SCALE_UM = 10`. Expected bin counts
-  shrink toward the global mix with weight `N/(n_b+N)`,
-  `COMPOSITION_SHRINK_N = 5`. Passed to the annealer as
-  `spatial_composition_scales`; weight is `composition_weight` (default 4.0).
+  are the layout composition (Sinkhorn-rescaled to node counts), unshrunk.
+  Passed to the annealer as `spatial_composition_scales`; each scale's weight is
+  calibrated so the summed spatial term equals `composition_weight` (default 4.0)
+  times the edge-count SSE of a shuffled warm-start labeling (recorded in
+  `fidelity['composition_weight_effective']` / `['composition_calibration']`).
+  Unit profiles use equal-count radial bins (`PROFILE_MIN_CELLS = 10`) and a
+  neighbour-bin prior (`PROFILE_PRIOR_CELLS = 2`).
 - Size compatibility: the annealer's `size_compatibility` target holds
   `nll[node][color] = 0.5 ((log r - mu)/sigma)^2 + log sigma` for the cell's
   local density bin, weighted `size_weight * mean_degree` (default

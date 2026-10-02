@@ -36,7 +36,9 @@ def test_follicle_profiles():
     s = np.array(pr["s_knots"])
     assert np.allclose(comp.sum(1), 1)
     assert np.all(np.isfinite(pr["density_rel"]))
+    inner = 16 / 38
     assert np.all(comp[(s > 0.2) & (s < 0.42)].argmax(1) == 2)
+    assert np.all(comp[s < inner * 0.9, 2] > 0.7), comp[s < inner * 0.9, 2]
     assert np.all(comp[(s > 0.42) & (s < 1)].argmax(1) == 1)
     assert pr["inner_ratio"] == pytest.approx(16 / 38)
 

@@ -11,8 +11,13 @@ import numpy as np
 S_MAX = 1.5
 """Largest normalized distance covered by a profile (s > 1 is the surroundings)."""
 
-PROFILE_PRIOR_CELLS = 5.0
-"""Pseudo-cells of Dirichlet prior pulling knot composition toward the global one."""
+PROFILE_PRIOR_CELLS = 2.0
+"""Pseudo-cells of Dirichlet prior pulling a bin's composition toward its neighbours."""
+
+PROFILE_MIN_CELLS = 10
+"""Minimum pooled cells per radial bin; sparser equal-width bins are merged outward
+(the last bin merges inward) so each bin's composition is estimated from >= 10 cells.
+Lumen bins (s below the inner ratio of a ring_lumen kind) are never merged."""
 
 DEFAULT_N_KNOTS = 8
 """Default number of equal-width radial bins on s in [0, S_MAX]."""
@@ -63,7 +68,9 @@ def fit_unit_profiles(xs, ys, type_idx, n_types, radii, units, width, height,
     ``n_units``. ``width``/``height`` (window size, required) give the window area; annulus areas
     are clipped to the window. ``window_density`` optionally overrides the
     window-mean density (default n_cells / (width * height)). Non-lumen knots with
-    zero cells get ``density_rel = DENSITY_FLOOR``. ``radii`` is unused.
+    zero cells get ``density_rel = DENSITY_FLOOR``. Bins are merged to
+    ``PROFILE_MIN_CELLS`` pooled cells; ``s_knots`` are count-weighted mean s; the
+    prior is ``PROFILE_PRIOR_CELLS`` pseudo-cells at the neighbouring bins' raw composition. ``radii`` is unused.
     """
     xs = np.asarray(xs, float)
     ys = np.asarray(ys, float)
@@ -92,16 +99,49 @@ def fit_unit_profiles(xs, ys, type_idx, n_types, radii, units, width, height,
             np.add.at(counts, (b, ti[sel]), 1.0)
             area += _annulus_areas(u["center"], R, edges, width, height)
         inner = float(np.mean(ratios)) if ratios else 0.0
-        n_k = counts.sum(axis=1)
-        dens = counts.sum(axis=1) / np.maximum(area, 1e-12) / max(lam0, 1e-12)
+        # equal-count merge of the n_knots equal-width bins
+        centers = knots
+        lumen = (centers < inner) if kind == "ring_lumen" else np.zeros(n_knots, bool)
+        groups = [[k] for k in range(n_knots)]
+
+        def _n(g):
+            return counts[g].sum()
+
+        def _deficient(g):
+            return not lumen[g[0]] and _n(g) < PROFILE_MIN_CELLS
+
+        while len(groups) > 1:
+            gi = next((i for i, g in enumerate(groups) if _deficient(g)), None)
+            if gi is None:
+                break
+            if gi + 1 < len(groups):
+                groups[gi:gi + 2] = [groups[gi] + groups[gi + 1]]
+            elif not lumen[groups[gi - 1][0]]:
+                groups[gi - 1:gi + 1] = [groups[gi - 1] + groups[gi]]
+            else:
+                break
+        m = len(groups)
+        c_m = np.array([counts[g].sum(axis=0) for g in groups])
+        a_m = np.array([area[g].sum() for g in groups])
+        n_k = c_m.sum(axis=1)
+        s_m = np.array([(centers[g] * counts[g].sum(axis=1)).sum() / counts[g].sum()
+                        if counts[g].sum() > 0 else centers[g].mean() for g in groups])
+        dens = n_k / np.maximum(a_m, 1e-12) / max(lam0, 1e-12)
         if kind != "ring_lumen":
             dens = np.where(n_k == 0, np.maximum(dens, DENSITY_FLOOR), dens)
-        if kind == "ring_lumen":
-            dens[knots < inner] = 0.0
-        comp = counts + PROFILE_PRIOR_CELLS * glob[None, :]
+        else:
+            dens[np.array([lumen[g[0]] for g in groups])] = 0.0
+        pooled = c_m.sum(axis=0)
+        fallback = pooled / pooled.sum() if pooled.sum() > 0 else glob
+        comp = np.zeros((m, n_types))
+        for k in range(m):
+            nb = c_m[[j for j in (k - 1, k + 1) if 0 <= j < m]].sum(axis=0)
+            center = nb / nb.sum() if nb.sum() > 0 else fallback
+            comp[k] = c_m[k] + PROFILE_PRIOR_CELLS * center
         comp = comp / comp.sum(axis=1, keepdims=True)
+        knots_out = s_m
         out[kind] = {
-            "s_knots": knots.tolist(),
+            "s_knots": knots_out.tolist(),
             "density_rel": dens.tolist(),
             "composition": comp.tolist(),
             "n_cells_per_knot": n_k.tolist(),

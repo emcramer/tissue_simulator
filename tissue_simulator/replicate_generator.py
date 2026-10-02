@@ -40,7 +40,6 @@ except ImportError:
 # Adaptive-strategy constants and pure helpers
 # ---------------------------------------------------------------------------
 
-COMPOSITION_SHRINK_N = 5.0        # bin expected counts shrink toward the global mix with weight N/(n_b+N)
 MAX_COMPOSITION_SCALES = 3        # at most this many composition bin sizes
 MIN_SCALE_RATIO = 1.5             # successive auto scales differ by at least this factor
 MIN_AUTO_SCALE_UM = 10.0          # smallest auto composition bin side
@@ -997,7 +996,6 @@ class ReplicateGenerator:
                        'weight': self.composition_weight * mean_degree ** 2}
             return spatial, initial
 
-        prior = targets / max(targets.sum(), 1.0)
         scales = []
         for sz in sizes:
             ncols = max(1, int(np.ceil(width / sz)))
@@ -1013,15 +1011,44 @@ class ReplicateGenerator:
                 for j, color in enumerate(colors):
                     if probs[i, j] > 0:
                         bucket[color] = bucket.get(color, 0.0) + float(probs[i, j])
-            cnt = np.bincount(list(nb.values()))
-            for b, bucket in exp_b.items():
-                w = COMPOSITION_SHRINK_N / (cnt[b] + COMPOSITION_SHRINK_N)
-                exp_b[b] = {c: (1.0 - w) * bucket.get(c, 0.0) + w * cnt[b] * float(prior[j])
-                            for j, c in enumerate(colors)
-                            if bucket.get(c, 0.0) > 0 or prior[j] > 0}
             scales.append({'node_bin': nb, 'expected': exp_b,
                            'weight': self.composition_weight * mean_degree ** 2})
         return scales, initial
+
+    def _calibrate_scale_weights(self, graph, targets, scales, initial, rng):
+        """Set each scale's weight from a uniformly shuffled warm-start labeling.
+
+        With ``edge`` the edge-count SSE and ``sp_k`` the normalized
+        (``SSE_k / mean_k``) spatial SSE of a random permutation of the warm-start
+        labels (same type totals), the weight of scale ``k`` is
+        ``composition_weight * edge * K / sp_k``, so that the summed spatial
+        term equals ``composition_weight * edge`` for a shuffled labeling,
+        independent of the graph rule. Draws one permutation from ``rng`` (after
+        the warm-start draws; adaptive only). Falls back to
+        ``composition_weight * mean_degree**2`` weights if a term is degenerate.
+        Returns ``{'composition_weight_effective', 'composition_calibration'}``.
+        """
+        colors = list(self.cell_types)
+        labels = [initial[i] for i in sorted(initial)]
+        nodes = sorted(initial)
+        perm = rng.permutation(len(labels))
+        shuffled = {nodes[i]: labels[int(perm[i])] for i in range(len(nodes))}
+        probe = GraphColorizer(target_graph=graph, colors=colors, target_statistics=targets)
+        stats, _ = probe._calculate_statistics(graph, shuffled)
+        edge = probe.cost_terms(stats)['edge']
+        K = len(probe._scales)
+        sp = [sse / sc['mean'] for sc, sse in zip(probe._scales, stats['scale_sse'])]
+        info = {'composition_calibration': {'edge_sse_random': float(edge),
+                                             'spatial_sse_random': [float(v) for v in sp]}}
+        if edge <= 0 or any(v <= 0 for v in sp):
+            info['composition_weight_effective'] = None
+            return info
+        eff = []
+        for sc, v in zip(scales, sp):
+            sc['weight'] = self.composition_weight * edge * K / v
+            eff.append(float(sc['weight']))
+        info['composition_weight_effective'] = eff
+        return info
 
     def _resolve_composition_scales(self, model=None) -> List[float]:
         """Composition bin sides (um) for the multi-scale term.
@@ -1108,12 +1135,16 @@ class ReplicateGenerator:
         targets = self._build_colorizer_targets(graph)
         mean_degree = 2.0 * graph.number_of_edges() / max(graph.number_of_nodes(), 1)
         scale_sizes = None
+        composition_info = None
         if self._multiscale:
             scale_sizes = self._resolve_composition_scales(self.density_model)
+            warm_rng = np.random.default_rng(warm_ss)
             scales, initial = self._spatial_composition_target(
                 tissue, layout, targets['node_counts'], mean_degree,
-                np.random.default_rng(warm_ss), bin_sizes=scale_sizes)
+                warm_rng, bin_sizes=scale_sizes)
             targets['spatial_composition_scales'] = scales
+            composition_info = self._calibrate_scale_weights(
+                graph, targets, scales, initial, warm_rng)
             spatial = scales[0]  # finest scale, for composition_error
         else:
             spatial, initial = self._spatial_composition_target(
@@ -1166,6 +1197,9 @@ class ReplicateGenerator:
                 intensities=[layout.intensity_at(float(c.center[0]), float(c.center[1])) for c in cells],
                 source_radii=self._source_radii, source_size_nll=self._source_size_nll,
                 finest_bin=min(scale_sizes) if scale_sizes else None)
+        if composition_info is not None:
+            fidelity = dict(fidelity or {})
+            fidelity.update(composition_info)
         replicate_stats = ReplicateStatistics(
             replicate_id=replicate_id,
             num_cells=tissue_stats['total_cells'],
