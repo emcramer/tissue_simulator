@@ -23,7 +23,8 @@ from .tissue import TissueSection, Cell, load_tissue_from_csv
 from .packing import SpherePacker, separation_diagnostics
 from .density import DensityModel, _intensity_grids, _pixel_indices
 from ._persistence import superlevel_h0, persistence_distance
-from .spatial_analysis import SpatialNetworkAnalyzer, InteractionStatistics
+from .spatial_analysis import (SpatialNetworkAnalyzer, InteractionStatistics,
+                               MECHANICAL_INTERACTION_FACTOR)
 from .graph_coloring import GraphColorizer, color_graph_to_targets
 from .power_analysis import compare_initialization_variance
 
@@ -273,6 +274,9 @@ class TargetStatistics:
     cell_type_proportions: Optional[Dict[str, float]] = None
     target_cell_count: Optional[int] = None
     target_density: Optional[float] = None
+    # Neighbour-graph rule the statistics were measured with:
+    # {"mode", "radius", "interaction_factor"}; None if unknown (e.g. CSV tables).
+    network_rule: Optional[Dict] = None
     
     def validate(self):
         """Validate that statistics are consistent."""
@@ -355,7 +359,8 @@ class ReplicateGenerator:
                  composition_scales: Optional[List[float]] = None,
                  size_weight: Optional[float] = None,
                  diagnostics: Optional[bool] = None,
-                 max_proposals: int = 20):
+                 max_proposals: int = 20,
+                 interaction_factor: float = MECHANICAL_INTERACTION_FACTOR):
         """
         Initialize replicate generator.
 
@@ -363,8 +368,12 @@ class ReplicateGenerator:
             target_stats: Target spatial statistics to match
             tissue_dimensions: (height, width, thickness) in micrometers
             base_cell_radii: Dict mapping cell types to (min_radius, max_radius)
-            network_mode: "contact" or "radius" for spatial analysis
+            network_mode: "contact", "radius" or "mechanical" for spatial analysis
             network_radius: Distance threshold if using "radius" mode
+            interaction_factor: Multiplier for "mechanical" mode (edge iff
+                d <= factor * (r_i + r_j); default 1.5, PhysiCell's mechanics
+                interaction distance). Must equal the rule the target
+                statistics were measured with; a mismatch only warns.
             seed: Random seed for reproducibility
             method: Replicate strategy. ``"radius_tuning"`` (default, unchanged
                 behavior) iteratively repacks and nudges per-type radii to match
@@ -442,6 +451,18 @@ class ReplicateGenerator:
         self.base_cell_radii = base_cell_radii
         self.network_mode = network_mode
         self.network_radius = network_radius
+        self.interaction_factor = interaction_factor
+        self.network_rule = {
+            "mode": network_mode,
+            "radius": network_radius if network_mode == "radius" else None,
+            "interaction_factor": interaction_factor if network_mode == "mechanical" else None,
+        }
+        target_rule = getattr(target_stats, "network_rule", None)
+        if target_rule is not None and dict(target_rule) != self.network_rule:
+            warnings.warn(
+                f"target_stats were measured with network rule {dict(target_rule)} but the "
+                f"generator uses {self.network_rule}; statistics are not comparable.",
+                stacklevel=2)
         self.seed = seed
         self.method = method
         self.n_restarts = max(1, int(n_restarts))
@@ -518,12 +539,13 @@ class ReplicateGenerator:
     
     @classmethod
     def from_coordinates(cls, filepath: str,
-                         network_mode: str = "radius",
-                         network_radius: Optional[float] = 20.0,
+                         network_mode: str = "mechanical",
+                         network_radius: Optional[float] = None,
                          tissue_dimensions: Optional[Tuple[float, float, float]] = None,
                          layout: str = "resample",
                          density_kwargs: Optional[Dict] = None,
                          *, strategy: str = "legacy",
+                         interaction_factor: float = MECHANICAL_INTERACTION_FACTOR,
                          **kwargs) -> 'ReplicateGenerator':
         """Replicate generator fitted to a coordinate CSV (the recommended path).
 
@@ -535,8 +557,13 @@ class ReplicateGenerator:
 
         Args:
             filepath: Coordinate CSV of the source region.
-            network_mode: Neighbor graph mode for targets and replicates.
-            network_radius: Graph radius in µm for ``"radius"`` mode.
+            network_mode: Neighbor graph mode for targets and replicates;
+                default ``"mechanical"`` (size-aware, d <= factor * (r_i + r_j)).
+                Pass ``network_mode="radius", network_radius=20.0`` for the
+                previous default behaviour.
+            network_radius: Graph radius in µm for ``"radius"`` mode only
+                (ignored otherwise).
+            interaction_factor: Multiplier for ``"mechanical"`` mode (default 1.5).
             tissue_dimensions: (height, width, thickness) of the replicates;
                 defaults to the source region's.
             layout: ``"resample"`` (default) or ``"copy"``.
@@ -548,7 +575,8 @@ class ReplicateGenerator:
         """
         tissue = load_tissue_from_csv(filepath)
         target_stats = load_target_statistics_from_tissue(
-            tissue, network_mode=network_mode, network_radius=network_radius)
+            tissue, network_mode=network_mode, network_radius=network_radius,
+            interaction_factor=interaction_factor)
         if target_stats.target_density is not None and not 0 < target_stats.target_density < 1:
             # A thin slab around a 2D section has no meaningful 3D packing
             # fraction, and density-aware replicates do not use it.
@@ -565,6 +593,7 @@ class ReplicateGenerator:
         kwargs.setdefault("method", "graph_coloring")
         gen = cls(target_stats, tissue_dimensions, radii,
                   network_mode=network_mode, network_radius=network_radius,
+                  interaction_factor=interaction_factor,
                   density_model=density_model, layout=layout, strategy=strategy, **kwargs)
         gen._cache_source_reference(tissue)
         return gen
@@ -835,7 +864,8 @@ class ReplicateGenerator:
         # 2. Build the neighbor graph from the packed geometry.
         analyzer = SpatialNetworkAnalyzer()
         graph = analyzer.build_network_from_tissue(
-            tissue, mode=self.network_mode, radius=self.network_radius
+            tissue, mode=self.network_mode, radius=self.network_radius,
+            interaction_factor=self.interaction_factor
         )
 
         # 3. Derive GraphColorizer targets for THIS geometry, then color it.
@@ -1072,7 +1102,8 @@ class ReplicateGenerator:
 
         analyzer = SpatialNetworkAnalyzer()
         graph = analyzer.build_network_from_tissue(
-            tissue, mode=self.network_mode, radius=self.network_radius
+            tissue, mode=self.network_mode, radius=self.network_radius,
+            interaction_factor=self.interaction_factor
         )
         targets = self._build_colorizer_targets(graph)
         mean_degree = 2.0 * graph.number_of_edges() / max(graph.number_of_nodes(), 1)
@@ -1219,7 +1250,8 @@ class ReplicateGenerator:
         tissue = _pack(_radii_from_multipliers(result.x))
         analyzer = SpatialNetworkAnalyzer()
         analyzer.build_network_from_tissue(
-            tissue, mode=self.network_mode, radius=self.network_radius
+            tissue, mode=self.network_mode, radius=self.network_radius,
+            interaction_factor=self.interaction_factor
         )
         measured = analyzer.compute_interaction_statistics()
         divergence = self._compute_interaction_divergence(
@@ -1339,7 +1371,8 @@ class ReplicateGenerator:
             analyzer.build_network_from_tissue(
                 tissue,
                 mode=self.network_mode,
-                radius=self.network_radius
+                radius=self.network_radius,
+                interaction_factor=self.interaction_factor
             )
 
             measured_interactions = analyzer.compute_interaction_statistics()
@@ -1611,14 +1644,18 @@ def load_target_statistics_from_csv(filepath: str) -> TargetStatistics:
 
 def load_target_statistics_from_tissue(tissue: TissueSection,
                                       network_mode: str = "contact",
-                                      network_radius: Optional[float] = None) -> TargetStatistics:
+                                      network_radius: Optional[float] = None,
+                                      interaction_factor: float = MECHANICAL_INTERACTION_FACTOR
+                                      ) -> TargetStatistics:
     """
     Extract target statistics from an existing tissue.
     
     Args:
         tissue: TissueSection to analyze
-        network_mode: "contact" or "radius"
+        network_mode: "contact", "radius" or "mechanical"
         network_radius: Distance threshold for "radius" mode
+        interaction_factor: Multiplier for "mechanical" mode (default 1.5);
+            the rule is stored on ``TargetStatistics.network_rule``
     
     Returns:
         TargetStatistics object
@@ -1628,7 +1665,8 @@ def load_target_statistics_from_tissue(tissue: TissueSection,
     analyzer.build_network_from_tissue(
         tissue,
         mode=network_mode,
-        radius=network_radius
+        radius=network_radius,
+        interaction_factor=interaction_factor
     )
     
     # Get interaction statistics
@@ -1646,13 +1684,16 @@ def load_target_statistics_from_tissue(tissue: TissueSection,
         interaction_stats=interaction_stats,
         cell_type_proportions=cell_type_proportions,
         target_cell_count=total_cells,
-        target_density=tissue_stats['packing_fraction']
+        target_density=tissue_stats['packing_fraction'],
+        network_rule=dict(analyzer.network_rule)
     )
 
 
 def load_target_statistics_from_coordinates(filepath: str,
                                             network_mode: str = "contact",
-                                            network_radius: Optional[float] = None) -> TargetStatistics:
+                                            network_radius: Optional[float] = None,
+                                            interaction_factor: float = MECHANICAL_INTERACTION_FACTOR
+                                            ) -> TargetStatistics:
     """
     Load FULL target statistics from a coordinate CSV file.
 
@@ -1686,6 +1727,7 @@ def load_target_statistics_from_coordinates(filepath: str,
             to ``load_target_statistics_from_tissue``.
         network_radius: Distance threshold used when ``network_mode`` is
             "radius"; ignored otherwise.
+        interaction_factor: Multiplier for "mechanical" mode (default 1.5).
 
     Returns:
         TargetStatistics object with interactions, cell type proportions,
@@ -1695,6 +1737,7 @@ def load_target_statistics_from_coordinates(filepath: str,
         load_tissue_from_csv(filepath),
         network_mode=network_mode,
         network_radius=network_radius,
+        interaction_factor=interaction_factor,
     )
 
 

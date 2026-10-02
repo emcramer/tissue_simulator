@@ -82,6 +82,26 @@ analyzer.build_network_from_tissue(tissue, mode="contact")
 - Adhesion-based interactions
 - Physical touching relationships
 
+### Mechanical Mode
+
+Size-aware neighbour rule modelled on PhysiCell's mechanics interaction
+distance (1.5 x cell radius): cells i and j are neighbours iff
+`d <= interaction_factor * (r_i + r_j)`.
+
+```python
+graph = analyzer.build_network_from_tissue(tissue, mode="mechanical")  # factor 1.5
+graph = analyzer.build_network_from_tissue(tissue, mode="mechanical", interaction_factor=2.0)
+```
+
+- `interaction_factor` defaults to `MECHANICAL_INTERACTION_FACTOR` (1.5). With
+  factor 1.01 the graph equals the `"contact"` graph; larger factors give
+  supersets. Works for 3D tissues and 2D slices.
+- Every graph records its rule in
+  `graph.graph["network_rule"] = {"mode", "radius", "interaction_factor"}`
+  (`interaction_factor` is `None` unless the mode is `"mechanical"`).
+- Use the **identical rule** for source target statistics and replicates;
+  statistics from different rules are not comparable.
+
 ### Radius Mode
 
 Connects cells within a specified distance:

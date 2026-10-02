@@ -24,6 +24,23 @@ The replicate generation module allows you to generate multiple tissue samples t
 > `TissueNetworkWorkflow.generate_colored_replicates(n)`, documented under
 > [Generating colored replicates](graph-coloring.md#generating-colored-replicates).
 
+## Neighbour-graph rule (`network_mode`)
+
+`network_mode` is `"contact"`, `"radius"` or `"mechanical"` (edge iff
+`d <= interaction_factor * (r_i + r_j)`, default factor 1.5 after PhysiCell's
+mechanics interaction distance). `ReplicateGenerator(...)` still defaults to
+`"contact"`; **`ReplicateGenerator.from_coordinates` now defaults to
+`network_mode="mechanical"`** (`network_radius` is ignored unless the mode is
+`"radius"`). Pass `network_mode="radius", network_radius=20.0` to reproduce the
+earlier behaviour. `interaction_factor` is accepted by `ReplicateGenerator`,
+`from_coordinates`, `load_target_statistics_from_tissue` and
+`load_target_statistics_from_coordinates`.
+
+Targets and replicates must be measured with the same rule.
+`TargetStatistics.network_rule` records the rule
+(`{"mode", "radius", "interaction_factor"}`, `None` for CSV tables) and
+`ReplicateGenerator` warns when it differs from its own `network_rule`.
+
 ## Key Features
 
 - **Target-based generation**: Generate tissues matching specified spatial statistics

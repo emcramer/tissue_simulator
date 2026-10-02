@@ -21,6 +21,16 @@ from .tissue import TissueSection, Cell
 from .slicing import TissueSlicer, SliceCell
 
 
+#: Default interaction distance of the "mechanical" graph, as a multiple of the
+#: summed cell radii: two cells are neighbours iff d <= factor * (r_i + r_j).
+#: PhysiCell's default mechanics interaction distance is 1.5 x the cell radius,
+#: so this is the size-aware neighbour rule of an agent-based simulation.
+MECHANICAL_INTERACTION_FACTOR = 1.5
+
+#: Tolerance of the legacy "contact" rule (d <= 1.01 * (r_i + r_j)).
+CONTACT_TOLERANCE_FACTOR = 1.01
+
+
 @dataclass
 class NetworkStatistics:
     """
@@ -123,18 +133,36 @@ class SpatialNetworkAnalyzer:
         self.cell_positions: Dict[int, np.ndarray] = {}
         self.cell_types: Dict[int, str] = {}
         self.cell_radii: Dict[int, float] = {}
+        self.network_rule: Optional[Dict] = None
+
+    def _set_rule(self, mode, radius, interaction_factor):
+        if mode not in ("contact", "radius", "mechanical"):
+            raise ValueError(
+                f"Unknown mode: {mode}. Use 'contact', 'radius' or 'mechanical'")
+        if mode == "mechanical" and not interaction_factor > 0:
+            raise ValueError("interaction_factor must be positive")
+        self.network_rule = {"mode": mode, "radius": radius,
+                             "interaction_factor":
+                             interaction_factor if mode == "mechanical" else None}
+        self.graph.graph["network_rule"] = dict(self.network_rule)
     
     def build_network_from_tissue(self, 
                                   tissue: TissueSection,
                                   mode: str = "contact",
-                                  radius: Optional[float] = None) -> nx.Graph:
+                                  radius: Optional[float] = None,
+                                  interaction_factor: float = MECHANICAL_INTERACTION_FACTOR) -> nx.Graph:
         """
         Build a spatial network from a 3D tissue.
         
         Args:
             tissue: TissueSection to analyze
-            mode: "contact" for touching cells, "radius" for proximity
+            mode: "contact" for touching cells, "radius" for proximity,
+                "mechanical" for the size-aware rule d <= interaction_factor * (r_i + r_j)
             radius: Distance threshold for "radius" mode (in micrometers)
+            interaction_factor: Multiplier for "mechanical" mode (default
+                MECHANICAL_INTERACTION_FACTOR = 1.5, PhysiCell's default
+                mechanics interaction distance of 1.5 x radius). Use the
+                same rule for source targets and replicates.
         
         Returns:
             NetworkX graph with cells as nodes and spatial relationships as edges
@@ -144,6 +172,7 @@ class SpatialNetworkAnalyzer:
         
         # Create graph
         self.graph = nx.Graph()
+        self._set_rule(mode, radius, interaction_factor)
         
         # Add nodes for each cell
         for i, cell in enumerate(tissue.cells):
@@ -166,21 +195,27 @@ class SpatialNetworkAnalyzer:
                 raise ValueError("Radius must be specified for 'radius' mode")
             self._add_radius_edges(tissue.cells, radius)
         else:
-            raise ValueError(f"Unknown mode: {mode}. Use 'contact' or 'radius'")
+            self._add_contact_edges(tissue.cells, interaction_factor)
         
         return self.graph
     
     def build_network_from_slice(self,
                                  slicer: TissueSlicer,
                                  mode: str = "contact",
-                                 radius: Optional[float] = None) -> nx.Graph:
+                                 radius: Optional[float] = None,
+                                 interaction_factor: float = MECHANICAL_INTERACTION_FACTOR) -> nx.Graph:
         """
         Build a spatial network from a 2D slice.
         
         Args:
             slicer: TissueSlicer with computed slice
-            mode: "contact" for touching cells, "radius" for proximity
+            mode: "contact" for touching cells, "radius" for proximity,
+                "mechanical" for the size-aware rule d <= interaction_factor * (r_i + r_j)
             radius: Distance threshold for "radius" mode (in micrometers)
+            interaction_factor: Multiplier for "mechanical" mode (default
+                MECHANICAL_INTERACTION_FACTOR = 1.5, PhysiCell's default
+                mechanics interaction distance of 1.5 x radius). Use the
+                same rule for source targets and replicates.
         
         Returns:
             NetworkX graph with cells as nodes and spatial relationships as edges
@@ -190,6 +225,7 @@ class SpatialNetworkAnalyzer:
         
         # Create graph
         self.graph = nx.Graph()
+        self._set_rule(mode, radius, interaction_factor)
         
         # Add nodes for each cell in slice
         for i, slice_cell in enumerate(slicer.slice_cells):
@@ -215,11 +251,12 @@ class SpatialNetworkAnalyzer:
                 raise ValueError("Radius must be specified for 'radius' mode")
             self._add_radius_edges_2d(slicer.slice_cells, radius)
         else:
-            raise ValueError(f"Unknown mode: {mode}. Use 'contact' or 'radius'")
+            self._add_contact_edges_2d(slicer.slice_cells, interaction_factor)
         
         return self.graph
     
-    def _add_contact_edges(self, cells: List[Cell]):
+    def _add_contact_edges(self, cells: List[Cell],
+                           factor: float = CONTACT_TOLERANCE_FACTOR):
         """Add edges for cells in contact (3D)."""
         for i, cell_a in enumerate(cells):
             for j, cell_b in enumerate(cells[i+1:], start=i+1):
@@ -227,7 +264,7 @@ class SpatialNetworkAnalyzer:
                 contact_distance = cell_a.radius + cell_b.radius
                 
                 # Check if cells are in contact (with small tolerance)
-                if distance <= contact_distance * 1.01:  # 1% tolerance
+                if distance <= contact_distance * factor:  # contact: 1% tolerance
                     self.graph.add_edge(i, j, weight=distance, distance=distance)
     
     def _add_radius_edges(self, cells: List[Cell], radius: float):
@@ -239,7 +276,8 @@ class SpatialNetworkAnalyzer:
                 if distance <= radius:
                     self.graph.add_edge(i, j, weight=distance, distance=distance)
     
-    def _add_contact_edges_2d(self, slice_cells: List[SliceCell]):
+    def _add_contact_edges_2d(self, slice_cells: List[SliceCell],
+                              factor: float = CONTACT_TOLERANCE_FACTOR):
         """Add edges for cells in contact (2D)."""
         for i, cell_a in enumerate(slice_cells):
             for j, cell_b in enumerate(slice_cells[i+1:], start=i+1):
@@ -247,7 +285,7 @@ class SpatialNetworkAnalyzer:
                 contact_distance = cell_a.intersection_radius + cell_b.intersection_radius
                 
                 # Check if cells are in contact (with small tolerance)
-                if distance <= contact_distance * 1.01:  # 1% tolerance
+                if distance <= contact_distance * factor:  # contact: 1% tolerance
                     self.graph.add_edge(i, j, weight=distance, distance=distance)
     
     def _add_radius_edges_2d(self, slice_cells: List[SliceCell], radius: float):

@@ -489,3 +489,12 @@ directly from a model has no source KS/NLL.
   would be the next step.
 - **Size filter with few units.** With three units or fewer, size outliers are
   flagged, not dropped; a spurious unit can survive there.
+
+## Mechanical neighbour graph
+
+Replicates are scored on a neighbour graph, and the contact rule (1.01 x summed
+radii) is nearly empty for packings with spacing. The `"mechanical"` mode uses
+`d <= 1.5 * (r_i + r_j)` (PhysiCell's default mechanics interaction distance),
+so neighbourhoods scale with cell size, unlike a fixed radius. It is applied
+identically to source targets and replicates (`TargetStatistics.network_rule`
+is checked, with a warning on mismatch) and is the `from_coordinates` default.
