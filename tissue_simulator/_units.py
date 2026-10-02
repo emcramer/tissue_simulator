@@ -11,11 +11,16 @@ Features of three kinds are extracted with :mod:`._persistence`:
 * H1 bars of ``lam_types[t]``: rings of type ``t`` around a basin;
 * H0 bars of the empty-space map: lumens.
 
+Units require a null: without null draws (``fit`` with ``n_null=0``) nothing is
+detected.  Thresholds are rank-matched (see ``RANK_DEPTH``). The null is a packed uniform (CSR) layout, never the fitted patch
+model (which already contains the structures under test); ``advisory_draws``
+from the patch model only set ``ambiguous_with_patches``.  Gates: footprint
+circularity ``UNIT_MIN_CIRCULARITY`` and size consistency ``UNIT_SIZE_FACTOR``.
+
 Significance: for each (type, degree) and for the lumen map the threshold is
 the ``quantile`` (``UNIT_NULL_QUANTILE``) of the maximum bar persistence over
 the null draws (the null's essential H0 bar counts, so the comparison with the
-data's own essential bar is like for like).  Without null draws the threshold
-falls back to ``UNIT_FALLBACK_FRACTION`` of the map's own largest persistence.
+data's own essential bar is like for like).  
 
 With few null draws (``fit`` uses at most ``UNIT_NULL_DRAWS`` = 9) the 95th
 percentile of the null max is effectively the null maximum, and about 5 % false
@@ -66,6 +71,27 @@ FINE_ONLY_BLOBS_ALLOWED = False
 0.5x-only blobs that cleared the null max and the radius bar, so fine-scale-only
 blobs are never reported on their own (only as a core or lumen paired with a
 strong partner). Set True to use the null-max + radius rule alone."""
+UNIT_MIN_LUMEN_NN = 1.6
+"""A paired lumen must have radius >= this many nearest-neighbour distances: the
+weak (null-median) lumen threshold alone lets chance holes pair with a ring
+(a germinal-centre core was reported as a lumen)."""
+UNIT_CENTER_FRACTION = 0.4
+"""A lumen or core must lie within this fraction of the outer radius of the
+footprint centroid to be paired (a ring's hole is central; an off-centre hole
+in a nest is not part of the unit)."""
+UNIT_MIN_ENRICHMENT = 1.5
+"""A blob's peak intensity must be at least this multiple of its type's window
+mean. The matrix type (e.g. 80 % stroma) forms circular bumps in the gaps
+between units whose persistence is significant against a CSR null but which
+are the complement of the units, not units; their peak is only ~1.2x the mean."""
+UNIT_MIN_CIRCULARITY = 0.6
+"""Minimum footprint circularity ``area / (pi * r_max^2)``, with ``r_max`` the
+largest distance from the footprint centroid to a footprint pixel. A disc scores ~1, strips,
+bands and branching clusters of a Potts-like patch process score low. Data
+driven (it needs no null); 0.6 keeps discs distorted by sampling noise."""
+UNIT_SIZE_FACTOR = 1.7
+"""Size consistency: units of one kind must have outer radii within this factor
+of the kind's median, otherwise the outliers are dropped."""
 UNIT_MIN_BLOB_RADIUS_NN = 2.0
 """Minimum outer radius, in nearest-neighbour distances, of a fine-scale-only blob."""
 MIN_UNIT_RADIUS_PX = 1.5
@@ -90,6 +116,25 @@ def empty_space_map(xs, ys, shape, grid_step) -> np.ndarray:
 
 def _max_persistence(bars) -> float:
     return max((b["persistence"] for b in bars), default=0.0)
+
+
+RANK_DEPTH = 8
+"""Number of ranked bars compared against the null (the i-th largest data bar
+is compared with the null quantile of the i-th largest bar; bars beyond the depth are ignored. Comparing only against the null's largest bar (essential bar
+included) is too conservative for the second and later units."""
+
+
+def _top(bars, k=RANK_DEPTH):
+    pers = [b["persistence"] for b in bars][:k]
+    return pers + [0.0] * (k - len(pers))
+
+
+def _rank_thresholds(draws, quantile):
+    return np.quantile(np.array(draws, dtype=float), quantile, axis=0)
+
+
+def _at(thresholds, i):
+    return float(thresholds[min(i, len(thresholds) - 1)])
 
 
 def _thresholds(own_max, null_max, quantile):
@@ -138,13 +183,24 @@ def _ring_geometry(f, bar):
     return math.sqrt(float(filled.sum()) / math.pi), basin
 
 
+def _circularity(foot, peak) -> float:
+    rr, cc = np.nonzero(foot)
+    if rr.size == 0:
+        return 0.0
+    # Distance from the footprint centroid (the peak of a noisy bump is off-centre
+    # and would penalise real discs; deviation from "distance from the peak").
+    rmax = float(np.hypot(rr - rr.mean(), cc - cc.mean()).max()) + 0.5
+    return float(rr.size / (math.pi * rmax ** 2))
+
+
 def _filled(mask):
     return ndi.binary_fill_holes(mask)
 
 
 def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: float,
                  mask, null_draws: Optional[List[Tuple[np.ndarray, np.ndarray]]] = None,
-                 *, quantile: float = UNIT_NULL_QUANTILE, d_nn: Optional[float] = None, scales: Optional[Sequence[float]] = None
+                 *, quantile: float = UNIT_NULL_QUANTILE, d_nn: Optional[float] = None,
+                 advisory_draws: Optional[List[Tuple[np.ndarray, np.ndarray]]] = None, scales: Optional[Sequence[float]] = None
                  ) -> dict:
     """Detect compact units; returns ``{}`` when nothing is significant.
 
@@ -184,6 +240,8 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
     units whose center lies inside the outer radius of an earlier-ranked unit
     (duplicates, e.g. the same unit found at two scales, or bumps on a ring) are dropped.
     """
+    if not null_draws:  # units are defined relative to a null: none, no units
+        return {}
     lam_types = np.asarray(lam_types, dtype=float)
     if lam_types.ndim == 3:
         lam_types = lam_types[None]
@@ -197,28 +255,29 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
     def nulls(f):
         return [f(np.asarray(ln, dtype=float).reshape(lam_types.shape), e) for ln, e in null_draws]
 
-    thr, barcodes = {}, {}
+    thr, barcodes, rank = {}, {}, {}
     bars0, bars1 = {}, {}
     for si in range(n_scales):
         suffix = f"@{scales[si]:g}" if n_scales > 1 else ""
         for t, name in enumerate(cell_types):
             bars0[si, t] = superlevel_h0(lam_types[si, t], full)
             bars1[si, t] = superlevel_h1(lam_types[si, t], full)
-            n0 = nulls(lambda ln, e: _max_persistence(superlevel_h0(ln[si, t], full)))
-            n1 = nulls(lambda ln, e: _max_persistence(superlevel_h1(ln[si, t], full)))
-            for key, bars, vals in ((f"{name}:h0{suffix}", bars0[si, t], n0),
-                                    (f"{name}:h1{suffix}", bars1[si, t], n1)):
-                thr[key] = _thresholds(_max_persistence(bars), vals, quantile)
-                thr[key + "~max"] = float(max(vals)) if vals else thr[key]
-                thr[key + "~weak"] = min(thr[key], _thresholds(_max_persistence(bars), vals,
-                                                               UNIT_WEAK_QUANTILE))
+            n0 = nulls(lambda ln, e: _top(superlevel_h0(ln[si, t], full)))
+            n1 = nulls(lambda ln, e: _top(superlevel_h1(ln[si, t], full)))
+            for key, vals in ((f"{name}:h0{suffix}", n0), (f"{name}:h1{suffix}", n1)):
+                rank[key] = _rank_thresholds(vals, quantile)
+                rank[key + "~weak"] = _rank_thresholds(vals, UNIT_WEAK_QUANTILE)
+                thr[key] = float(rank[key][0])
+                thr[key + "~max"] = float(max(v[0] for v in vals))
+                thr[key + "~weak"] = float(rank[key + "~weak"][0])
             barcodes[f"{name}{suffix}"] = {"h0": barcode_summary(bars0[si, t], 5)["top"],
                                           "h1": barcode_summary(bars1[si, t], 5)["top"]}
     es = np.asarray(empty_space, dtype=float)
     lum_bars = superlevel_h0(es, full)
-    nl = [_max_persistence(superlevel_h0(np.asarray(e, dtype=float), full)) for _, e in null_draws]
-    thr["lumen"] = _thresholds(_max_persistence(lum_bars), nl, quantile)
-    thr["lumen~weak"] = min(thr["lumen"], _thresholds(_max_persistence(lum_bars), nl, UNIT_WEAK_QUANTILE))
+    nl = [_top(superlevel_h0(np.asarray(e, dtype=float), full)) for _, e in null_draws]
+    rank["lumen"], rank["lumen~weak"] = (_rank_thresholds(nl, quantile),
+                                         _rank_thresholds(nl, UNIT_WEAK_QUANTILE))
+    thr["lumen"], thr["lumen~weak"] = float(rank["lumen"][0]), float(rank["lumen~weak"][0])
 
     def center(rc):
         return [float((rc[1] + 0.5) * grid_step), float((rc[0] + 0.5) * grid_step)]
@@ -227,12 +286,13 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
         return math.pi * r_px ** 2 > MAX_UNIT_AREA_FRACTION * window_area or r_px < MIN_UNIT_RADIUS_PX
 
     lumens = []
-    for b in lum_bars:
+    for i, b in enumerate(lum_bars):
         peak = tuple(b["peak"])
-        if b["persistence"] > thr["lumen~weak"] and not too_big(es[peak] / grid_step):
+        if (b["persistence"] > _at(rank["lumen~weak"], i) and not too_big(es[peak] / grid_step)
+                and (d_nn is None or es[peak] >= UNIT_MIN_LUMEN_NN * d_nn)):
             lumens.append({"peak": peak, "radius": float(es[peak]),
-                           "strong": bool(b["persistence"] > thr["lumen"]),
-                           "score": b["persistence"] / max(thr["lumen"], 1e-300),
+                           "strong": bool(b["persistence"] > _at(rank["lumen"], i)),
+                           "score": b["persistence"] / max(_at(rank["lumen"], i), 1e-300),
                            "persistence": float(b["persistence"])})
 
     features = []  # blobs and rings
@@ -240,8 +300,8 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
         suffix = f"@{scales[si]:g}" if n_scales > 1 else ""
         for t, name in enumerate(cell_types):
             f = lam_types[si, t]
-            for bar in bars0[si, t]:
-                if bar["persistence"] <= thr[f"{name}:h0{suffix}~weak"]:
+            for i, bar in enumerate(bars0[si, t][:RANK_DEPTH]):  # bars beyond the depth are not ranked
+                if bar["persistence"] <= _at(rank[f"{name}:h0{suffix}~weak"], i):
                     continue
                 r_px, comp = _blob_geometry(f, bar)
                 pr, pc = bar["peak"]
@@ -249,12 +309,15 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
                     # peaks on the array border are kernel edge artefacts (a
                     # truncated bump); real units peak in the interior
                     continue
-                features.append({"degree": 0, "type": t, "strong": bool(bar["persistence"] > thr[f"{name}:h0{suffix}"]), "scale": scales[si], "center": center(bar["peak"]),
+                if (_circularity(_filled(comp), bar["peak"]) < UNIT_MIN_CIRCULARITY
+                        or f[tuple(bar["peak"])] < UNIT_MIN_ENRICHMENT * f.mean()):
+                    continue
+                features.append({"degree": 0, "type": t, "strong": bool(bar["persistence"] > _at(rank[f"{name}:h0{suffix}"], i)), "scale": scales[si], "center": center(bar["peak"]),
                                  "peak": tuple(bar["peak"]), "outer": r_px * grid_step, "inner": 0.0,
                                  "foot": _filled(comp), "persistence": float(bar["persistence"]),
-                                 "score": float(bar["persistence"] / max(thr[f"{name}:h0{suffix}"], 1e-300))})
-            for bar in bars1[si, t]:
-                if bar["persistence"] <= thr[f"{name}:h1{suffix}~weak"]:
+                                 "score": float(bar["persistence"] / max(_at(rank[f"{name}:h0{suffix}"], i), 1e-300))})
+            for i, bar in enumerate(bars1[si, t][:RANK_DEPTH]):
+                if bar["persistence"] <= _at(rank[f"{name}:h1{suffix}~weak"], i):
                     break
                 outer, basin = _ring_geometry(f, bar)
                 if outer is None or too_big(outer):
@@ -263,11 +326,13 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
                 ring_lab, _ = ndi.label(f >= bar["birth"], structure=np.ones((3, 3), bool))
                 near = ring_lab[ndi.binary_dilation(basin)]
                 foot = _filled(ring_lab == np.bincount(near[near > 0]).argmax())
-                features.append({"degree": 1, "type": t, "strong": bool(bar["persistence"] > thr[f"{name}:h1{suffix}"]), "scale": scales[si], "center": center(rc), "peak": rc,
+                if _circularity(foot, rc) < UNIT_MIN_CIRCULARITY:
+                    continue
+                features.append({"degree": 1, "type": t, "strong": bool(bar["persistence"] > _at(rank[f"{name}:h1{suffix}"], i)), "scale": scales[si], "center": center(rc), "peak": rc,
                                  "outer": outer * grid_step,
                                  "inner": math.sqrt(float(basin.sum()) / math.pi) * grid_step,
                                  "foot": foot, "persistence": float(bar["persistence"]),
-                                 "score": float(bar["persistence"] / max(thr[f"{name}:h1{suffix}"], 1e-300))})
+                                 "score": float(bar["persistence"] / max(_at(rank[f"{name}:h1{suffix}"], i), 1e-300))})
 
     coarse = [f for f in features if f["scale"] == max(scales) and f["strong"]]
     for ft in features:  # multiplicity control for fine-scale-only blobs
@@ -283,10 +348,19 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
         unit = {"kind": "blob", "center": ft["center"], "outer_radius": float(ft["outer"]),
                 "inner_radius": float(ft["inner"]), "ring_type": cell_types[ft["type"]],
                 "core_type": None, "persistence": ft["persistence"], "score": ft["score"],
-                "scale": ft["scale"]}
-        lum = [l for l in lumens if ft["foot"][l["peak"]] and (ft["strong"] or l["strong"])]
+                "scale": ft["scale"],
+                "key": f"{cell_types[ft['type']]}:h{ft['degree']}"
+                       + (f"@{ft['scale']:g}" if n_scales > 1 else "")}
+        cy_, cx_ = (float(v) for v in ndi.center_of_mass(ft["foot"]))
+
+        def central(peak):
+            return math.hypot(peak[0] - cy_, peak[1] - cx_) * grid_step \
+                <= UNIT_CENTER_FRACTION * ft["outer"]
+
+        lum = [l for l in lumens if ft["foot"][l["peak"]] and central(l["peak"])
+               and (ft["strong"] or l["strong"])]
         core = [(j, c) for j, c in enumerate(features) if c["degree"] == 0 and j != i
-                and c["type"] != ft["type"] and ft["foot"][c["peak"]] and c["outer"] < ft["outer"]
+                and c["type"] != ft["type"] and ft["foot"][c["peak"]] and central(c["peak"]) and c["outer"] < ft["outer"]
                 and (ft["strong"] or c["strong"])]
         if lum:
             l = max(lum, key=lambda x: x["score"])
@@ -307,6 +381,11 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
         if all(math.hypot(u["center"][0] - v["center"][0], u["center"][1] - v["center"][1])
                >= v["outer_radius"] for v in kept):
             kept.append(u)
+    for kind in {u["kind"] for u in kept}:  # size consistency within a kind
+        radii = [u["outer_radius"] for u in kept if u["kind"] == kind]
+        med = float(np.median(radii))
+        kept = [u for u in kept if u["kind"] != kind
+                or med / UNIT_SIZE_FACTOR <= u["outer_radius"] <= med * UNIT_SIZE_FACTOR]
     width, height = nx * grid_step, ny * grid_step
     for u in kept:
         x, y = u["center"]
@@ -318,7 +397,18 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
     kinds: Dict[str, int] = {}
     for u in kept:
         kinds[u["kind"]] = kinds.get(u["kind"], 0) + 1
-    return {"units": kept, "n_units": len(kept), "kinds": kinds, "thresholds": thr,
+    ambiguous = None
+    if advisory_draws:  # advisory: top unit vs the fitted patch model's null
+        top = max(kept, key=lambda u: u["score"])
+        name, rest = top["key"].split(":")
+        deg, _, sc = rest.partition("@")
+        si = list(scales).index(float(sc)) if sc else 0
+        t = list(cell_types).index(name)
+        fn = superlevel_h0 if deg == "h0" else superlevel_h1
+        vals = [_max_persistence(fn(np.asarray(ln, float).reshape(lam_types.shape)[si, t], full))
+                for ln, _ in advisory_draws]
+        ambiguous = bool(top["persistence"] <= float(np.quantile(vals, quantile)))
+    return {"units": kept, "ambiguous_with_patches": ambiguous, "n_units": len(kept), "kinds": kinds, "thresholds": thr,
             "min_center_separation": sep, "radii": [u["outer_radius"] for u in kept],
             "barcode_top": barcodes, "null_draws": len(null_draws),
             "quantile": float(quantile), "window_area_px": window_area}

@@ -1335,19 +1335,20 @@ class DensityModel:
     def _detect_units(self, rng, xs, ys, type_idx, n_null) -> None:
         """Detect units (:func:`_units.detect_units`) and store them in :attr:`units`.
 
-        The observed per-type maps are plain kernel intensities (inverse-trend weighted when an organization trend was accepted) at the
+        The observed per-type maps are plain kernel intensities (inverse-trend weighted when a planar trend was accepted; a radial trend is the unit itself and is not removed) at the
         per-type bandwidths times each of ``_units.UNIT_BANDWIDTH_SCALES`` over the full grid (void pixels stay in the
         domain so lumens form basins), plus the empty-space distance map.
-        Null draws (``min(n_null, UNIT_NULL_DRAWS)``) come from
-        :meth:`_residual_maps` of a copy of this model without voids (uniform
-        intensity and global proportions when the model is homogeneous), using
-        ``rng`` after every other fit draw. Each draw samples ``n_cells`` cells
+        Null draws (``min(n_null, UNIT_NULL_DRAWS)``) are packed uniform (CSR)
+        layouts with the global proportions and the source cell count, voids
+        stripped, whether or not the model is homogeneous: the fitted patch
+        model already contains the structures under test and is NOT the null
+        for units. A second set of draws from the residual patch model is
+        advisory only (``units["ambiguous_with_patches"]``). ``rng`` is used
+        after every other fit draw. Each draw samples ``n_cells`` cells
         by packing the layout with :class:`~.packing.InhomogeneousPacker` (the replicate
         pipeline, so the hard core matches the source's empty-space statistics,
         which a Poisson sample would not), draws types from the layout
-        composition, and maps the cells with the same estimators as the data. With ``n_null == 0``
-        thresholds fall back to ``UNIT_FALLBACK_FRACTION`` of each map's own
-        maximum persistence.
+        composition, and maps the cells with the same estimators as the data. ``n_null == 0`` disables unit detection (nothing to calibrate against).
         """
         import dataclasses
         shape = self.mask.shape
@@ -1367,7 +1368,7 @@ class DensityModel:
 
         weights = None
         org = self.organization
-        if org.get("model", "none") != "none":
+        if org.get("model", "none") != "none" and org.get("geometry") == "planar":
             # Units are residual structure: with an accepted trend, weight each
             # cell by the inverse trend (same clipping as _fit_maps) so the
             # observed maps are detrended, like the stationary null layouts.
@@ -1378,23 +1379,28 @@ class DensityModel:
                 _DETREND_FLOOR)
             weights = np.clip(weights, 1.0 / _DETREND_WEIGHT_CAP, _DETREND_WEIGHT_CAP)
             weights = weights * (weights.size / weights.sum())
+        if int(n_null) <= 0:
+            self.units = {}
+            self.estimation["units"] = {"skipped": "n_null=0"}
+            return
         lam, empty = maps_of(xs, ys, type_idx, weights)
-        draws = []
+        draws, advisory = [], []
         n_draws = min(int(n_null), _units.UNIT_NULL_DRAWS)
         if n_draws > 0:
             from .packing import InhomogeneousPacker
             gen = dataclasses.replace(self, voids={})
-            for _ in range(n_draws):
-                if self.homogeneous:  # no fitted structure: uniform packing, global mix
-                    lay = gen._uniform_layout(self.width, self.height, self.n_cells)
-                    bins = max(self.width, self.height)
-                else:
+
+            def draw(patches):
+                if patches:
                     lay = gen._resampled_layout(rng, self.width, self.height)
                     bins = None
+                else:  # CSR: uniform packing, global mix, source cell count
+                    lay = gen._uniform_layout(self.width, self.height, self.n_cells)
+                    bins = max(self.width, self.height)
                 cells = InhomogeneousPacker((self.height, self.width, 0.0), lay, seed=rng,
                                             bin_size=bins).pack()
                 if len(cells) < 10:
-                    continue
+                    return None
                 centers = np.array([c.center[:2] for c in cells])
                 cx, cy = centers[:, 0], centers[:, 1]
                 piy, pix_x = _pixel_indices(cx, cy, step, shape)
@@ -1402,9 +1408,14 @@ class DensityModel:
                 cum = np.cumsum(comp, axis=1)
                 cum /= np.maximum(cum[:, -1:], 1e-300)
                 t = np.minimum((rng.random(len(cells))[:, None] > cum).sum(axis=1), n_types - 1)
-                draws.append(maps_of(cx, cy, t))
+                return maps_of(cx, cy, t)
+
+            draws = [d for d in (draw(False) for _ in range(n_draws)) if d is not None]
+            if not self.homogeneous:  # advisory patch-model null (never drops units)
+                advisory = [d for d in (draw(True) for _ in range(n_draws)) if d is not None]
         self.units = _units.detect_units(lam, self.cell_types, empty, step, self.mask, draws,
-                                    d_nn=self.estimation.get("d_nn"))
+                                         d_nn=self.estimation.get("d_nn"),
+                                         advisory_draws=advisory)
         if self.units:
             self.estimation["units"] = {k: self.units[k] for k in (
                 "n_units", "kinds", "thresholds", "min_center_separation", "radii", "null_draws")}

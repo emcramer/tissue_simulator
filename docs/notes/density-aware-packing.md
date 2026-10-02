@@ -317,8 +317,8 @@ mask; intensity = residual x factor (lumen -> 0, compartment -1), composition = 
 composition inside grains and the residual elsewhere, `n_target =
 round(density W H tissue_fraction)` and the intensity is renormalized to it.
 `Layout.units` holds the placed dict; `"units_unsatisfied"` is flagged on shortfall.
-`rasterize_grains` is given `inner_radii = 0` for non-lumen kinds (a core is not a
-void).
+`rasterize_grains` ignores the inner radius for non-lumen kinds (a core is not a
+void); only `ring_lumen` grains get zero intensity inside it.
 
 Precedence (constants `UNIT_OWNS_LUMEN`, `UNIT_OWNS_RADIAL` in `density.py`):
 
@@ -342,6 +342,13 @@ costs `UNIT_NULL_DRAWS` packings per fit (seconds, scales with cell count); and 
 source's smallest center separation can be infeasible for several large units in the
 same window (for example four r = 38 blobs in 300 um), so grains may fall short and
 `units_unsatisfied` is flagged.
+
+- **Small cores.** A core of only a few cells (about five per unit in the follicle
+  fixture) is detected as part of its ring but reproduced only as an enrichment:
+  the per-kind profile is shrunk toward the global proportions by
+  `PROFILE_PRIOR_CELLS` pseudo-cells and the annealer's composition bins are
+  coarser than the core, so the replicate core is C-enriched (about 4x its
+  global share) rather than C-dominant.
 
 ## Composition constraints and size compatibility
 

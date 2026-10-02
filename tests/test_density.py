@@ -471,6 +471,7 @@ def test_adaptive_without_organization_matches_legacy_resample():
     kw = dict(bounds=(0, 0, SIZE, SIZE), n_compartments=2, seed=0)
     legacy = DensityModel.fit(x, y, r, t, **kw)
     adaptive = DensityModel.fit(x, y, r, t, strategy="adaptive", organization=False,
+                                units="none",
                                 bandwidth_range=(15.0, 80.0), per_type_bandwidth=False, **kw)
     a = legacy.sample_layout(rng=5)
     assert a.strategy == "legacy" and a.quota_scale is None and a.organization == {}
