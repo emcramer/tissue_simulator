@@ -278,24 +278,60 @@ holes of at least ~`tau` radius.
 Adaptive fits (`units="auto"`, the default; `"none"` disables) look for compact
 *units*: tumor nests (blobs), follicles (a ring of one type around a core of
 another) and glomeruli/arteries (a ring around an empty lumen). Detection is in
-`_units.detect_units` on the per-type intensity maps (`_persistence.superlevel_h0/h1`).
-Plainly: **H0 blobs plus footprint pairing are the primary detector**; H1 rings
-contribute only at the finer scale (`UNIT_BANDWIDTH_SCALES = (1.0, 0.5)`, the
-second being half the per-type bandwidth), where a ring is not smoothed into a
-blob. A feature is kept when its persistence exceeds the
-`UNIT_NULL_QUANTILE = 0.95` quantile of the max persistence over `UNIT_NULL_DRAWS = 9`
-stationary null layouts packed by `InhomogeneousPacker` (the null reuses the
-residual generator, so hard core and composition match the source). A *weak*
-feature (above the `UNIT_WEAK_QUANTILE = 0.5` null quantile only) is kept only
-when paired with a strong partner. `UNIT_FALLBACK_FRACTION = 0.5` of the map's own
-maximum persistence replaces the null when `n_null == 0`. Footprints larger than
-`MAX_UNIT_AREA_FRACTION = 0.25` of the window, smaller than `MIN_UNIT_RADIUS_PX = 1.5`
-pixels, or fine-scale-only blobs (`FINE_ONLY_BLOBS_ALLOWED = False`; minimum radius
-`UNIT_MIN_BLOB_RADIUS_NN = 2.0` nearest-neighbour distances) are discarded. Kinds:
-`blob`, `ring_core`, `ring_lumen` (the lumen is paired from the empty-space map).
-`model.units` holds the units (`center`, `outer_radius`, `inner_radius`, `ring_type`,
-`core_type`, `persistence`, `score`, `scale`, `edge_touching`), `kinds`, `thresholds`,
-`min_center_separation` and, after the profile fit, `profiles` and `d_nn`.
+`_units.detect_units` on per-type intensity maps (`_persistence.superlevel_h0/h1`).
+Rules, exactly as implemented:
+
+- **Maps.** Edge-corrected kernel intensities at the per-type bandwidth capped
+  at `UNIT_MAX_BANDWIDTH_NN = 3` nearest-neighbour distances, at the scales
+  `UNIT_BANDWIDTH_SCALES = (1.0, 0.5)` of the capped value, plus the empty-space
+  distance map. A planar trend is removed by inverse-trend weights; a radial
+  trend is not (it is the unit itself). Nothing else is detrended.
+- **Null.** `UNIT_NULL_DRAWS = 9` uniform (CSR) packings with the global type
+  mix and the source cell count (no patch structure). `n_null=0` disables
+  detection (`units == {}`, `estimation["units"] == {"skipped": "n_null=0"}`).
+- **Significance.** Rank matched: the i-th largest bar (top `RANK_DEPTH = 8`)
+  of a type/degree/scale must exceed the `UNIT_NULL_QUANTILE = 0.95` quantile
+  (with 9 draws, about their maximum) of the null's i-th largest bar. Bars above
+  the `UNIT_WEAK_QUANTILE = 0.5` quantile only are *weak* and kept only when
+  paired with a strong partner.
+- **Advisory comparison.** The same top-unit test against draws from the fitted
+  patch model only sets `units["ambiguous_with_patches"]`; it never drops units.
+- **Footprint.** Component of the map at `birth - 0.5 * persistence`
+  (`UNIT_FOOTPRINT_LEVEL`). Area must be
+  below `MAX_UNIT_AREA_FRACTION = 0.25` of the window and radius at least
+  `MIN_UNIT_RADIUS_PX = 1.5`.
+- **Circularity** `area / (pi r_max^2)` (r_max from the centroid; footprints cut
+  by the window are mirrored across the border first) at least
+  `UNIT_MIN_CIRCULARITY = 0.6`.
+- **Enrichment** (blobs). Peak intensity at least
+  `1 + ENRICH_FACTOR * (1 - p_t)` times the type's mean intensity outside the
+  footprint, `ENRICH_FACTOR = 0.5`, `p_t` the type's share: 1.5x for a rare
+  type, 1.25x for a 50 % type. A matrix type (share at least
+  `UNIT_MATRIX_SHARE = 0.62`) needs `UNIT_MATRIX_MIN_ENRICHMENT = 1.5`, because
+  its bumps between units are the complement of the units.
+- **Pairing.** A lumen (empty-space peak, radius at least `UNIT_MIN_LUMEN_NN =
+  1.6` nearest-neighbour distances) or another type's blob inside the footprint
+  and within `UNIT_CENTER_FRACTION = 0.4` of the outer radius of its centroid
+  makes `ring_lumen` / `ring_core`; otherwise `blob`.
+- **No fine-only blobs.** A blob found only at 0.5x with no strong 1.0x
+  footprint around its peak is reported only as a core or lumen of a strong
+  partner (`FINE_ONLY_BLOBS_ALLOWED = False`).
+- **Duplicates.** Units whose center lies in an earlier-ranked unit's outer
+  radius are dropped.
+- **Size.** Radii of one kind within `UNIT_SIZE_FACTOR = 1.7` of the kind's
+  median; with `UNIT_SIZE_FILTER_MIN_UNITS = 3` or fewer units outliers are
+  flagged (`size_inconsistent`, a list of unit indices) instead of dropped.
+- **Edges.** Window-cut units are kept and flagged `edge_touching` when the
+  outer radius reaches the border (censored: counted, to be left out of the
+  radius pool). They need a score (persistence / null threshold) of at least
+  `UNIT_EDGE_MIN_SCORE = 2.0`, since border bumps are the noisiest. Footprints touching two perpendicular borders (corners) are
+  discarded.
+
+Kinds: `blob`, `ring_core`, `ring_lumen`. `model.units` holds the units
+(`center`, `outer_radius`, `inner_radius`, `ring_type`, `core_type`,
+`persistence`, `score`, `scale`, `edge_touching`), `kinds`, `thresholds`,
+`min_center_separation`, `size_inconsistent`, `ambiguous_with_patches` and,
+after the profile fit, `profiles` and `d_nn`.
 
 ## Germ-grain layouts
 
@@ -445,3 +481,11 @@ directly from a model has no source KS/NLL.
 - **Small windows.** When no proposal meets the coverage and proportion
   criteria the organization falls back to `best_of_proposals`
   (flag `organization_unsatisfied`); the replicate is still produced.
+- **Unit detection power.** Persistence against a 9-draw CSR null is
+  conservative: nests of an abundant type (90 % pure nests of r = 38 µm in a
+  50/50 or 65/35 matrix) are found 0-3 times of 4 across seeds, and small
+  window-cut units next to a corner are discarded. Nests of a rare type, follicles,
+  glomeruli and arteries are found reliably. A count-based evidence stage
+  would be the next step.
+- **Size filter with few units.** With three units or fewer, size outliers are
+  flagged, not dropped; a spurious unit can survive there.

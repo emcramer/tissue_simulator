@@ -299,3 +299,38 @@ def test_demo_artery(demo_fits, n_null):
 def test_demo_germinal(demo_fits, n_null):
     # The C core (90 % pure, ~30 cells) is not resolved as ring_core.
     assert demo_fits("germinal", n_null).units["n_units"] == 1
+
+
+# -- window-cut units and abundant types --
+
+def _edge_nests():
+    c = [(20, 150), (150, 20), (280, 150)]  # 20 um inside three edges, r = 38
+    xy, r = _points(7)
+    rng = np.random.default_rng(7)
+    t = np.where(_distance(xy, c) < 38, 'B', _stroma(xy, rng, 0.03))
+    return _fit(xy[:, 0], xy[:, 1], r, t)
+
+
+def test_edge_nests_detected_and_censored():
+    u = _edge_nests().units
+    assert u and u["n_units"] == 3
+    assert all(x["edge_touching"] for x in u["units"])
+
+
+def _abundant(p_b, seed=8):
+    xy, r = _points(seed)
+    rng = np.random.default_rng(seed)
+    inside = _distance(xy, BLOBS) < 38
+    p_out = p_b  # B share of the matrix; the nests are 90 % B
+    t = np.where(inside, np.where(rng.random(len(r)) < 0.9, 'B', 'A'),
+                 np.where(rng.random(len(r)) < p_out, 'B', 'A'))
+    return _fit(xy[:, 0], xy[:, 1], r, t)
+
+
+@pytest.mark.xfail(strict=False, reason="power limit: persistence vs a 9-draw CSR null finds "
+                   "0-3 of 4 nests of an abundant type (seeds 1-8); see the known limits")
+@pytest.mark.parametrize("p_b", [0.5, 0.65])
+def test_abundant_type_nests(p_b):
+    u = _abundant(p_b).units
+    assert u and u["n_units"] == 4 and u["kinds"] == {"blob": 4}
+    assert all(x["ring_type"] == 'B' for x in u["units"])

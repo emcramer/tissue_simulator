@@ -141,7 +141,10 @@ def place_grains(rng, shape, grid_step, units_summary, min_separation, max_tries
     outer, inner, kinds = [], [], []
     for kind in sorted(by_kind):
         us = by_kind[kind]
-        pool = np.array([float(u["outer_radius"]) for u in us])
+        # Window-cut units have clipped radii: keep them in the count but take the
+        # size pool from interior units when any exist.
+        interior = [u for u in us if not u.get("edge_touching")]
+        pool = np.array([float(u["outer_radius"]) for u in (interior or us)])
         ratio = float(np.mean([float(u.get("inner_radius", 0.0)) / float(u["outer_radius"])
                                for u in us]))
         draw = rng.choice(pool, size=len(us), replace=True)

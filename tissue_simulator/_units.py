@@ -29,7 +29,7 @@ fine scale: a 0.5x blob with no 1.0x footprint containing its peak must exceed
 the null *maximum* and have outer radius >= ``UNIT_MIN_BLOB_RADIUS_NN`` nearest-
 neighbour distances (``d_nn``); otherwise it is kept only when paired as a core
 or lumen of a strong partner (escalated: see ``FINE_ONLY_BLOBS_ALLOWED``, default
-no fine-only blobs).  Blobs whose peak lies on the array border are ignored.
+no fine-only blobs).  Peaks on the array border are kept (the maps are edge-corrected and the null sees the same artefacts); units whose footprint touches the window are flagged ``edge_touching`` (censored).
 
 Primary detector: H0 blobs plus footprint pairing (a lumen or another type's
 blob inside a blob's/ring's filled footprint).  H1 rings contribute only at the
@@ -55,8 +55,6 @@ from ._persistence import barcode_summary, superlevel_h0, superlevel_h1
 
 UNIT_NULL_QUANTILE = 0.95
 """Quantile of the null max-persistence distribution used as the threshold."""
-UNIT_FALLBACK_FRACTION = 0.5
-"""Threshold as a fraction of the map's own max persistence when no null draws exist."""
 UNIT_NULL_DRAWS = 9
 """Stationary null layouts drawn by ``DensityModel.fit`` for unit thresholds."""
 MAX_UNIT_AREA_FRACTION = 0.25
@@ -79,11 +77,26 @@ UNIT_CENTER_FRACTION = 0.4
 """A lumen or core must lie within this fraction of the outer radius of the
 footprint centroid to be paired (a ring's hole is central; an off-centre hole
 in a nest is not part of the unit)."""
-UNIT_MIN_ENRICHMENT = 1.5
-"""A blob's peak intensity must be at least this multiple of its type's window
-mean. The matrix type (e.g. 80 % stroma) forms circular bumps in the gaps
-between units whose persistence is significant against a CSR null but which
-are the complement of the units, not units; their peak is only ~1.2x the mean."""
+ENRICH_FACTOR = 0.5
+"""Proportion-aware enrichment rule: a blob's peak intensity must be at least
+``1 + ENRICH_FACTOR * (1 - p_t)`` times the mean intensity of its type OUTSIDE
+the blob footprint, with ``p_t`` the type's share of the cells. A rare type
+(p_t -> 0) must reach 1.5x; an abundant type (p_t = 0.5) 1.25x; the bar is
+lower for abundant types because a nest of a 50 % type can at most double the
+local density. Referencing the outside (not the window mean) keeps the nests
+themselves from raising the bar."""
+UNIT_MATRIX_SHARE = 0.62
+"""A type with at least this share of the cells is the *matrix* (stroma): its
+bumps between units are the complement of the units, not units, and its
+peak must reach ``UNIT_MATRIX_MIN_ENRICHMENT`` times the outside mean instead of
+the proportion-aware bar (the matrix bumps peak at only ~1.2-1.4x). 0.62 sits between the demo stroma (0.66) and a 50/50 matrix with nests (0.58)."""
+UNIT_MATRIX_MIN_ENRICHMENT = 1.5
+"""Enrichment bar for matrix-type blobs (the former window-mean rule)."""
+UNIT_MAX_BANDWIDTH_NN = 3.0
+"""Cap, in nearest-neighbour distances, on the per-type bandwidth used for the
+unit maps (applied by ``DensityModel._detect_units`` before the scales in
+``UNIT_BANDWIDTH_SCALES``). The cross-validated bandwidth of an abundant type
+can exceed a nest's radius and smooth the nests away."""
 UNIT_MIN_CIRCULARITY = 0.6
 """Minimum footprint circularity ``area / (pi * r_max^2)``, with ``r_max`` the
 largest distance from the footprint centroid to a footprint pixel. A disc scores ~1, strips,
@@ -91,7 +104,11 @@ bands and branching clusters of a Potts-like patch process score low. Data
 driven (it needs no null); 0.6 keeps discs distorted by sampling noise."""
 UNIT_SIZE_FACTOR = 1.7
 """Size consistency: units of one kind must have outer radii within this factor
-of the kind's median, otherwise the outliers are dropped."""
+of the kind's median, otherwise the outliers are dropped. With
+``UNIT_SIZE_FILTER_MIN_UNITS`` or fewer units kept the median is not reliable
+and outliers are flagged (``size_inconsistent``) instead of dropped."""
+UNIT_SIZE_FILTER_MIN_UNITS = 3
+"""At most this many kept units: size outliers are flagged, not filtered."""
 UNIT_MIN_BLOB_RADIUS_NN = 2.0
 """Minimum outer radius, in nearest-neighbour distances, of a fine-scale-only blob."""
 MIN_UNIT_RADIUS_PX = 1.5
@@ -137,27 +154,31 @@ def _at(thresholds, i):
     return float(thresholds[min(i, len(thresholds) - 1)])
 
 
-def _thresholds(own_max, null_max, quantile):
-    if null_max:
-        return float(np.quantile(null_max, quantile))
-    return UNIT_FALLBACK_FRACTION * own_max * (quantile / UNIT_NULL_QUANTILE)
-
-
 def _component_at(f, level, rc, structure=np.ones((3, 3), bool)):
     lab, _ = ndi.label(f >= level, structure=structure)
     k = lab[rc]
     return lab == k if k > 0 else np.zeros(f.shape, bool)
 
 
-def _blob_geometry(f, bar):
-    """Radius (px) of an H0 blob: ``min(area_at_death, area at half persistence)``.
+UNIT_EDGE_MIN_SCORE = 2.0
+"""A window-cut (``edge_touching``) unit needs ``score = persistence / null
+threshold`` of at least this: the edge-corrected kernel is noisiest at the
+border, and Potts-like patch controls produced border bumps with scores
+1.3-1.75, while three real nests cut by the edge score 2.3-10."""
+UNIT_FOOTPRINT_LEVEL = 0.5
+"""Fraction of a blob's persistence below its birth level at which its footprint is cut."""
 
-    The half-persistence component is the one containing the peak at level
-    ``birth - persistence / 2``; capping with it keeps essential bars (whose
+
+def _blob_geometry(f, bar):
+    """Radius (px) and footprint of an H0 blob: ``min(area_at_death, footprint area)``.
+
+    The footprint is the component containing the peak at level
+    ``birth - UNIT_FOOTPRINT_LEVEL * persistence``; capping with it keeps essential bars (whose
     death area is the whole window) and bars that merge late from absorbing
     their surroundings.
     """
-    comp = _component_at(f, bar["birth"] - 0.5 * bar["persistence"], tuple(bar["peak"]))
+    comp = _component_at(f, bar["birth"] - UNIT_FOOTPRINT_LEVEL * bar["persistence"],
+                         tuple(bar["peak"]))
     area = min(float(comp.sum()), float(bar["area_at_death"]))
     return math.sqrt(area / math.pi), comp
 
@@ -184,6 +205,17 @@ def _ring_geometry(f, bar):
 
 
 def _circularity(foot, peak) -> float:
+    """Footprint circularity; a footprint touching the window is mirrored across
+    each touched border first (a nest cut by the window is a disc, not a half disc)."""
+    if foot.any():
+        if foot[0].any():
+            foot = np.concatenate([foot[::-1], foot], axis=0)
+        if foot[-1].any():
+            foot = np.concatenate([foot, foot[::-1]], axis=0)
+        if foot[:, 0].any():
+            foot = np.concatenate([foot[:, ::-1], foot], axis=1)
+        if foot[:, -1].any():
+            foot = np.concatenate([foot, foot[:, ::-1]], axis=1)
     rr, cc = np.nonzero(foot)
     if rr.size == 0:
         return 0.0
@@ -191,6 +223,15 @@ def _circularity(foot, peak) -> float:
     # and would penalise real discs; deviation from "distance from the peak").
     rmax = float(np.hypot(rr - rr.mean(), cc - cc.mean()).max()) + 0.5
     return float(rr.size / (math.pi * rmax ** 2))
+
+
+def _in_corner(foot) -> bool:
+    """True when the footprint touches two perpendicular window borders.
+
+    The edge-corrected kernel estimate at a corner rests on a quarter of the
+    kernel's cells, and chance corner bumps of the (abundant) matrix type
+    otherwise pass the null; corner-cut units are not reported (a known limit)."""
+    return bool((foot[0].any() or foot[-1].any()) and (foot[:, 0].any() or foot[:, -1].any()))
 
 
 def _filled(mask):
@@ -279,6 +320,9 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
                                          _rank_thresholds(nl, UNIT_WEAK_QUANTILE))
     thr["lumen"], thr["lumen~weak"] = float(rank["lumen"][0]), float(rank["lumen~weak"][0])
 
+    means = lam_types.mean(axis=(2, 3))  # (n_scales, n_types)
+    props = (means / np.maximum(means.sum(axis=1, keepdims=True), 1e-300))[0]
+
     def center(rc):
         return [float((rc[1] + 0.5) * grid_step), float((rc[0] + 0.5) * grid_step)]
 
@@ -305,12 +349,15 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
                     continue
                 r_px, comp = _blob_geometry(f, bar)
                 pr, pc = bar["peak"]
-                if too_big(r_px) or min(pr, pc, ny - 1 - pr, nx - 1 - pc) == 0:
-                    # peaks on the array border are kernel edge artefacts (a
-                    # truncated bump); real units peak in the interior
+                if too_big(r_px) or _in_corner(comp):
                     continue
-                if (_circularity(_filled(comp), bar["peak"]) < UNIT_MIN_CIRCULARITY
-                        or f[tuple(bar["peak"])] < UNIT_MIN_ENRICHMENT * f.mean()):
+                foot0 = _filled(comp)
+                outside = f[~foot0]
+                out_mean = float(outside.mean()) if outside.size else float(f.mean())
+                need = (UNIT_MATRIX_MIN_ENRICHMENT if props[t] >= UNIT_MATRIX_SHARE
+                        else 1.0 + ENRICH_FACTOR * (1.0 - props[t]))
+                if (_circularity(foot0, bar["peak"]) < UNIT_MIN_CIRCULARITY
+                        or f[tuple(bar["peak"])] < need * out_mean):
                     continue
                 features.append({"degree": 0, "type": t, "strong": bool(bar["persistence"] > _at(rank[f"{name}:h0{suffix}"], i)), "scale": scales[si], "center": center(bar["peak"]),
                                  "peak": tuple(bar["peak"]), "outer": r_px * grid_step, "inner": 0.0,
@@ -320,7 +367,7 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
                 if bar["persistence"] <= _at(rank[f"{name}:h1{suffix}~weak"], i):
                     break
                 outer, basin = _ring_geometry(f, bar)
-                if outer is None or too_big(outer):
+                if outer is None or too_big(outer) or _in_corner(basin):
                     continue
                 rc = tuple(bar["basin_min"])
                 ring_lab, _ = ndi.label(f >= bar["birth"], structure=np.ones((3, 3), bool))
@@ -373,7 +420,12 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
             consumed.add(j)
         if unit["kind"] != "blob" or ft["strong"]:  # weak features need a partner
             units.append((i, unit))
-    keep = [u for i, u in units if i not in consumed]
+    width, height = nx * grid_step, ny * grid_step
+    for _, u in units:
+        x, y = u["center"]
+        u["edge_touching"] = bool(min(x, y, width - x, height - y) < u["outer_radius"])
+    keep = [u for i, u in units if i not in consumed
+            and (not u["edge_touching"] or u["score"] >= UNIT_EDGE_MIN_SCORE)]
 
     units = sorted(keep, key=lambda u: (u["kind"] == "blob", -u["score"]))
     kept = []
@@ -381,17 +433,20 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
         if all(math.hypot(u["center"][0] - v["center"][0], u["center"][1] - v["center"][1])
                >= v["outer_radius"] for v in kept):
             kept.append(u)
+    flag_only = len(kept) <= UNIT_SIZE_FILTER_MIN_UNITS
     for kind in {u["kind"] for u in kept}:  # size consistency within a kind
         radii = [u["outer_radius"] for u in kept if u["kind"] == kind]
         med = float(np.median(radii))
-        kept = [u for u in kept if u["kind"] != kind
-                or med / UNIT_SIZE_FACTOR <= u["outer_radius"] <= med * UNIT_SIZE_FACTOR]
-    width, height = nx * grid_step, ny * grid_step
-    for u in kept:
-        x, y = u["center"]
-        u["edge_touching"] = bool(min(x, y, width - x, height - y) < u["outer_radius"])
+        ok = lambda u: med / UNIT_SIZE_FACTOR <= u["outer_radius"] <= med * UNIT_SIZE_FACTOR
+        if flag_only:
+            for u in kept:
+                if u["kind"] == kind and not ok(u):
+                    u["size_inconsistent"] = True
+        else:
+            kept = [u for u in kept if u["kind"] != kind or ok(u)]
     if not kept:
         return {}
+    size_flags = [i for i, u in enumerate(kept) if u.get("size_inconsistent")]
     centers = np.array([u["center"] for u in kept])
     sep = (float(cKDTree(centers).query(centers, k=2)[0][:, 1].min()) if len(kept) > 1 else None)
     kinds: Dict[str, int] = {}
@@ -408,7 +463,7 @@ def detect_units(lam_types, cell_types: Sequence[str], empty_space, grid_step: f
         vals = [_max_persistence(fn(np.asarray(ln, float).reshape(lam_types.shape)[si, t], full))
                 for ln, _ in advisory_draws]
         ambiguous = bool(top["persistence"] <= float(np.quantile(vals, quantile)))
-    return {"units": kept, "ambiguous_with_patches": ambiguous, "n_units": len(kept), "kinds": kinds, "thresholds": thr,
+    return {"units": kept, "size_inconsistent": size_flags, "ambiguous_with_patches": ambiguous, "n_units": len(kept), "kinds": kinds, "thresholds": thr,
             "min_center_separation": sep, "radii": [u["outer_radius"] for u in kept],
             "barcode_top": barcodes, "null_draws": len(null_draws),
             "quantile": float(quantile), "window_area_px": window_area}

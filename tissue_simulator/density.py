@@ -1358,6 +1358,9 @@ class DensityModel:
         bw = np.asarray(self.type_bandwidths, dtype=float)
         if bw.size != n_types:
             bw = np.full(n_types, self.bandwidth)
+        d_nn = self.estimation.get("d_nn")
+        if d_nn:  # cap: a wide per-type bandwidth smooths nests away
+            bw = np.minimum(bw, _units.UNIT_MAX_BANDWIDTH_NN * float(d_nn))
 
         def maps_of(cx, cy, t, weights=None):
             iy, ix = _pixel_indices(cx, cy, step, shape)
