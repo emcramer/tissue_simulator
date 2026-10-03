@@ -5,6 +5,88 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.18] - 2026-10-02
+
+### Added
+
+- **Adaptive single-sample fidelity (opt-in).** `DensityModel.fit(...,
+  strategy="adaptive")` and `ReplicateGenerator(..., strategy="adaptive")`
+  turn on sample-derived estimation and organization-preserving layouts.
+  The legacy strategy stays the default and is byte-identical to 0.1.17;
+  switching the default is a separate, later decision. Under adaptive:
+  - *Estimation.* Bandwidth search bounds come from the sample's spacing,
+    cell sizes and window; per-type bandwidths are shrunk toward the pooled
+    fit so rare types borrow strength instead of vanishing; a type/size/
+    density model and learned boundary band distances replace the fixed
+    10/20/40 µm bands. Composition heterogeneity is tested at the per-type
+    bandwidths, so composition-only structures in uniform-density stroma are
+    no longer declared homogeneous. Fit metadata (`estimation`,
+    `organization`, `voids`, `units`) is serialized as `format_version` 2;
+    version-1 dicts still load with legacy defaults.
+  - *Organization.* Planar and radial density/composition trends are
+    selected by BIC and then validated against a bootstrap of stationary
+    layouts drawn from the detrended residual model, so a large stationary
+    domain (two tumor nests) is not modelled as a gradient. Replicates of a
+    layered or center-to-periphery sample get a new direction or center and
+    new residual patches while keeping the type ordering, with window
+    coverage and proportion checks, capped retries and an explicit flagged
+    fallback instead of a silent copy.
+  - *Voids and lumens.* Tissue-free regions are inferred from the
+    empty-space distance of grid pixels to cell centers (no mask needed),
+    excluded from estimation, and re-placed in every layout as discs of the
+    learned sizes and spacing, so rings around vessels are reproduced.
+  - *Compact units (experimental).* Nests, rings with cores and rings with
+    lumens are detected with 0- and 1-dimensional persistent homology of the
+    per-type intensity maps (`tissue_simulator._persistence`, pure numpy),
+    thresholded on uniform-packing null layouts and paired by footprint
+    containment. Detected units are reproduced as a germ-grain process:
+    the same number of units with resampled radii, a learned minimum
+    spacing and per-kind radial density/composition profiles
+    (`_units`, `_grains`). The detector's gates are documented constants
+    tuned on synthetic controls and have not yet been validated on real
+    segmented tissue; treat unit detection as experimental.
+  - *Assignment.* Multi-scale spatial composition constraints replace the
+    single fixed 40 µm bin, with per-scale normalization so adding scales
+    does not inflate the penalty, and a regularized type/size/density
+    compatibility term keeps packed radii consistent with cell types. The
+    spatial weight is calibrated per replicate against the edge-count term
+    for a shuffled labeling, so it no longer depends on the graph rule
+    (`composition_weight` default 1.0 on that scale).
+  - *Diagnostics.* `PackingReport` gains per-bin shortfall, dense-bin
+    shortfall fraction and size-aware separation quantiles;
+    `ReplicateStatistics` gains requested vs achieved type counts, layout
+    organization, placed voids and units, separation and an optional
+    `fidelity` dict (size likelihood and KS, nearest-neighbour and mixing
+    statistics, organization profile error, components, holes, per-type
+    persistence distance).
+- **Size-aware "mechanical" neighbour graph.** `network_mode="mechanical"`
+  connects cells whose center distance is at most `interaction_factor`
+  × (r_i + r_j), with the factor defaulting to 1.5 (PhysiCell's mechanics
+  interaction distance). The rule is recorded on graphs and target
+  statistics so source and replicate graphs always share it, and a
+  mismatch warns. Available in `SpatialNetworkAnalyzer`, the target
+  loaders, `ReplicateGenerator` and the MCP server.
+
+### Changed
+
+- **`ReplicateGenerator.from_coordinates` defaults** to the mechanical
+  graph instead of a fixed 20 µm radius; the old behaviour is
+  `network_mode="radius", network_radius=20.0`. Its density model and
+  generator still default to the legacy strategy.
+- MCP `setup_replicate_generator` accepts `strategy`, `diagnostics`,
+  `composition_weight`, `size_weight` and `interaction_factor`;
+  `load_target_statistics` and `load_target_coordinates` accept the
+  mechanical mode and report the graph rule.
+
+### Known limits
+
+- Nests of a type that makes up about half the tissue fall below the
+  unit-detection null; cores of a few cells are reproduced as enrichment
+  rather than dominance; units are discs; edge-cut units use interior
+  sizes. Adaptive fits with the default 19 null draws take several seconds
+  (`n_null=0` skips the trend null and disables unit detection). See
+  `docs/notes/density-aware-packing.md`.
+
 ## [0.1.17] - 2026-09-13
 
 ### Fixed
@@ -644,6 +726,7 @@ release-process metadata only.
   integration via Model Context Protocol.
 - Examples, tests, MIT license, and documentation.
 
+[0.1.18]: https://github.com/emcramer/tissue_simulator/compare/v0.1.17...v0.1.18
 [0.1.17]: https://github.com/emcramer/tissue_simulator/compare/v0.1.16...v0.1.17
 [0.1.16]: https://github.com/emcramer/tissue_simulator/compare/v0.1.15...v0.1.16
 [0.1.15]: https://github.com/emcramer/tissue_simulator/compare/v0.1.14...v0.1.15

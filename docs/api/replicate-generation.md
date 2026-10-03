@@ -24,6 +24,23 @@ The replicate generation module allows you to generate multiple tissue samples t
 > `TissueNetworkWorkflow.generate_colored_replicates(n)`, documented under
 > [Generating colored replicates](graph-coloring.md#generating-colored-replicates).
 
+## Neighbour-graph rule (`network_mode`)
+
+`network_mode` is `"contact"`, `"radius"` or `"mechanical"` (edge iff
+`d <= interaction_factor * (r_i + r_j)`, default factor 1.5 after PhysiCell's
+mechanics interaction distance). `ReplicateGenerator(...)` still defaults to
+`"contact"`; **`ReplicateGenerator.from_coordinates` now defaults to
+`network_mode="mechanical"`** (`network_radius` is ignored unless the mode is
+`"radius"`). Pass `network_mode="radius", network_radius=20.0` to reproduce the
+earlier behaviour. `interaction_factor` is accepted by `ReplicateGenerator`,
+`from_coordinates`, `load_target_statistics_from_tissue` and
+`load_target_statistics_from_coordinates`.
+
+Targets and replicates must be measured with the same rule.
+`TargetStatistics.network_rule` records the rule
+(`{"mode", "radius", "interaction_factor"}`, `None` for CSV tables) and
+`ReplicateGenerator` warns when it differs from its own `network_rule`.
+
 ## Key Features
 
 - **Target-based generation**: Generate tissues matching specified spatial statistics
@@ -126,13 +143,49 @@ and `ReplicateGenerator(..., method="graph_coloring", density_model=model)`.
   below the smoothing bandwidth. Use it for regions flagged `"trend"` or
   `"patch_length_at_upper_bound"`, where resampling assumes a stationarity
   the region does not have.
-- **`composition_weight`** (default 4.0) scales the composition term, which is
-  multiplied by the squared mean degree of each replicate graph. Larger values
-  trade pair-fraction accuracy for composition accuracy.
+- **`composition_weight`** scales the composition term. Under the legacy
+  strategy it is multiplied by the squared mean degree of each replicate graph
+  (default 4.0, unchanged). Under `strategy="adaptive"` the term is calibrated
+  per replicate so the value is its size relative to the edge-count term for a
+  shuffled labeling (default 1.0; a multi-seed sweep on twelve synthetic
+  scenarios showed 4.0 over-constrains strongly clustered samples under the
+  mechanical graph). Larger values trade pair-fraction accuracy for
+  composition accuracy.
 - Regions that are no more heterogeneous than a uniform packing
   (`model.homogeneous`) get uniform layouts.
 - For a 2D source, use a thin slab (thickness about 1 µm) so replicate graphs
   stay planar.
+
+#### Adaptive strategy (opt-in)
+
+`strategy="legacy"` is the default and reproduces earlier releases exactly;
+switching the default is a separate reviewed change. `strategy="adaptive"`
+fits the model with data-derived bandwidths, per-type bandwidths and a
+planar/radial organization trend, uses multi-scale composition targets and a
+size-compatibility term, and records fidelity diagnostics.
+
+```python
+gen = ReplicateGenerator.from_coordinates(
+    "region.csv", network_mode="radius", network_radius=20.0,
+    seed=42, strategy="adaptive",
+)
+tissue, stats = gen.generate_single_replicate(0)
+print(stats.layout_organization, stats.fidelity["size_ks_by_type"])
+```
+
+Keyword-only generator options: `strategy`, `composition_scales` (list of bin
+sides in µm; default `"auto"` under adaptive), `composition_weight`,
+`size_weight` (default 1.0 adaptive, 0 legacy), `diagnostics` (default on for
+adaptive), `max_proposals` (organization re-draws, default 20).
+`DensityModel.fit` accepts `strategy`, `bandwidth_range` (`(lo, hi)`, `"auto"`
+or None), `per_type_bandwidth` and `organization`. It also takes `voids` (`"auto"`/`"none"`; default `"auto"` under
+adaptive): lumens and holes in the source are inferred and re-placed in each
+layout, reported as `layout_voids` on the replicate statistics. `units` (`"auto"`/`"none"`;
+default `"auto"` under adaptive) detects compact units (nests, follicles, glomeruli) by persistent
+homology and re-places them as germ-grain units with fitted radial profiles; they appear as
+`layout_units` and take precedence over voids inside them and over a radial trend centered in a
+unit. Criteria and limits are in
+[the design notes](../notes/density-aware-packing.md).
 
 Design, ablations and known limits are in
 [the design notes](../notes/density-aware-packing.md).
@@ -430,6 +483,27 @@ stats = ReplicateStatistics(
   composition bins to match the layout (density-aware replicates only)
 - `layout_flags`: Layout mode (for example `"mode:resample"`) followed by the
   density model's flags (density-aware replicates only)
+- `requested_cell_type_counts`, `achieved_cell_type_counts`: per-type cell
+  quota from the layout and final counts (density-aware replicates)
+- `layout_organization`: the layout's organization dict (`model`, `geometry`,
+  `direction`/`center`, `proposals_tried`, `accepted`, `fallback`)
+- `layout_voids`: placed voids of the layout (`centers`, `radii`, `n_requested`,
+  `n_placed`, `anchored`); None when the model has none
+- `layout_units`: placed units of the layout (`centers`, `outer_radii`,
+  `inner_radii`, `kinds`, `n_requested`, `n_placed`, `shortfall`, `anchored`);
+  None when the model has none
+- `fidelity`: diagnostics against the source (`size_nll`, `size_ks_by_type`,
+  `nn_distance_quantiles`, `mixing_index`, `organization_rmse`,
+  `interface_fraction`, `n_components`, `n_holes`, `persistence_distance`
+  per type: H0 Wasserstein-1 of source vs replicate KDE maps); None unless
+  `diagnostics` is on. Evidence, not calibrated intervals.
+- `separation`: nearest-neighbor `clearance_quantiles`,
+  `normalized_distance_quantiles` and `n_nearest_neighbour`
+
+`packing_report` (`PackingReport.to_dict()`) also carries `bin_shortfall`,
+`quota_floor`, `quota_floor_source` (`"layout"` or `"legacy"`),
+`clearance_quantiles`, `normalized_distance_quantiles` and
+`dense_bin_fraction_short`.
 
 ## Export Functions
 
@@ -566,6 +640,13 @@ generate_replicates(
 export_replicate_statistics(base_filename="output")
 export_replicate_tissues(output_dir="tissues")
 ```
+
+   For a density-aware scaffold add `density_layout` (`"resample"` or
+   `"copy"`, needs source coordinates loaded with
+   `load_target_statistics_from_coordinates`) and optionally `strategy`
+   (`"legacy"` default or `"adaptive"`), `diagnostics`, `composition_weight`
+   and `size_weight`. The result echoes `strategy` and `diagnostics`; adaptive
+   fits the source model with `strategy="adaptive"`.
 
 5. **Get summary**:
 ```

@@ -15,10 +15,16 @@ from dataclasses import dataclass, asdict
 import warnings
 from pathlib import Path
 
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import connected_components
+from scipy.spatial import cKDTree
+
 from .tissue import TissueSection, Cell, load_tissue_from_csv
-from .packing import SpherePacker
-from .density import DensityModel
-from .spatial_analysis import SpatialNetworkAnalyzer, InteractionStatistics
+from .packing import SpherePacker, separation_diagnostics
+from .density import DensityModel, _intensity_grids, _pixel_indices
+from ._persistence import superlevel_h0, persistence_distance
+from .spatial_analysis import (SpatialNetworkAnalyzer, InteractionStatistics,
+                               MECHANICAL_INTERACTION_FACTOR)
 from .graph_coloring import GraphColorizer, color_graph_to_targets
 from .power_analysis import compare_initialization_variance
 
@@ -28,6 +34,230 @@ try:
 except ImportError:
     NETWORKX_AVAILABLE = False
     warnings.warn("NetworkX not installed. Install with: pip install networkx")
+
+
+# ---------------------------------------------------------------------------
+# Adaptive-strategy constants and pure helpers
+# ---------------------------------------------------------------------------
+
+MAX_COMPOSITION_SCALES = 3        # at most this many composition bin sizes
+LEGACY_COMPOSITION_WEIGHT = 4.0   # legacy scale: multiplied by mean_degree**2 (unchanged)
+ADAPTIVE_COMPOSITION_WEIGHT = 1.0  # calibrated scale: composition term == edge term for a shuffled labeling
+MIN_SCALE_RATIO = 1.5             # successive auto scales differ by at least this factor
+MIN_AUTO_SCALE_UM = 10.0          # smallest auto composition bin side
+HOLE_MIN_EXPECTED = 2.0           # a bin is a "hole" if its layout-expected count exceeds this and it holds no cell
+NN_QUANTILES = (5, 50, 95)
+
+
+def _log_sigma_floor(sigma):
+    return np.maximum(np.asarray(sigma, dtype=float), 1e-6)
+
+
+def size_nll_matrix(model, colors, radii, intensities) -> np.ndarray:
+    """Per-cell negative log-likelihood of each colour's size model, ``(n, len(colors))``.
+
+    ``nll[i, c] = 0.5 ((log r_i - mu_cd) / sigma_cd)**2 + log sigma_cd`` with
+    ``d`` the cell's local density bin (``searchsorted`` on the model's
+    ``marks.density_edges``). Colours unknown to the model get the mean over
+    the model's types. Pure, no RNG.
+    """
+    radii = np.asarray(radii, dtype=float)
+    mu, sigma = np.asarray(model.size_log_mu), _log_sigma_floor(model.size_log_sigma)
+    n_bins = mu.shape[1]
+    bins = np.clip(np.searchsorted(np.asarray(model.marks.density_edges),
+                                   np.asarray(intensities, dtype=float), side='right'), 0, n_bins - 1)
+    logr = np.log(np.maximum(radii, 1e-6))
+    per_type = 0.5 * ((logr[:, None] - mu[:, bins].T) / sigma[:, bins].T) ** 2 + np.log(sigma[:, bins].T)
+    index = {t: i for i, t in enumerate(model.cell_types)}
+    mean_col = per_type.mean(axis=1)
+    return np.column_stack([per_type[:, index[c]] if c in index else mean_col for c in colors])
+
+
+def _ks_statistic(a, b) -> float:
+    """Two-sample Kolmogorov-Smirnov statistic (sup |F_a - F_b|)."""
+    a, b = np.sort(np.asarray(a, dtype=float)), np.sort(np.asarray(b, dtype=float))
+    if a.size == 0 or b.size == 0:
+        return float('nan')
+    grid = np.concatenate([a, b])
+    return float(np.max(np.abs(np.searchsorted(a, grid, side='right') / a.size
+                               - np.searchsorted(b, grid, side='right') / b.size)))
+
+
+def _organization_rmse(model, layout, x, y, types) -> Optional[float]:
+    """RMSE between observed type fractions and the source profile along the layout's coordinate.
+
+    Cells are split into equal-count bins along ``s'`` (planar: ``(p - c).d +
+    s_mid`` from the window centroid; radial: distance to the layout centre,
+    as in :mod:`._organization`); each bin's type fractions are compared with
+    the source composition profile at the bin's mean ``s'``.
+    """
+    org, lorg = getattr(model, 'organization', None) or {}, getattr(layout, 'organization', None) or {}
+    if org.get('model', 'none') == 'none' or not lorg:
+        return None
+    try:
+        from ._organization import profile_along
+        if org.get('geometry') == 'radial':
+            cx, cy = lorg['center']
+            s = np.hypot(x - cx, y - cy)
+        else:
+            dx, dy = lorg['direction']
+            s = (x - 0.5 * layout.width) * dx + (y - 0.5 * layout.height) * dy + org['s_mid']
+        n_bins = int(max(2, min(len(org['s_knots']), len(s) // 20)))
+        order = np.argsort(s)
+        index = {t: i for i, t in enumerate(model.cell_types)}
+        tid = np.array([index.get(t, -1) for t in types])
+        errs = []
+        for chunk in np.array_split(order, n_bins):
+            if chunk.size == 0:
+                continue
+            _, comp = profile_along(org, [float(s[chunk].mean())])
+            obs = np.bincount(tid[chunk][tid[chunk] >= 0], minlength=len(index)) / chunk.size
+            errs.append((obs - comp[0]) ** 2)
+        return float(np.sqrt(np.mean(errs))) if errs else None
+    except (KeyError, ValueError, IndexError):
+        return None
+
+
+def fidelity_diagnostics(x, y, radii, types, edges, *, cell_types, model=None, layout=None,
+                         intensities=None, source_radii=None, source_size_nll=None,
+                         finest_bin=None) -> Dict:
+    """Fidelity of one replicate against its source (pure, no RNG, JSON-friendly).
+
+    Args:
+        x: per-cell x centres.
+        y: per-cell y centres.
+        radii: per-cell radii.
+        types: per-cell type names.
+        edges: iterable of ``(i, j)`` neighbour-graph edges (cell indices).
+        cell_types: type names considered.
+        model: the :class:`DensityModel` (optional).
+        layout: the :class:`Layout` (optional).
+        intensities: layout intensity at each cell (needed for size NLL).
+        source_radii: ``{type: radii}`` of the source (for KS), or None.
+        source_size_nll: cached mean size NLL of the source, or None.
+        finest_bin: finest composition bin side for ``n_holes``.
+
+    Keys: ``size_nll`` (replicate/source mean), ``size_ks_by_type``,
+    ``nn_distance_quantiles`` (p5/p50/p95 by type), ``mixing_index`` (same-type
+    fraction of graph-neighbour ends by type), ``organization_rmse``,
+    ``interface_fraction`` (edges joining different types), ``n_components``,
+    ``n_holes`` (layout-expected > 2 cells but none placed, at ``finest_bin``),
+    ``persistence_distance`` (per type, H0 Wasserstein-1 source vs replicate KDE maps).
+    Entries that cannot be computed are None.
+    """
+    x, y, radii = (np.asarray(v, dtype=float) for v in (x, y, radii))
+    types = np.asarray(types)
+    n = len(x)
+    edges = np.asarray(list(edges), dtype=int).reshape(-1, 2)
+    out: Dict = {}
+
+    nll_rep = None
+    if (model is not None and intensities is not None and getattr(model, 'size_log_mu', None) is not None
+            and np.size(model.size_log_mu) and n):
+        mat = size_nll_matrix(model, list(cell_types), radii, intensities)
+        col = {c: i for i, c in enumerate(cell_types)}
+        keep = np.array([t in col for t in types])
+        if keep.any():
+            nll_rep = float(np.mean([mat[i, col[types[i]]] for i in np.nonzero(keep)[0]]))
+    out['size_nll'] = {'replicate': nll_rep,
+                       'source': None if source_size_nll is None else float(source_size_nll)}
+    out['size_ks_by_type'] = (None if source_radii is None else
+                              {t: _ks_statistic(radii[types == t], source_radii[t])
+                               for t in cell_types if t in source_radii and (types == t).any()})
+
+    nnq: Dict = {}
+    if n >= 2:
+        d = cKDTree(np.column_stack([x, y])).query(np.column_stack([x, y]), k=2)[0][:, 1]
+        for t in cell_types:
+            if (types == t).any():
+                nnq[t] = [float(v) for v in np.percentile(d[types == t], NN_QUANTILES)]
+    out['nn_distance_quantiles'] = nnq
+
+    mixing: Dict = {}
+    if len(edges):
+        same = types[edges[:, 0]] == types[edges[:, 1]]
+        for t in cell_types:
+            ends = np.concatenate([(types[edges[:, 0]] == t), (types[edges[:, 1]] == t)])
+            hit = np.concatenate([same & (types[edges[:, 0]] == t), same & (types[edges[:, 1]] == t)])
+            if ends.any():
+                mixing[t] = float(hit.sum() / ends.sum())
+        out['interface_fraction'] = float(1.0 - same.mean())
+    else:
+        out['interface_fraction'] = None
+    out['mixing_index'] = mixing
+    if n:
+        adj = coo_matrix((np.ones(len(edges)), (edges[:, 0], edges[:, 1])), shape=(n, n))
+        out['n_components'] = int(connected_components(adj, directed=False)[0])
+    else:
+        out['n_components'] = 0
+
+    out['organization_rmse'] = (None if model is None or layout is None
+                                else _organization_rmse(model, layout, x, y, types))
+
+    holes = None
+    if layout is not None and finest_bin:
+        step = layout.grid_step
+        ny, nx = layout.intensity.shape
+        rows = max(1, int(np.ceil(layout.height / finest_bin)))
+        cols = max(1, int(np.ceil(layout.width / finest_bin)))
+        yy, xx = np.meshgrid((np.arange(ny) + 0.5) * step, (np.arange(nx) + 0.5) * step, indexing='ij')
+        pb = (np.clip((yy // finest_bin).astype(int), 0, rows - 1) * cols
+              + np.clip((xx // finest_bin).astype(int), 0, cols - 1))
+        expected = np.bincount(pb.ravel(), weights=layout.intensity.ravel() * step * step,
+                               minlength=rows * cols)
+        cb = (np.clip((y // finest_bin).astype(int), 0, rows - 1) * cols
+              + np.clip((x // finest_bin).astype(int), 0, cols - 1))
+        have = np.bincount(cb, minlength=rows * cols)
+        holes = int(np.sum((expected > HOLE_MIN_EXPECTED) & (have == 0)))
+    out['n_holes'] = holes
+    out['persistence_distance'] = _persistence_distance_by_type(model, layout, x, y, types, cell_types)
+    return out
+
+
+def _persistence_distance_by_type(model, layout, x, y, types, cell_types):
+    """Per-type Wasserstein-1 distance (``drop_essential=True``) between the H0
+    superlevel barcodes of the source's per-type intensity maps
+    (``model.region_intensity``) and of the replicate's KDE maps at the model's
+    per-type bandwidths on the same grid. None when unavailable."""
+    try:
+        if model is None or layout is None or not len(x):
+            return None
+        src = np.asarray(model.region_intensity, dtype=float)
+        shape = tuple(model.mask.shape)
+        names = list(model.cell_types)
+        if src.ndim != 3 or tuple(layout.intensity.shape) != shape:
+            return None
+        bw = np.asarray(model.type_bandwidths, dtype=float)
+        if bw.size != len(names):
+            bw = np.full(len(names), float(model.bandwidth))
+        index = {t: i for i, t in enumerate(names)}
+        tid = np.array([index.get(t, -1) for t in types])
+        keep = tid >= 0
+        iy, ix = _pixel_indices(np.asarray(x)[keep], np.asarray(y)[keep], model.grid_step, shape)
+        rep = _intensity_grids(iy, ix, tid[keep], len(names), shape, model.grid_step, bw,
+                               model.mask)
+        out = {}
+        for t in cell_types:
+            if t not in index:
+                continue
+            k = index[t]
+            d = persistence_distance(superlevel_h0(src[k], mask=model.mask),
+                                     superlevel_h0(rep[k], mask=model.mask),
+                                     drop_essential=True)
+            out[t] = float(d) if np.isfinite(d) else None
+        return out
+    except (ValueError, IndexError, KeyError, AttributeError):
+        return None
+
+
+def _resolve_scale_list(candidates, max_side) -> List[float]:
+    """Ascending, deduplicated (successive ratio >= 1.5), at most 3 bin sides."""
+    kept: List[float] = []
+    for c in sorted(float(v) for v in candidates if v and np.isfinite(v)):
+        c = min(c, max_side)
+        if not kept or c / kept[-1] >= MIN_SCALE_RATIO:
+            kept.append(c)
+    return kept[:MAX_COMPOSITION_SCALES]
 
 
 @dataclass
@@ -45,6 +275,9 @@ class TargetStatistics:
     cell_type_proportions: Optional[Dict[str, float]] = None
     target_cell_count: Optional[int] = None
     target_density: Optional[float] = None
+    # Neighbour-graph rule the statistics were measured with:
+    # {"mode", "radius", "interaction_factor"}; None if unknown (e.g. CSV tables).
+    network_rule: Optional[Dict] = None
     
     def validate(self):
         """Validate that statistics are consistent."""
@@ -80,6 +313,14 @@ class ReplicateStatistics:
     packing_report: Optional[Dict] = None
     composition_error: Optional[float] = None
     layout_flags: Optional[List[str]] = None
+    # Adaptive-strategy diagnostics (None unless density-aware).
+    requested_cell_type_counts: Optional[Dict[str, int]] = None
+    achieved_cell_type_counts: Optional[Dict[str, int]] = None
+    layout_organization: Optional[Dict] = None
+    fidelity: Optional[Dict] = None
+    separation: Optional[Dict] = None
+    layout_voids: Optional[Dict] = None
+    layout_units: Optional[Dict] = None
     
     def to_dict(self) -> Dict:
         """Convert to dictionary."""
@@ -111,9 +352,16 @@ class ReplicateGenerator:
                  de_params: Optional[Dict] = None,
                  density_model: Optional[DensityModel] = None,
                  layout: str = "resample",
-                 composition_weight: float = 4.0,
-                 composition_bin: float = 40.0,
-                 packing_params: Optional[Dict] = None):
+                 composition_weight: Optional[float] = None,
+                 composition_bin: Union[float, str, None] = None,
+                 packing_params: Optional[Dict] = None,
+                 *,
+                 strategy: str = "legacy",
+                 composition_scales: Optional[List[float]] = None,
+                 size_weight: Optional[float] = None,
+                 diagnostics: Optional[bool] = None,
+                 max_proposals: int = 20,
+                 interaction_factor: float = MECHANICAL_INTERACTION_FACTOR):
         """
         Initialize replicate generator.
 
@@ -121,8 +369,12 @@ class ReplicateGenerator:
             target_stats: Target spatial statistics to match
             tissue_dimensions: (height, width, thickness) in micrometers
             base_cell_radii: Dict mapping cell types to (min_radius, max_radius)
-            network_mode: "contact" or "radius" for spatial analysis
+            network_mode: "contact", "radius" or "mechanical" for spatial analysis
             network_radius: Distance threshold if using "radius" mode
+            interaction_factor: Multiplier for "mechanical" mode (edge iff
+                d <= factor * (r_i + r_j); default 1.5, PhysiCell's mechanics
+                interaction distance). Must equal the rule the target
+                statistics were measured with; a mismatch only warns.
             seed: Random seed for reproducibility
             method: Replicate strategy. ``"radius_tuning"`` (default, unchanged
                 behavior) iteratively repacks and nudges per-type radii to match
@@ -159,12 +411,14 @@ class ReplicateGenerator:
             layout: ``"resample"`` (a new arrangement of dense and sparse
                 compartments per replicate) or ``"copy"`` (the region's own
                 maps). Used only with ``density_model``.
-            composition_weight: Weight of the spatial-composition term. It is
-                multiplied by the squared mean degree of each replicate graph,
-                which keeps its pull comparable to the edge-count term across
-                graph sizes. The default 4.0 was chosen by ablation on
-                synthetic nest processes (larger values trade pair-fraction
-                accuracy for composition accuracy).
+            composition_weight: Weight of the spatial-composition term. Under
+                the legacy strategy it is multiplied by the squared mean degree
+                of each replicate graph (default ``LEGACY_COMPOSITION_WEIGHT`` =
+                4.0, unchanged from earlier releases). Under ``"adaptive"`` the
+                term is calibrated per replicate so that ``composition_weight``
+                is its size relative to the edge-count term for a shuffled
+                labeling (default ``ADAPTIVE_COMPOSITION_WEIGHT`` = 1.0; larger
+                values trade pair-fraction accuracy for composition accuracy).
             composition_bin: Side in µm of the composition bins.
             packing_params: Extra keyword arguments for
                 :class:`~tissue_simulator.packing.InhomogeneousPacker`.
@@ -187,20 +441,59 @@ class ReplicateGenerator:
             raise ValueError("density_model requires method='graph_coloring'.")
         if layout not in ("resample", "copy"):
             raise ValueError(f"layout must be 'resample' or 'copy', got {layout!r}.")
+        if strategy not in ("legacy", "adaptive"):
+            raise ValueError(f"strategy must be 'legacy' or 'adaptive', got {strategy!r}.")
+        if strategy == "adaptive" and density_model is None:
+            raise ValueError("strategy='adaptive' requires a density_model.")
+        if density_model is not None and getattr(density_model, 'strategy', strategy) != strategy:
+            warnings.warn(f"density_model.strategy={density_model.strategy!r} differs from "
+                          f"strategy={strategy!r}.", stacklevel=2)
 
         self.target_stats = target_stats
         self.tissue_dimensions = tissue_dimensions
         self.base_cell_radii = base_cell_radii
         self.network_mode = network_mode
         self.network_radius = network_radius
+        self.interaction_factor = interaction_factor
+        self.network_rule = {
+            "mode": network_mode,
+            "radius": network_radius if network_mode == "radius" else None,
+            "interaction_factor": interaction_factor if network_mode == "mechanical" else None,
+        }
+        target_rule = getattr(target_stats, "network_rule", None)
+        if target_rule is not None and dict(target_rule) != self.network_rule:
+            warnings.warn(
+                f"target_stats were measured with network rule {dict(target_rule)} but the "
+                f"generator uses {self.network_rule}; statistics are not comparable.",
+                stacklevel=2)
         self.seed = seed
         self.method = method
         self.n_restarts = max(1, int(n_restarts))
         self.radius_optimizer = radius_optimizer
         self.density_model = density_model
         self.layout = layout
+        if composition_weight is None:
+            composition_weight = (ADAPTIVE_COMPOSITION_WEIGHT if strategy == "adaptive"
+                                  else LEGACY_COMPOSITION_WEIGHT)
         self.composition_weight = float(composition_weight)
-        self.composition_bin = float(composition_bin)
+        # Strategy resolution: adaptive -> multi-scale 'auto' composition, size
+        # compatibility weight 1.0, diagnostics on; legacy -> 40 um single bin,
+        # no size term, no diagnostics (byte-identical to earlier releases).
+        self.strategy = strategy
+        adaptive = strategy == "adaptive"
+        if composition_bin is None:
+            composition_bin = "auto" if adaptive else 40.0
+        self.composition_bin = composition_bin if composition_bin == "auto" else float(composition_bin)
+        self.composition_scales = (None if composition_scales is None
+                                   else [float(v) for v in composition_scales])
+        self.size_weight = float(size_weight if size_weight is not None else (1.0 if adaptive else 0.0))
+        self.diagnostics = bool(adaptive if diagnostics is None else diagnostics)
+        self.max_proposals = int(max_proposals)
+        self._multiscale = (adaptive or self.composition_scales is not None
+                            or self.composition_bin == "auto")
+        # Source reference values for fidelity diagnostics (set by from_coordinates).
+        self._source_radii: Optional[Dict[str, List[float]]] = None
+        self._source_size_nll: Optional[float] = None
         self.packing_params = dict(packing_params or {})
         self.de_params = {'maxiter': 15, 'popsize': 10, 'tol': 0.01, 'polish': False}
         if de_params:
@@ -252,11 +545,13 @@ class ReplicateGenerator:
     
     @classmethod
     def from_coordinates(cls, filepath: str,
-                         network_mode: str = "radius",
-                         network_radius: Optional[float] = 20.0,
+                         network_mode: str = "mechanical",
+                         network_radius: Optional[float] = None,
                          tissue_dimensions: Optional[Tuple[float, float, float]] = None,
                          layout: str = "resample",
                          density_kwargs: Optional[Dict] = None,
+                         *, strategy: str = "legacy",
+                         interaction_factor: float = MECHANICAL_INTERACTION_FACTOR,
                          **kwargs) -> 'ReplicateGenerator':
         """Replicate generator fitted to a coordinate CSV (the recommended path).
 
@@ -268,23 +563,33 @@ class ReplicateGenerator:
 
         Args:
             filepath: Coordinate CSV of the source region.
-            network_mode: Neighbor graph mode for targets and replicates.
-            network_radius: Graph radius in µm for ``"radius"`` mode.
+            network_mode: Neighbor graph mode for targets and replicates;
+                default ``"mechanical"`` (size-aware, d <= factor * (r_i + r_j)).
+                Pass ``network_mode="radius", network_radius=20.0`` for the
+                previous default behaviour.
+            network_radius: Graph radius in µm for ``"radius"`` mode only
+                (ignored otherwise).
+            interaction_factor: Multiplier for ``"mechanical"`` mode (default 1.5).
             tissue_dimensions: (height, width, thickness) of the replicates;
                 defaults to the source region's.
             layout: ``"resample"`` (default) or ``"copy"``.
             density_kwargs: Keyword arguments for :meth:`DensityModel.fit`.
+            strategy: ``"legacy"`` (default) or ``"adaptive"``; forwarded to
+                the model fit (unless set in ``density_kwargs``) and the generator.
             **kwargs: Other :class:`ReplicateGenerator` arguments (``seed``,
                 ``coloring_params``, ``composition_weight``, ...).
         """
         tissue = load_tissue_from_csv(filepath)
         target_stats = load_target_statistics_from_tissue(
-            tissue, network_mode=network_mode, network_radius=network_radius)
+            tissue, network_mode=network_mode, network_radius=network_radius,
+            interaction_factor=interaction_factor)
         if target_stats.target_density is not None and not 0 < target_stats.target_density < 1:
             # A thin slab around a 2D section has no meaningful 3D packing
             # fraction, and density-aware replicates do not use it.
             target_stats.target_density = None
-        density_model = DensityModel.from_tissue(tissue, **(density_kwargs or {}))
+        density_kwargs = dict(density_kwargs or {})
+        density_kwargs.setdefault('strategy', strategy)
+        density_model = DensityModel.from_tissue(tissue, **density_kwargs)
         radii: Dict[str, Tuple[float, float]] = {}
         for cell in tissue.cells:
             lo, hi = radii.get(cell.cell_type, (cell.radius, cell.radius))
@@ -292,9 +597,31 @@ class ReplicateGenerator:
         if tissue_dimensions is None:
             tissue_dimensions = (tissue.height, tissue.width, tissue.thickness)
         kwargs.setdefault("method", "graph_coloring")
-        return cls(target_stats, tissue_dimensions, radii,
-                   network_mode=network_mode, network_radius=network_radius,
-                   density_model=density_model, layout=layout, **kwargs)
+        gen = cls(target_stats, tissue_dimensions, radii,
+                  network_mode=network_mode, network_radius=network_radius,
+                  interaction_factor=interaction_factor,
+                  density_model=density_model, layout=layout, strategy=strategy, **kwargs)
+        gen._cache_source_reference(tissue)
+        return gen
+
+    def _cache_source_reference(self, tissue: TissueSection) -> None:
+        """Cache the source's per-type radii and mean size NLL (plain data, picklable)."""
+        by_type: Dict[str, List[float]] = {}
+        for cell in tissue.cells:
+            by_type.setdefault(cell.cell_type, []).append(float(cell.radius))
+        self._source_radii = by_type
+        model = self.density_model
+        if model is None or not np.size(getattr(model, 'size_log_mu', [])) or not tissue.cells:
+            return
+        step = model.grid_step
+        ny, nx = model.mask.shape
+        total = np.asarray(model.region_intensity).sum(axis=0)
+        dens = [float(total[min(max(int(c.center[1] // step), 0), ny - 1),
+                            min(max(int(c.center[0] // step), 0), nx - 1)]) for c in tissue.cells]
+        mat = size_nll_matrix(model, list(model.cell_types), [c.radius for c in tissue.cells], dens)
+        col = {t: i for i, t in enumerate(model.cell_types)}
+        vals = [mat[i, col[c.cell_type]] for i, c in enumerate(tissue.cells) if c.cell_type in col]
+        self._source_size_nll = float(np.mean(vals)) if vals else None
 
     def _compute_interaction_divergence(self,
                                        measured: List[InteractionStatistics],
@@ -543,7 +870,8 @@ class ReplicateGenerator:
         # 2. Build the neighbor graph from the packed geometry.
         analyzer = SpatialNetworkAnalyzer()
         graph = analyzer.build_network_from_tissue(
-            tissue, mode=self.network_mode, radius=self.network_radius
+            tissue, mode=self.network_mode, radius=self.network_radius,
+            interaction_factor=self.interaction_factor
         )
 
         # 3. Derive GraphColorizer targets for THIS geometry, then color it.
@@ -603,7 +931,8 @@ class ReplicateGenerator:
     def _spatial_composition_target(self, tissue: TissueSection, layout,
                                     node_counts: Dict[str, int],
                                     mean_degree: float,
-                                    rng: np.random.Generator) -> Tuple[Dict, Dict[int, str]]:
+                                    rng: np.random.Generator,
+                                    bin_sizes: Optional[List[float]] = None):
         """Per-bin expected type counts from the layout, plus a warm-start coloring.
 
         Each cell's type probabilities are the layout composition at its
@@ -611,15 +940,24 @@ class ReplicateGenerator:
         ``node_counts``. Bins are squares of ``composition_bin`` µm. The term's
         weight is ``composition_weight * mean_degree ** 2``.
 
+        With ``bin_sizes=None`` (legacy) one bin size ``composition_bin`` is
+        used and the result is the ``target_statistics['spatial_composition']``
+        dict for :class:`~tissue_simulator.graph_coloring.GraphColorizer`.
+        With a list of bin sizes it returns the
+        ``'spatial_composition_scales'`` list (one ``{node_bin, expected,
+        weight}`` per scale, weight ``composition_weight * mean_degree**2``);
+        each bin's expected counts are shrunk toward ``n_b`` times the global
+        type proportions with weight ``5 / (n_b + 5)`` (``n_b`` = expected cells
+        in the bin). The warm-start coloring is identical in both cases.
+
         Returns:
-            ``(spatial_target, initial_coloring)`` where ``spatial_target`` is
-            the ``target_statistics['spatial_composition']`` dict for
-            :class:`~tissue_simulator.graph_coloring.GraphColorizer`.
+            ``(spatial_target, initial_coloring)``.
         """
         colors = list(self.cell_types)
         n = len(tissue.cells)
         height, width = self.tissue_dimensions[0], self.tissue_dimensions[1]
-        size = self.composition_bin
+        sizes = [self.composition_bin] if bin_sizes is None else list(bin_sizes)
+        size = sizes[0]
         cols = max(1, int(np.ceil(width / size)))
         rows = max(1, int(np.ceil(height / size)))
         layout_index = {t: i for i, t in enumerate(layout.cell_types)}
@@ -660,9 +998,103 @@ class ReplicateGenerator:
             initial[int(i)] = colors[j]
             remaining[j] -= 1
 
-        spatial = {'node_bin': node_bin, 'expected': expected,
-                   'weight': self.composition_weight * mean_degree ** 2}
-        return spatial, initial
+        if bin_sizes is None:
+            spatial = {'node_bin': node_bin, 'expected': expected,
+                       'weight': self.composition_weight * mean_degree ** 2}
+            return spatial, initial
+
+        scales = []
+        for sz in sizes:
+            ncols = max(1, int(np.ceil(width / sz)))
+            nrows = max(1, int(np.ceil(height / sz)))
+            nb: Dict[int, int] = {}
+            exp_b: Dict[int, Dict[str, float]] = {}
+            for i, cell in enumerate(tissue.cells):
+                x, y = float(cell.center[0]), float(cell.center[1])
+                b = (min(max(int(y // sz), 0), nrows - 1) * ncols
+                     + min(max(int(x // sz), 0), ncols - 1))
+                nb[i] = b
+                bucket = exp_b.setdefault(b, {})
+                for j, color in enumerate(colors):
+                    if probs[i, j] > 0:
+                        bucket[color] = bucket.get(color, 0.0) + float(probs[i, j])
+            scales.append({'node_bin': nb, 'expected': exp_b,
+                           'weight': self.composition_weight * mean_degree ** 2})
+        return scales, initial
+
+    def _calibrate_scale_weights(self, graph, targets, scales, initial, rng):
+        """Set each scale's weight from a uniformly shuffled warm-start labeling.
+
+        With ``edge`` the edge-count SSE and ``sp_k`` the normalized
+        (``SSE_k / mean_k``) spatial SSE of a random permutation of the warm-start
+        labels (same type totals), the weight of scale ``k`` is
+        ``composition_weight * edge * K / sp_k``, so that the summed spatial
+        term equals ``composition_weight * edge`` for a shuffled labeling,
+        independent of the graph rule. Draws one permutation from ``rng`` (after
+        the warm-start draws; adaptive only). Falls back to
+        ``composition_weight * mean_degree**2`` weights if a term is degenerate.
+        Returns ``{'composition_weight_effective', 'composition_calibration'}``.
+        """
+        colors = list(self.cell_types)
+        labels = [initial[i] for i in sorted(initial)]
+        nodes = sorted(initial)
+        perm = rng.permutation(len(labels))
+        shuffled = {nodes[i]: labels[int(perm[i])] for i in range(len(nodes))}
+        probe = GraphColorizer(target_graph=graph, colors=colors, target_statistics=targets)
+        stats, _ = probe._calculate_statistics(graph, shuffled)
+        edge = probe.cost_terms(stats)['edge']
+        K = len(probe._scales)
+        sp = [sse / sc['mean'] for sc, sse in zip(probe._scales, stats['scale_sse'])]
+        info = {'composition_calibration': {'edge_sse_random': float(edge),
+                                             'spatial_sse_random': [float(v) for v in sp]}}
+        if edge <= 0 or any(v <= 0 for v in sp):
+            info['composition_weight_effective'] = None
+            return info
+        eff = []
+        for sc, v in zip(scales, sp):
+            sc['weight'] = self.composition_weight * edge * K / v
+            eff.append(float(sc['weight']))
+        info['composition_weight_effective'] = eff
+        return info
+
+    def _resolve_composition_scales(self, model=None) -> List[float]:
+        """Composition bin sides (um) for the multi-scale term.
+
+        An explicit ``composition_scales`` list wins. ``"auto"`` (adaptive
+        default) uses ``[max(bw/2, 2 d_nn, 10), max(patch_length, 2 first_band_edge),
+        min(W, H)/4]``, deduplicated so successive scales differ by >= 1.5x
+        (at most 3). A numeric ``composition_bin`` gives that single scale.
+        """
+        model = model or self.density_model
+        height, width = self.tissue_dimensions[0], self.tissue_dimensions[1]
+        if self.composition_scales is not None:
+            return [float(v) for v in self.composition_scales]
+        if self.composition_bin != "auto":
+            return [float(self.composition_bin)]
+        d_nn = float((getattr(model, 'estimation', None) or {}).get('d_nn') or 0.0)
+        edges = getattr(model, 'band_edges', ()) or ()
+        first = float(edges[0]) if len(edges) else 0.0
+        bw = float(getattr(model, 'bandwidth', 0.0) or 0.0)
+        cand = [max(bw / 2.0, 2.0 * d_nn, MIN_AUTO_SCALE_UM),
+                max(float(getattr(model, 'patch_length', 0.0) or 0.0), 2.0 * first),
+                min(width, height) / 4.0]
+        return _resolve_scale_list(cand, max(width, height))
+
+    def _size_compatibility_target(self, tissue: TissueSection, model, layout,
+                                   mean_degree: float) -> Optional[Dict]:
+        """``{'nll': {node: {color: nll}}, 'weight': size_weight * mean_degree}`` or None.
+
+        ``nll[i][c] = 0.5 ((log r_i - mu_cd)/sigma_cd)**2 + log sigma_cd`` with
+        ``d`` the cell's local density bin (:func:`size_nll_matrix`). None when
+        ``size_weight == 0`` or the model has no size model.
+        """
+        if self.size_weight == 0 or not np.size(getattr(model, 'size_log_mu', [])):
+            return None
+        colors = list(self.cell_types)
+        dens = [layout.intensity_at(float(c.center[0]), float(c.center[1])) for c in tissue.cells]
+        mat = size_nll_matrix(model, colors, [c.radius for c in tissue.cells], dens)
+        nll = {i: {c: float(mat[i, j]) for j, c in enumerate(colors)} for i in range(len(tissue.cells))}
+        return {'nll': nll, 'weight': self.size_weight * mean_degree}
 
     @staticmethod
     def _composition_error(coloring: Dict[int, str], spatial: Dict) -> float:
@@ -693,7 +1125,7 @@ class ReplicateGenerator:
 
         layout = self.density_model.sample_layout(
             rng=np.random.default_rng(layout_ss), width=width, height=height,
-            layout=self.layout)
+            layout=self.layout, max_proposals=self.max_proposals)
         tissue = TissueSection(height=height, width=width, thickness=thickness,
                                cell_radii=self.base_cell_radii)
         tissue.generate_cells(allow_boundary_cells=allow_boundary,
@@ -704,14 +1136,31 @@ class ReplicateGenerator:
 
         analyzer = SpatialNetworkAnalyzer()
         graph = analyzer.build_network_from_tissue(
-            tissue, mode=self.network_mode, radius=self.network_radius
+            tissue, mode=self.network_mode, radius=self.network_radius,
+            interaction_factor=self.interaction_factor
         )
         targets = self._build_colorizer_targets(graph)
         mean_degree = 2.0 * graph.number_of_edges() / max(graph.number_of_nodes(), 1)
-        spatial, initial = self._spatial_composition_target(
-            tissue, layout, targets['node_counts'], mean_degree,
-            np.random.default_rng(warm_ss))
-        targets['spatial_composition'] = spatial
+        scale_sizes = None
+        composition_info = None
+        if self._multiscale:
+            scale_sizes = self._resolve_composition_scales(self.density_model)
+            warm_rng = np.random.default_rng(warm_ss)
+            scales, initial = self._spatial_composition_target(
+                tissue, layout, targets['node_counts'], mean_degree,
+                warm_rng, bin_sizes=scale_sizes)
+            targets['spatial_composition_scales'] = scales
+            composition_info = self._calibrate_scale_weights(
+                graph, targets, scales, initial, warm_rng)
+            spatial = scales[0]  # finest scale, for composition_error
+        else:
+            spatial, initial = self._spatial_composition_target(
+                tissue, layout, targets['node_counts'], mean_degree,
+                np.random.default_rng(warm_ss))
+            targets['spatial_composition'] = spatial
+        size_target = self._size_compatibility_target(tissue, self.density_model, layout, mean_degree)
+        if size_target is not None:
+            targets['size_compatibility'] = size_target
 
         best_coloring, best_cost = None, float('inf')
         for restart in anneal_ss.spawn(self.n_restarts):
@@ -739,6 +1188,25 @@ class ReplicateGenerator:
             measured, self.target_stats.interaction_stats
         )
         tissue_stats = tissue.get_cell_statistics()
+        report = tissue.packing_report
+        proportions = self.target_stats.cell_type_proportions
+        requested = self._round_proportions_to_counts(proportions, int(report.n_target))
+        achieved = {t: int(n) for t, n in tissue_stats.get('cell_types', {}).items()}
+        achieved = {t: achieved.get(t, 0) for t in requested}
+        fidelity = None
+        if self.diagnostics:
+            cells = tissue.cells
+            fidelity = fidelity_diagnostics(
+                [c.center[0] for c in cells], [c.center[1] for c in cells],
+                [c.radius for c in cells], [c.cell_type for c in cells],
+                list(graph.edges()), cell_types=self.cell_types, model=self.density_model,
+                layout=layout,
+                intensities=[layout.intensity_at(float(c.center[0]), float(c.center[1])) for c in cells],
+                source_radii=self._source_radii, source_size_nll=self._source_size_nll,
+                finest_bin=min(scale_sizes) if scale_sizes else None)
+        if composition_info is not None:
+            fidelity = dict(fidelity or {})
+            fidelity.update(composition_info)
         replicate_stats = ReplicateStatistics(
             replicate_id=replicate_id,
             num_cells=tissue_stats['total_cells'],
@@ -746,9 +1214,16 @@ class ReplicateGenerator:
             packing_fraction=tissue_stats['packing_fraction'],
             interaction_stats=measured,
             divergence_score=divergence,
-            packing_report=tissue.packing_report.to_dict(),
+            packing_report=report.to_dict(),
             composition_error=self._composition_error(best_coloring, spatial),
             layout_flags=[f"mode:{layout.mode}", *layout.flags],
+            requested_cell_type_counts=requested,
+            achieved_cell_type_counts=achieved,
+            layout_organization=dict(layout.organization) if layout.organization else None,
+            fidelity=fidelity,
+            separation=separation_diagnostics(tissue.cells),
+            layout_voids=dict(layout.voids) if layout.voids else None,
+            layout_units=dict(layout.units) if getattr(layout, 'units', None) else None,
         )
         return tissue, replicate_stats
 
@@ -816,7 +1291,8 @@ class ReplicateGenerator:
         tissue = _pack(_radii_from_multipliers(result.x))
         analyzer = SpatialNetworkAnalyzer()
         analyzer.build_network_from_tissue(
-            tissue, mode=self.network_mode, radius=self.network_radius
+            tissue, mode=self.network_mode, radius=self.network_radius,
+            interaction_factor=self.interaction_factor
         )
         measured = analyzer.compute_interaction_statistics()
         divergence = self._compute_interaction_divergence(
@@ -936,7 +1412,8 @@ class ReplicateGenerator:
             analyzer.build_network_from_tissue(
                 tissue,
                 mode=self.network_mode,
-                radius=self.network_radius
+                radius=self.network_radius,
+                interaction_factor=self.interaction_factor
             )
 
             measured_interactions = analyzer.compute_interaction_statistics()
@@ -1208,14 +1685,18 @@ def load_target_statistics_from_csv(filepath: str) -> TargetStatistics:
 
 def load_target_statistics_from_tissue(tissue: TissueSection,
                                       network_mode: str = "contact",
-                                      network_radius: Optional[float] = None) -> TargetStatistics:
+                                      network_radius: Optional[float] = None,
+                                      interaction_factor: float = MECHANICAL_INTERACTION_FACTOR
+                                      ) -> TargetStatistics:
     """
     Extract target statistics from an existing tissue.
     
     Args:
         tissue: TissueSection to analyze
-        network_mode: "contact" or "radius"
+        network_mode: "contact", "radius" or "mechanical"
         network_radius: Distance threshold for "radius" mode
+        interaction_factor: Multiplier for "mechanical" mode (default 1.5);
+            the rule is stored on ``TargetStatistics.network_rule``
     
     Returns:
         TargetStatistics object
@@ -1225,7 +1706,8 @@ def load_target_statistics_from_tissue(tissue: TissueSection,
     analyzer.build_network_from_tissue(
         tissue,
         mode=network_mode,
-        radius=network_radius
+        radius=network_radius,
+        interaction_factor=interaction_factor
     )
     
     # Get interaction statistics
@@ -1243,13 +1725,16 @@ def load_target_statistics_from_tissue(tissue: TissueSection,
         interaction_stats=interaction_stats,
         cell_type_proportions=cell_type_proportions,
         target_cell_count=total_cells,
-        target_density=tissue_stats['packing_fraction']
+        target_density=tissue_stats['packing_fraction'],
+        network_rule=dict(analyzer.network_rule)
     )
 
 
 def load_target_statistics_from_coordinates(filepath: str,
                                             network_mode: str = "contact",
-                                            network_radius: Optional[float] = None) -> TargetStatistics:
+                                            network_radius: Optional[float] = None,
+                                            interaction_factor: float = MECHANICAL_INTERACTION_FACTOR
+                                            ) -> TargetStatistics:
     """
     Load FULL target statistics from a coordinate CSV file.
 
@@ -1283,6 +1768,7 @@ def load_target_statistics_from_coordinates(filepath: str,
             to ``load_target_statistics_from_tissue``.
         network_radius: Distance threshold used when ``network_mode`` is
             "radius"; ignored otherwise.
+        interaction_factor: Multiplier for "mechanical" mode (default 1.5).
 
     Returns:
         TargetStatistics object with interactions, cell type proportions,
@@ -1292,6 +1778,7 @@ def load_target_statistics_from_coordinates(filepath: str,
         load_tissue_from_csv(filepath),
         network_mode=network_mode,
         network_radius=network_radius,
+        interaction_factor=interaction_factor,
     )
 
 

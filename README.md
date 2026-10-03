@@ -292,6 +292,7 @@ print(f"Cosine Similarity: {evaluation['cosine_similarity']:.4f}")  # Higher is 
 **Network Construction:**
 - **Contact mode:** Connects touching cells
 - **Radius mode:** Connects cells within distance threshold
+- **Mechanical mode:** Connects cells with center distance ≤ 1.5 × (r_i + r_j), PhysiCell's interaction distance (`interaction_factor` adjustable)
 - Works with 3D tissues and 2D slices
 
 **Comprehensive Statistics:**
@@ -336,6 +337,8 @@ Generate multiple tissue samples matching specific spatial interaction patterns:
 - **Target-based generation**: Match spatial statistics from existing tissues or CSV
 - **Iterative optimization**: Automatically tunes parameters to achieve targets
 - **Density-aware scaffolds**: Replicates of a real region keep its dense and sparse areas and immune margins (`ReplicateGenerator.from_coordinates`)
+- **Adaptive fidelity (opt-in)**: `strategy="adaptive"` learns scales from the sample, keeps gradients and center-to-periphery ordering at new orientations, re-places lumens and holes, and reproduces nests and rings as a germ-grain process detected with persistent homology (experimental)
+- **Size-aware neighbour graph**: `network_mode="mechanical"` uses PhysiCell's 1.5 × radius interaction distance per cell pair
 - **Batch processing**: Generate multiple replicates efficiently
 - **Statistical validation**: Track divergence from target patterns
 - **Full MCP support**: Accessible to LLM coding assistants
@@ -401,13 +404,21 @@ from tissue_simulator import ReplicateGenerator
 
 # Fits target statistics and a density model from one coordinate CSV; each
 # replicate gets a new arrangement of the region's dense and sparse compartments.
-generator = ReplicateGenerator.from_coordinates(
-    "region.csv", network_mode="radius", network_radius=20.0, seed=42
-)
+# The neighbour graph defaults to the mechanical rule, d <= 1.5 (r_i + r_j).
+generator = ReplicateGenerator.from_coordinates("region.csv", seed=42)
 replicates = generator.generate_replicates(num_replicates=30, parallel=True)
+
+# Opt in to adaptive fidelity: learned scales, organization-preserving layouts,
+# inferred lumens, compact units, and fidelity diagnostics on each replicate.
+generator = ReplicateGenerator.from_coordinates("region.csv", strategy="adaptive", seed=42)
+tissue, stats = generator.generate_single_replicate(replicate_id=0)
+print(stats.layout_organization, stats.layout_units, stats.fidelity)
 ```
 
-See [Density-aware scaffolds](docs/api/replicate-generation.md#density-aware-scaffolds).
+See [Density-aware scaffolds](docs/api/replicate-generation.md#density-aware-scaffolds)
+and the design notes in `docs/notes/density-aware-packing.md`. The legacy
+strategy remains the default; `network_mode="radius", network_radius=20.0`
+reproduces the pre-0.1.18 graph.
 
 ## 🤖 LLM Integration (MCP)
 
@@ -464,7 +475,7 @@ Claude: [Uses create_tissue, generate_cells, create_serial_slices tools]
 
 #### Replicate Generation (New!)
 - **load_target_statistics** - Load target spatial statistics from CSV or current tissue
-- **setup_replicate_generator** - Configure replicate generator (`density_layout` for density-aware scaffolds)
+- **setup_replicate_generator** - Configure replicate generator (`density_layout` for density-aware scaffolds, `strategy="adaptive"` for adaptive fidelity, `interaction_factor` for the mechanical graph)
 - **generate_replicates** - Generate multiple replicates matching targets
 - **get_replicate_summary** - Get statistics across all replicates
 - **export_replicate_statistics** - Export replicate statistics to CSV
@@ -578,7 +589,7 @@ BibTeX from [CITATION.cff](CITATION.cff). BibTeX:
   title     = {Tissue Simulator: 3D simulated biological tissue section
                generator with network-based spatial analysis},
   year      = {2026},
-  version   = {0.1.17},
+  version   = {0.1.18},
   doi       = {10.5281/zenodo.17465675},
   url       = {https://github.com/emcramer/tissue_simulator}
 }

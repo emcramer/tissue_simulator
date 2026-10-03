@@ -24,7 +24,7 @@ except ImportError:
 
 from ..tissue import TissueSection, load_tissue_from_csv
 from ..slicing import TissueSlicer, create_standard_slices
-from ..spatial_analysis import SpatialNetworkAnalyzer
+from ..spatial_analysis import SpatialNetworkAnalyzer, MECHANICAL_INTERACTION_FACTOR
 from ..graph_coloring import (GraphColorizer,
                                load_target_statistics_from_csv as load_graph_coloring_stats_from_csv)
 from ..replicate_generator import (ReplicateGenerator, TargetStatistics,
@@ -347,12 +347,25 @@ class TissueSimulatorMCPServer:
                             },
                             "network_mode": {
                                 "type": "string",
-                                "description": "Network analysis mode: 'contact' or 'radius'",
+                                "enum": ["contact", "radius", "mechanical"],
+                                "description": (
+                                    "Network analysis mode: 'contact', 'radius', or 'mechanical' "
+                                    "(size-aware: edge iff d <= interaction_factor * (r_i + r_j))"
+                                ),
                                 "default": "contact"
                             },
                             "network_radius": {
                                 "type": "number",
                                 "description": "Distance threshold for 'radius' mode (micrometers)"
+                            },
+                            "interaction_factor": {
+                                "type": "number",
+                                "description": (
+                                    "Multiplier for 'mechanical' mode (default 1.5, PhysiCell's "
+                                    "mechanics interaction distance). Use the same rule for "
+                                    "targets and replicates."
+                                ),
+                                "default": 1.5
                             }
                         },
                         "required": ["filepath"]
@@ -703,12 +716,25 @@ class TissueSimulatorMCPServer:
                             },
                             "network_mode": {
                                 "type": "string",
-                                "description": "Network analysis mode: 'contact' or 'radius'",
+                                "enum": ["contact", "radius", "mechanical"],
+                                "description": (
+                                    "Network analysis mode: 'contact', 'radius', or 'mechanical' "
+                                    "(size-aware: edge iff d <= interaction_factor * (r_i + r_j))"
+                                ),
                                 "default": "contact"
                             },
                             "network_radius": {
                                 "type": "number",
                                 "description": "Distance threshold for 'radius' mode (micrometers)"
+                            },
+                            "interaction_factor": {
+                                "type": "number",
+                                "description": (
+                                    "Multiplier for 'mechanical' mode (default 1.5, PhysiCell's "
+                                    "mechanics interaction distance). Use the same rule for "
+                                    "targets and replicates."
+                                ),
+                                "default": 1.5
                             }
                         }
                     }
@@ -797,6 +823,29 @@ class TissueSimulatorMCPServer:
                                     "uniform scaffold."
                                 ),
                                 "default": "none"
+                            },
+                            "strategy": {
+                                "type": "string",
+                                "enum": ["legacy", "adaptive"],
+                                "description": (
+                                    "Density-layout strategy (needs density_layout != 'none'). "
+                                    "'legacy' (default) is the original behavior; 'adaptive' "
+                                    "learns bandwidths, organization (planar/radial) and "
+                                    "multi-scale composition and size targets from the source."
+                                ),
+                                "default": "legacy"
+                            },
+                            "diagnostics": {
+                                "type": "boolean",
+                                "description": "Record fidelity diagnostics per replicate (default: on for adaptive)."
+                            },
+                            "composition_weight": {
+                                "type": "number",
+                                "description": "Weight of the spatial-composition cost term (generator default 4.0)."
+                            },
+                            "size_weight": {
+                                "type": "number",
+                                "description": "Weight of the size-compatibility cost term (adaptive only; optional)."
                             }
                         },
                         "required": ["height", "width", "thickness", "cell_radii"]
@@ -1245,25 +1294,29 @@ class TissueSimulatorMCPServer:
 
         network_mode = args.get("network_mode", "contact")
         network_radius = args.get("network_radius")
+        interaction_factor = float(args.get("interaction_factor", MECHANICAL_INTERACTION_FACTOR))
 
         try:
             source_tissue = load_tissue_from_csv(filepath)
             self.target_stats = load_target_statistics_from_tissue(
                 source_tissue,
                 network_mode=network_mode,
-                network_radius=network_radius
+                network_radius=network_radius,
+                interaction_factor=interaction_factor
             )
             self.target_source_tissue = source_tissue
 
             # Store network mode for replicate generator
             self.network_mode = network_mode
             self.network_radius = network_radius
+            self.interaction_factor = interaction_factor
 
             result = {
                 "status": "success",
                 "source": "coordinate_csv",
                 "filepath": filepath,
                 "network_mode": network_mode,
+                "network_rule": self.target_stats.network_rule,
                 "num_interaction_types": len(self.target_stats.interaction_stats),
                 "cell_type_proportions": self.target_stats.cell_type_proportions,
                 "target_cell_count": self.target_stats.target_cell_count,
@@ -1755,6 +1808,7 @@ class TissueSimulatorMCPServer:
         use_current = args.get("use_current_tissue", False)
         network_mode = args.get("network_mode", "contact")
         network_radius = args.get("network_radius")
+        interaction_factor = float(args.get("interaction_factor", MECHANICAL_INTERACTION_FACTOR))
         
         try:
             if csv_filepath:
@@ -1782,7 +1836,8 @@ class TissueSimulatorMCPServer:
                 self.target_stats = load_target_statistics_from_tissue(
                     self.current_tissue,
                     network_mode=network_mode,
-                    network_radius=network_radius
+                    network_radius=network_radius,
+                    interaction_factor=interaction_factor
                 )
                 self.target_source_tissue = self.current_tissue
                 
@@ -1790,6 +1845,7 @@ class TissueSimulatorMCPServer:
                     "status": "success",
                     "source": "current_tissue",
                     "network_mode": network_mode,
+                    "network_rule": self.target_stats.network_rule,
                     "num_cells": self.current_tissue.get_cell_statistics()['total_cells'],
                     "num_interaction_types": len(self.target_stats.interaction_stats),
                     "cell_type_proportions": self.target_stats.cell_type_proportions,
@@ -1805,6 +1861,7 @@ class TissueSimulatorMCPServer:
             # Store network mode for replicate generator
             self.network_mode = network_mode
             self.network_radius = network_radius
+            self.interaction_factor = interaction_factor
             
             return [TextContent(
                 type="text",
@@ -1834,6 +1891,13 @@ class TissueSimulatorMCPServer:
         n_restarts = args.get("n_restarts", 1)
         radius_optimizer = args.get("radius_optimizer", "heuristic")
         density_layout = args.get("density_layout", "none")
+        strategy = args.get("strategy", "legacy")
+        diagnostics = args.get("diagnostics")
+        extra_kwargs = {}
+        if args.get("composition_weight") is not None:
+            extra_kwargs["composition_weight"] = float(args["composition_weight"])
+        if args.get("size_weight") is not None:
+            extra_kwargs["size_weight"] = float(args["size_weight"])
 
         # Convert cell_radii dict to proper format
         cell_radii = {
@@ -1853,7 +1917,7 @@ class TissueSimulatorMCPServer:
                             "load them with load_target_statistics_from_coordinates or "
                             "load_target_statistics(use_current_tissue=True).")})
                     )]
-                density_model = DensityModel.from_tissue(source, seed=seed)
+                density_model = DensityModel.from_tissue(source, seed=seed, strategy=strategy)
 
             self.replicate_generator = ReplicateGenerator(
                 target_stats=self.target_stats,
@@ -1861,13 +1925,20 @@ class TissueSimulatorMCPServer:
                 base_cell_radii=cell_radii,
                 network_mode=self.network_mode,
                 network_radius=self.network_radius,
+                interaction_factor=getattr(self, "interaction_factor",
+                                           MECHANICAL_INTERACTION_FACTOR),
                 seed=seed,
                 method=method,
                 n_restarts=n_restarts,
                 radius_optimizer=radius_optimizer,
                 density_model=density_model,
                 layout="copy" if density_layout == "copy" else "resample",
+                strategy=strategy,
+                diagnostics=diagnostics,
+                **extra_kwargs,
             )
+            if density_model is not None:
+                self.replicate_generator._cache_source_reference(self.target_source_tissue)
 
             result = {
                 "status": "success",
@@ -1878,9 +1949,12 @@ class TissueSimulatorMCPServer:
                 },
                 "cell_types": list(cell_radii.keys()),
                 "network_mode": self.network_mode,
+                "network_rule": self.replicate_generator.network_rule,
                 "seed": seed,
                 "method": method,
                 "density_layout": density_layout,
+                "strategy": strategy,
+                "diagnostics": diagnostics,
                 "density_model": None if density_model is None else {
                     "n_compartments": density_model.n_compartments,
                     "compartment_fractions": [round(float(f), 3)
