@@ -503,3 +503,22 @@ def test_adaptive_sparse_replicate_warns_but_legacy_does_not(setup, adaptive_set
     (_, stats), caught = _warnings_about_first_shell(legacy.generate_single_replicate, 0)
     assert stats.packing_report["first_shell"]["ratios"]["mean_degree"] < 0.9
     assert caught == [] and stats.fidelity is None
+
+
+def test_adaptive_anneal_schedule_uses_the_step_budget(setup):
+    _, target, model, radii = setup
+    def gen(**kw):
+        return ReplicateGenerator(target, (SIZE, SIZE, 1.0), radii, network_mode="radius",
+                                  network_radius=20.0, seed=11, method="graph_coloring",
+                                  density_model=model, **kw)
+    legacy = gen()
+    assert legacy._anneal_schedule(5000) == legacy.coloring_params
+    sched = gen(strategy="adaptive")._anneal_schedule(5000)
+    assert sched['max_iterations'] == 50000
+    # The final temperature is reached on the last step, not after ~1,400.
+    assert np.isclose(sched['initial_temp'] * sched['cooling_rate'] ** 50000, sched['final_temp'])
+    assert gen(strategy="adaptive")._anneal_schedule(100)['max_iterations'] == 20000
+    assert gen(strategy="adaptive", coloring_params={'max_iterations': 3000}
+               )._anneal_schedule(5000)['max_iterations'] == 3000
+    fixed = gen(strategy="adaptive", coloring_params=COLORING)
+    assert fixed._anneal_schedule(5000) == fixed.coloring_params

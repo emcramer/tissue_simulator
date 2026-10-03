@@ -43,6 +43,11 @@ except ImportError:
 MAX_COMPOSITION_SCALES = 3        # at most this many composition bin sizes
 LEGACY_COMPOSITION_WEIGHT = 4.0   # legacy scale: multiplied by mean_degree**2 (unchanged)
 ADAPTIVE_COMPOSITION_WEIGHT = 1.0  # calibrated scale: composition term == edge term for a shuffled labeling
+# Adaptive annealing budget: swaps per graph node (floor = the nominal 20,000).
+# The fixed cooling rate 0.995 reaches the final temperature after ~1,400
+# swaps whatever ``max_iterations`` says; the adaptive strategy instead derives
+# the rate from the budget so that every step is used.
+ADAPTIVE_ANNEAL_STEPS_PER_NODE = 10
 MIN_SCALE_RATIO = 1.5             # successive auto scales differ by at least this factor
 MIN_AUTO_SCALE_UM = 10.0          # smallest auto composition bin side
 HOLE_MIN_EXPECTED = 2.0           # a bin is a "hole" if its layout-expected count exceeds this and it holds no cell
@@ -532,6 +537,7 @@ class ReplicateGenerator:
             'cooling_rate': 0.995,
             'max_iterations': 20000,
         }
+        self._coloring_overrides = frozenset(coloring_params or {})
         if coloring_params:
             self.coloring_params.update(coloring_params)
 
@@ -1143,6 +1149,28 @@ class ReplicateGenerator:
                 total += abs(observed.get(color, 0) - expected.get(color, 0.0))
         return 0.5 * total / max(len(coloring), 1)
 
+    def _anneal_schedule(self, n_nodes: int) -> Dict:
+        """SA schedule for one replicate graph.
+
+        Legacy, or an explicit ``cooling_rate``: ``coloring_params`` as given.
+        Adaptive: the budget is ``max_iterations`` if supplied, else
+        ``max(20000, ADAPTIVE_ANNEAL_STEPS_PER_NODE * n_nodes)``, and the
+        cooling rate is set so the final temperature is reached on the last
+        step.
+        """
+        params = dict(self.coloring_params)
+        overrides = getattr(self, "_coloring_overrides", frozenset())
+        if self.strategy != "adaptive" or "cooling_rate" in overrides:
+            return params
+        steps = int(params['max_iterations'])
+        if "max_iterations" not in overrides:
+            steps = max(steps, ADAPTIVE_ANNEAL_STEPS_PER_NODE * int(n_nodes))
+        ratio = params['final_temp'] / params['initial_temp']
+        if steps > 0 and 0.0 < ratio < 1.0:
+            params['max_iterations'] = steps
+            params['cooling_rate'] = float(ratio ** (1.0 / steps))
+        return params
+
     def _generate_single_replicate_density(self, replicate_id: int,
                                            allow_boundary: bool = True) -> Tuple[TissueSection, ReplicateStatistics]:
         """Graph-coloring replicate on a density-aware scaffold.
@@ -1193,6 +1221,7 @@ class ReplicateGenerator:
         if size_target is not None:
             targets['size_compatibility'] = size_target
 
+        coloring_params = self._anneal_schedule(graph.number_of_nodes())
         best_coloring, best_cost = None, float('inf')
         for restart in anneal_ss.spawn(self.n_restarts):
             coloring, cost = color_graph_to_targets(
@@ -1203,7 +1232,7 @@ class ReplicateGenerator:
                 initial_coloring=initial,
                 return_cost=True,
                 verbose=False,
-                **self.coloring_params,
+                **coloring_params,
             )
             if cost < best_cost:
                 best_coloring, best_cost = coloring, cost
@@ -1247,6 +1276,7 @@ class ReplicateGenerator:
                 source_radii=self._source_radii, source_size_nll=self._source_size_nll,
                 finest_bin=min(scale_sizes) if scale_sizes else None)
             fidelity["first_shell"] = first_shell
+            fidelity["anneal_steps"] = int(coloring_params['max_iterations'])
         if composition_info is not None:
             fidelity = dict(fidelity or {})
             fidelity.update(composition_info)
