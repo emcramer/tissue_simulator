@@ -35,6 +35,19 @@ from ..physicell_export import PhysiCellExporter
 from ..density import DensityModel
 
 
+def _learned_factor(target_stats, interaction_factor):
+    """Replace "auto" by the number learned on the source (when it recorded one)."""
+    rule = getattr(target_stats, "network_rule", None) or {}
+    if isinstance(interaction_factor, str) and rule.get("interaction_factor"):
+        return float(rule["interaction_factor"])
+    return interaction_factor
+
+
+def _parse_interaction_factor(value):
+    """Keep the string "auto" (and let the library validate other strings); else float."""
+    return value if isinstance(value, str) else float(value)
+
+
 class TissueSimulatorMCPServer:
     """
     MCP Server for Tissue Simulator.
@@ -359,11 +372,12 @@ class TissueSimulatorMCPServer:
                                 "description": "Distance threshold for 'radius' mode (micrometers)"
                             },
                             "interaction_factor": {
-                                "type": "number",
+                                "type": ["number", "string"],
                                 "description": (
                                     "Multiplier for 'mechanical' mode (default 1.5, PhysiCell's "
-                                    "mechanics interaction distance). Use the same rule for "
-                                    "targets and replicates."
+                                    "mechanics interaction distance), or the string 'auto' to "
+                                    "learn it from the source's pair correlation (1.5 if none). "
+                                    "Use the same rule for targets and replicates."
                                 ),
                                 "default": 1.5
                             }
@@ -728,11 +742,12 @@ class TissueSimulatorMCPServer:
                                 "description": "Distance threshold for 'radius' mode (micrometers)"
                             },
                             "interaction_factor": {
-                                "type": "number",
+                                "type": ["number", "string"],
                                 "description": (
                                     "Multiplier for 'mechanical' mode (default 1.5, PhysiCell's "
-                                    "mechanics interaction distance). Use the same rule for "
-                                    "targets and replicates."
+                                    "mechanics interaction distance), or the string 'auto' to "
+                                    "learn it from the source's pair correlation (1.5 if none). "
+                                    "Use the same rule for targets and replicates."
                                 ),
                                 "default": 1.5
                             }
@@ -1294,7 +1309,8 @@ class TissueSimulatorMCPServer:
 
         network_mode = args.get("network_mode", "contact")
         network_radius = args.get("network_radius")
-        interaction_factor = float(args.get("interaction_factor", MECHANICAL_INTERACTION_FACTOR))
+        interaction_factor = _parse_interaction_factor(
+            args.get("interaction_factor", MECHANICAL_INTERACTION_FACTOR))
 
         try:
             source_tissue = load_tissue_from_csv(filepath)
@@ -1309,7 +1325,7 @@ class TissueSimulatorMCPServer:
             # Store network mode for replicate generator
             self.network_mode = network_mode
             self.network_radius = network_radius
-            self.interaction_factor = interaction_factor
+            self.interaction_factor = _learned_factor(self.target_stats, interaction_factor)
 
             result = {
                 "status": "success",
@@ -1808,7 +1824,8 @@ class TissueSimulatorMCPServer:
         use_current = args.get("use_current_tissue", False)
         network_mode = args.get("network_mode", "contact")
         network_radius = args.get("network_radius")
-        interaction_factor = float(args.get("interaction_factor", MECHANICAL_INTERACTION_FACTOR))
+        interaction_factor = _parse_interaction_factor(
+            args.get("interaction_factor", MECHANICAL_INTERACTION_FACTOR))
         
         try:
             if csv_filepath:
@@ -1861,7 +1878,7 @@ class TissueSimulatorMCPServer:
             # Store network mode for replicate generator
             self.network_mode = network_mode
             self.network_radius = network_radius
-            self.interaction_factor = interaction_factor
+            self.interaction_factor = _learned_factor(self.target_stats, interaction_factor)
             
             return [TextContent(
                 type="text",

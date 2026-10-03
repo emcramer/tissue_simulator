@@ -96,9 +96,22 @@ graph = analyzer.build_network_from_tissue(tissue, mode="mechanical", interactio
 - `interaction_factor` defaults to `MECHANICAL_INTERACTION_FACTOR` (1.5). With
   factor 1.01 the graph equals the `"contact"` graph; larger factors give
   supersets. Works for 3D tissues and 2D slices.
+- `interaction_factor="auto"` learns the factor from the cells being graphed:
+  the first minimum of the size-normalised pair correlation `g(s)`, with
+  `s = d / (r_i + r_j)`. `g` is binned in `s` at 0.05, smoothed with a Gaussian
+  of sigma 0.1, and the factor is the first minimum after the first peak,
+  accepted only if it is at least 5% below that peak. If there is no such
+  minimum (for example a Poisson or random-sequential-addition pattern), the
+  factor falls back to 1.5 and a warning is raised. A 3D tissue uses its
+  x, y centres in a `width` x `height` window; a slice uses its 2D centres and
+  intersection radii in the bounding box of those centres. Any other string, or
+  a non-positive number, raises `ValueError`.
 - Every graph records its rule in
-  `graph.graph["network_rule"] = {"mode", "radius", "interaction_factor"}`
-  (`interaction_factor` is `None` unless the mode is `"mechanical"`).
+  `graph.graph["network_rule"] = {"mode", "radius", "interaction_factor", "interaction_factor_source"}`
+  (both factor entries are `None` unless the mode is `"mechanical"`).
+  `interaction_factor` is always the number used; `interaction_factor_source`
+  is `"fixed"` (a number was given), `"auto"` (learned) or `"auto_fallback"`
+  (`"auto"` requested, none found, 1.5 used).
 - Use the **identical rule** for source target statistics and replicates;
   statistics from different rules are not comparable.
 

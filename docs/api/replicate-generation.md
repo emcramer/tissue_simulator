@@ -36,10 +36,25 @@ earlier behaviour. `interaction_factor` is accepted by `ReplicateGenerator`,
 `from_coordinates`, `load_target_statistics_from_tissue` and
 `load_target_statistics_from_coordinates`.
 
+`interaction_factor="auto"` learns the factor from the source: the first
+minimum of its size-normalised pair correlation `g(s)`, `s = d / (r_i + r_j)`
+(bins of 0.05 in `s`, Gaussian smoothing with sigma 0.1, first minimum after the
+first peak and at least 5% below it). If there is none (a Poisson or
+random-sequential-addition source), the factor is 1.5 and a warning is raised.
+The factor is learned once, on the source. `from_coordinates` and the
+`load_target_statistics_from_*` functions record it in
+`TargetStatistics.network_rule`, and `ReplicateGenerator(..., interaction_factor="auto")`
+reads it from there, so every replicate graph uses the source's number and is
+never refit. If the target statistics carry no mechanical factor (for example
+CSV tables), the generator warns and uses 1.5. `gen.interaction_factor` is
+always a float.
+
 Targets and replicates must be measured with the same rule.
 `TargetStatistics.network_rule` records the rule
-(`{"mode", "radius", "interaction_factor"}`, `None` for CSV tables) and
-`ReplicateGenerator` warns when it differs from its own `network_rule`.
+(`{"mode", "radius", "interaction_factor", "interaction_factor_source"}`, `None`
+for CSV tables); the source is `"fixed"`, `"auto"` or `"auto_fallback"`.
+`ReplicateGenerator` warns when the mode, radius or numeric factor differs from
+its own `network_rule`; the source label is not compared.
 
 ## Key Features
 

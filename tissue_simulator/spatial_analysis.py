@@ -8,6 +8,8 @@ using NetworkX. It can analyze both 3D tissues and 2D slices.
 import numpy as np
 from typing import Dict, List, Tuple, Optional, Union
 import csv
+import numbers
+import warnings
 from dataclasses import dataclass, asdict
 
 try:
@@ -19,6 +21,7 @@ except ImportError:
 
 from .tissue import TissueSection, Cell
 from .slicing import TissueSlicer, SliceCell
+from . import _shell
 
 
 #: Default interaction distance of the "mechanical" graph, as a multiple of the
@@ -29,6 +32,43 @@ MECHANICAL_INTERACTION_FACTOR = 1.5
 
 #: Tolerance of the legacy "contact" rule (d <= 1.01 * (r_i + r_j)).
 CONTACT_TOLERANCE_FACTOR = 1.01
+
+
+def resolve_interaction_factor(interaction_factor, points, radii, width, height):
+    """Resolve the ``interaction_factor`` argument to ``(value, source)``.
+
+    A positive number is returned unchanged with source ``"fixed"``. ``"auto"``
+    learns the factor from the pattern: the first minimum of the size-normalised
+    pair correlation of ``points`` (x, y) in a ``width`` x ``height`` window
+    (:func:`tissue_simulator._shell.shell_edge`), source ``"auto"``. When the
+    pattern has no clear first shell (Poisson / RSA-like) the default
+    ``MECHANICAL_INTERACTION_FACTOR`` is used with a warning, source
+    ``"auto_fallback"``. Anything else raises ``ValueError``.
+    """
+    if isinstance(interaction_factor, str):
+        if interaction_factor != "auto":
+            raise ValueError(
+                f"interaction_factor must be a positive number or 'auto', "
+                f"got {interaction_factor!r}")
+        edge = None
+        if points is not None and len(points) > 1:
+            points = np.asarray(points, dtype=float).reshape(-1, 2)
+            radii = np.asarray(radii, dtype=float)
+            edge = _shell.shell_edge(_shell.pair_profile(points, radii, width, height))
+        if edge is None:
+            warnings.warn(
+                "interaction_factor='auto' found no first-shell minimum in the pair "
+                f"correlation; using the default {MECHANICAL_INTERACTION_FACTOR}.",
+                stacklevel=3)
+            return float(MECHANICAL_INTERACTION_FACTOR), "auto_fallback"
+        return float(edge), "auto"
+    if (isinstance(interaction_factor, bool)
+            or not isinstance(interaction_factor, numbers.Real)
+            or not interaction_factor > 0 or not np.isfinite(interaction_factor)):
+        raise ValueError(
+            f"interaction_factor must be a positive number or 'auto', "
+            f"got {interaction_factor!r}")
+    return interaction_factor, "fixed"
 
 
 @dataclass
@@ -135,22 +175,21 @@ class SpatialNetworkAnalyzer:
         self.cell_radii: Dict[int, float] = {}
         self.network_rule: Optional[Dict] = None
 
-    def _set_rule(self, mode, radius, interaction_factor):
+    def _set_rule(self, mode, radius, interaction_factor, source=None):
         if mode not in ("contact", "radius", "mechanical"):
             raise ValueError(
                 f"Unknown mode: {mode}. Use 'contact', 'radius' or 'mechanical'")
-        if mode == "mechanical" and not interaction_factor > 0:
-            raise ValueError("interaction_factor must be positive")
+        mech = mode == "mechanical"
         self.network_rule = {"mode": mode, "radius": radius,
-                             "interaction_factor":
-                             interaction_factor if mode == "mechanical" else None}
+                             "interaction_factor": interaction_factor if mech else None,
+                             "interaction_factor_source": source if mech else None}
         self.graph.graph["network_rule"] = dict(self.network_rule)
     
     def build_network_from_tissue(self, 
                                   tissue: TissueSection,
                                   mode: str = "contact",
                                   radius: Optional[float] = None,
-                                  interaction_factor: float = MECHANICAL_INTERACTION_FACTOR) -> nx.Graph:
+                                  interaction_factor: Union[float, str] = MECHANICAL_INTERACTION_FACTOR) -> nx.Graph:
         """
         Build a spatial network from a 3D tissue.
         
@@ -161,8 +200,12 @@ class SpatialNetworkAnalyzer:
             radius: Distance threshold for "radius" mode (in micrometers)
             interaction_factor: Multiplier for "mechanical" mode (default
                 MECHANICAL_INTERACTION_FACTOR = 1.5, PhysiCell's default
-                mechanics interaction distance of 1.5 x radius). Use the
-                same rule for source targets and replicates.
+                mechanics interaction distance of 1.5 x radius), or "auto"
+                to learn it from the first minimum of the size-normalised
+                pair correlation of these cells (1.5 if there is none).
+                The number used and its source are recorded in
+                ``network_rule``. Use the same rule for source targets and
+                replicates.
         
         Returns:
             NetworkX graph with cells as nodes and spatial relationships as edges
@@ -171,8 +214,16 @@ class SpatialNetworkAnalyzer:
             raise ValueError("Tissue has no cells. Generate cells first.")
         
         # Create graph
+        if mode == "mechanical":
+            interaction_factor, source = resolve_interaction_factor(
+                interaction_factor,
+                np.array([c.center[:2] for c in tissue.cells]),
+                np.array([c.radius for c in tissue.cells]),
+                tissue.width, tissue.height)
+        else:
+            source = None
         self.graph = nx.Graph()
-        self._set_rule(mode, radius, interaction_factor)
+        self._set_rule(mode, radius, interaction_factor, source)
         
         # Add nodes for each cell
         for i, cell in enumerate(tissue.cells):
@@ -203,7 +254,7 @@ class SpatialNetworkAnalyzer:
                                  slicer: TissueSlicer,
                                  mode: str = "contact",
                                  radius: Optional[float] = None,
-                                 interaction_factor: float = MECHANICAL_INTERACTION_FACTOR) -> nx.Graph:
+                                 interaction_factor: Union[float, str] = MECHANICAL_INTERACTION_FACTOR) -> nx.Graph:
         """
         Build a spatial network from a 2D slice.
         
@@ -214,8 +265,12 @@ class SpatialNetworkAnalyzer:
             radius: Distance threshold for "radius" mode (in micrometers)
             interaction_factor: Multiplier for "mechanical" mode (default
                 MECHANICAL_INTERACTION_FACTOR = 1.5, PhysiCell's default
-                mechanics interaction distance of 1.5 x radius). Use the
-                same rule for source targets and replicates.
+                mechanics interaction distance of 1.5 x radius), or "auto"
+                to learn it from the first minimum of the size-normalised
+                pair correlation of these cells (1.5 if there is none).
+                The number used and its source are recorded in
+                ``network_rule``. Use the same rule for source targets and
+                replicates.
         
         Returns:
             NetworkX graph with cells as nodes and spatial relationships as edges
@@ -224,8 +279,22 @@ class SpatialNetworkAnalyzer:
             raise ValueError("Slicer has no slice cells. Create slice first.")
         
         # Create graph
+        if mode == "mechanical":
+            # The slice plane has no fixed rectangle (tilted planes, origin at
+            # the plane point), so "auto" uses the bounding box of the 2D cell
+            # centres as the correlation window.
+            centres = radii = None
+            span = (None, None)
+            if isinstance(interaction_factor, str) and slicer.slice_cells:
+                centres = np.array([c.center_2d for c in slicer.slice_cells], dtype=float)
+                radii = np.array([c.intersection_radius for c in slicer.slice_cells])
+                span = np.maximum(centres.max(axis=0) - centres.min(axis=0), 1e-9)
+            interaction_factor, source = resolve_interaction_factor(
+                interaction_factor, centres, radii, span[0], span[1])
+        else:
+            source = None
         self.graph = nx.Graph()
-        self._set_rule(mode, radius, interaction_factor)
+        self._set_rule(mode, radius, interaction_factor, source)
         
         # Add nodes for each cell in slice
         for i, slice_cell in enumerate(slicer.slice_cells):
