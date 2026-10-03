@@ -226,7 +226,7 @@ Define multiple cell types in the text box:
 ```
 ## Spatial Analysis & Graph-Based Cell Type Assignment
 
-### NEW: Graph-Based Cell Type Assignment
+### Graph-Based Cell Type Assignment
 
 Assign cell types to tissues based on target spatial interaction patterns using simulated annealing optimization!
 
