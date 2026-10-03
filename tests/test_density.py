@@ -490,6 +490,7 @@ def test_organized_layout_unsatisfied_on_narrow_window(layered_model):
         lay = layered_model.sample_layout(rng=0, width=60.0, height=60.0, max_proposals=1)
     assert lay.organization["accepted"] is False
     assert lay.organization["fallback"] == "best_of_proposals"
+    assert lay.organization["failed"] == "coverage" and lay.organization["best_coverage"] < 0.9
     assert "organization_unsatisfied" in lay.flags
     assert np.all(np.isfinite(lay.intensity))
 

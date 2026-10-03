@@ -1834,9 +1834,16 @@ class DensityModel:
         }
         if not info["accepted"]:
             out.flags = tuple(out.flags) + ("organization_unsatisfied",)
+            out.organization.update(failed=info["failed"], best_coverage=info["best_coverage"])
+            if info["failed"] == "coverage":
+                why = (f"the {out.width:g} x {out.height:g} µm window spans only "
+                       f"{info['best_coverage']:.0%} of the source's trend range (a window at "
+                       "least as large as the source region is needed)")
+            else:
+                why = "the expected type proportions stayed outside tolerance"
             warnings.warn(
                 f"No direction/center in {info['proposals_tried']} proposals met the window coverage "
-                "and composition criteria; using the best-coverage proposal.", stacklevel=3)
+                f"and composition criteria: {why}; using the best-coverage proposal.", stacklevel=3)
         return out
 
     # -- serialization ------------------------------------------------------

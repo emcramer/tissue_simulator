@@ -679,4 +679,6 @@ def propose_layout(organization: Dict, theta0: float, rng: np.random.Generator, 
         if best is None or coverage > best[0]:
             best = (coverage, theta, intensity, composition)
     return best[2], best[3], {"theta": best[1], "proposals_tried": tried,
-                              "accepted": False, "fallback": "best_of_proposals"}
+                              "accepted": False, "fallback": "best_of_proposals",
+                              "best_coverage": float(best[0]),
+                              "failed": "coverage" if best[0] < MIN_COVERAGE else "composition"}
