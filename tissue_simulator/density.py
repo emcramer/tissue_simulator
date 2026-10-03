@@ -52,6 +52,7 @@ from . import _organization
 from . import _units
 from . import _grains
 from . import _voids
+from . import _shell
 
 _QUANTILE_LEVELS = np.linspace(0.0, 1.0, 201)
 _N_RADIUS_BINS = 5
@@ -608,6 +609,15 @@ class RadiusMarks:
         return float(np.median(np.concatenate(self.radii_by_bin)))
 
 
+def _fit_shell(points, radii, width, height, kappa) -> Dict:
+    """First-shell spacing of the source (plain lists, so it survives JSON)."""
+    prof = _shell.pair_profile(points, radii, width, height)
+    return {"edges": prof["edges"].tolist(), "pairs_per_cell": prof["pairs_per_cell"].tolist(),
+            "g": prof["g"].tolist(), "edge": _shell.shell_edge(prof),
+            "summary": _shell.first_shell_summary(points, radii, width, height, factor=1.5),
+            "s_floor": float(kappa)}
+
+
 @dataclass
 class Layout:
     """Target density and composition maps for one replicate.
@@ -643,6 +653,8 @@ class Layout:
             ``outer_radii``, ``inner_radii``, ``kinds``, ``n_requested``,
             ``n_placed``, ``shortfall``, ``anchored``); empty when the model
             has no units. ``"units_unsatisfied"`` is in ``flags`` on shortfall.
+        shell: Fit-time first-shell spacing of the source (see
+            :attr:`DensityModel.shell`); empty when unavailable.
     """
     width: float
     height: float
@@ -663,6 +675,7 @@ class Layout:
     quota_scale: Optional[float] = None
     voids: Dict = field(default_factory=dict)
     units: Dict = field(default_factory=dict)
+    shell: Dict = field(default_factory=dict)
 
     def pixel(self, x: float, y: float) -> Tuple[int, int]:
         ny, nx = self.intensity.shape
@@ -863,6 +876,11 @@ class DensityModel:
             :func:`_voids.summarize_components` (``n_holes``,
             ``equivalent_diameters``, ``min_center_separation``, ``tau``, ...);
             empty when voids are off. Layouts place ``n_holes`` discs.
+        shell: First-shell spacing of the source (deterministic, both
+            strategies): ``edges``, ``pairs_per_cell``, ``g`` (lists; see
+            :func:`_shell.pair_profile`), ``edge`` (:func:`_shell.shell_edge`
+            or None), ``summary`` (:func:`_shell.first_shell_summary`) and
+            ``s_floor`` (the hard-core ``kappa``).
     """
     width: float
     height: float
@@ -900,6 +918,7 @@ class DensityModel:
     organization: Dict = field(default_factory=lambda: {"model": "none"})
     voids: Dict = field(default_factory=dict)
     units: Dict = field(default_factory=dict)
+    shell: Dict = field(default_factory=dict)
 
     # -- construction -------------------------------------------------------
 
@@ -1128,6 +1147,7 @@ class DensityModel:
                 size_log_sigma=size_sigma, organization=org,
             )
             model.voids = void_info
+            model.shell = _fit_shell(points, radii, width, height, kappa)
             model.estimation = {
                 "strategy": strategy,
                 "detrend_weight_cap": _DETREND_WEIGHT_CAP,
@@ -1599,7 +1619,8 @@ class DensityModel:
                       n_target=int(n_target),
                       target_overlap_fraction=self.target_overlap_fraction,
                       mode=mode, flags=self.flags, bandwidth=self.bandwidth,
-                      strategy=self.strategy, quota_scale=self._quota_scale())
+                      strategy=self.strategy, quota_scale=self._quota_scale(),
+                      shell=self.shell)
 
     def _has_voids(self) -> bool:
         return bool(self.voids) and int(self.voids.get("n_holes", 0)) > 0

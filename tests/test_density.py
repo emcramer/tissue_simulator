@@ -922,3 +922,17 @@ def test_unit_free_voids_is_a_copy(glomeruli):
     free = glomeruli._unit_free_voids()
     assert json.dumps(glomeruli.voids, sort_keys=True, default=float) == before
     assert free.get("n_holes", 0) == 0 or free is not glomeruli.voids
+
+
+def test_shell_fitted_and_round_trips(nest_model, gradient_model):
+    for model in (nest_model[0], gradient_model):
+        shell = model.shell
+        assert {"edges", "pairs_per_cell", "g", "edge", "summary", "s_floor"} <= set(shell)
+        assert shell["s_floor"] == model.kappa
+        assert shell["summary"]["n_cells"] == model.n_cells
+        clone = DensityModel.from_dict(json.loads(json.dumps(model.to_dict())))
+        assert _dict_equal(clone.shell, shell)
+        assert model.sample_layout(rng=1).shell is model.shell
+        data = model.to_dict()
+        del data["shell"]
+        assert DensityModel.from_dict(data).shell == {}
