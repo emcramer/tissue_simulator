@@ -2023,13 +2023,19 @@ class TissueSimulatorMCPServer:
             # Collect summary statistics
             replicate_summaries = []
             for tissue, stats in self.generated_replicates:
-                replicate_summaries.append({
+                summary = {
                     "replicate_id": stats.replicate_id,
                     "num_cells": stats.num_cells,
                     "cell_types": stats.cell_type_counts,
                     "packing_fraction": round(stats.packing_fraction, 4),
                     "divergence_score": round(stats.divergence_score, 4)
-                })
+                }
+                first_shell = (stats.packing_report or {}).get("first_shell")
+                if first_shell:
+                    summary["first_shell_ratios"] = {
+                        k: round(v, 4) for k, v in first_shell["ratios"].items()}
+                    summary["first_shell_same_window"] = first_shell.get("same_window")
+                replicate_summaries.append(summary)
             
             result = {
                 "status": "success",

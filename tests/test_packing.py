@@ -311,7 +311,7 @@ def _refine_layout(strategy="adaptive", with_shell=True):
                         "pairs_per_cell": prof["pairs_per_cell"].tolist(),
                         "g": prof["g"].tolist(), "edge": _shell.shell_edge(prof),
                         "summary": _shell.first_shell_summary(pts, radii, _SIZE, _SIZE),
-                        "s_floor": 0.8}
+                        "s_floor": 0.8, "width": _SIZE, "height": _SIZE}
     return layout, pts, radii
 
 
@@ -410,3 +410,41 @@ def test_report_describes_refined_positions():
     full = np.linalg.norm(a[:, None, :3] - a[None, :, :3], axis=2) / (a[:, None, 3] + a[None, :, 3])
     np.fill_diagonal(full, np.inf)
     assert rep.overlap_fraction == pytest.approx(np.mean(full.min(axis=1) < layout.kappa))
+
+
+# -- first-shell report -------------------------------------------------------
+
+_SHELL_KEYS = {"mean_degree", "overlap_pairs_per_cell", "median_radius", "area_fraction", "n_cells"}
+
+
+@pytest.mark.parametrize("strategy", ["adaptive", "legacy"])
+def test_first_shell_report_for_thin_slab(strategy):
+    layout, _, _ = _refine_layout(strategy=strategy)
+    cells, rep = _pack_layout(layout, seed=9)
+    block = rep.first_shell
+    assert block["factor"] == 1.5 and block["same_window"] is True
+    assert set(block["replicate"]) == set(block["source"]) == _SHELL_KEYS
+    assert set(block["ratios"]) == _SHELL_KEYS - {"n_cells"}
+    a = _xyzr(cells)
+    expected = _shell.first_shell_summary(a[:, :2], a[:, 3], _SIZE, _SIZE)
+    assert block["replicate"] == expected
+    assert block["ratios"]["mean_degree"] == pytest.approx(
+        expected["mean_degree"] / layout.shell["summary"]["mean_degree"])
+    import json
+    assert json.loads(json.dumps(rep.to_dict()))["first_shell"]["same_window"] is True
+
+
+def test_first_shell_report_none_for_thick_slab_or_no_summary():
+    layout, _, _ = _refine_layout()
+    packer = InhomogeneousPacker((_SIZE, _SIZE, 3.0 * _RADIUS), layout, seed=7)
+    packer.pack()
+    assert packer.report.first_shell is None and packer.report.to_dict()["first_shell"] is None
+    assert _pack_layout(_refine_layout(with_shell=False)[0], seed=7)[1].first_shell is None
+
+
+def test_first_shell_same_window_flag():
+    layout, _, _ = _refine_layout()
+    layout.shell = dict(layout.shell, width=2 * _SIZE)
+    assert _pack_layout(layout, seed=9)[1].first_shell["same_window"] is False
+    layout.shell = {k: v for k, v in layout.shell.items() if k not in ("width", "height")}
+    assert _pack_layout(layout, seed=9)[1].first_shell["same_window"] is None

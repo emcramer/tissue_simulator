@@ -615,7 +615,7 @@ def _fit_shell(points, radii, width, height, kappa) -> Dict:
     return {"edges": prof["edges"].tolist(), "pairs_per_cell": prof["pairs_per_cell"].tolist(),
             "g": prof["g"].tolist(), "edge": _shell.shell_edge(prof),
             "summary": _shell.first_shell_summary(points, radii, width, height, factor=1.5),
-            "s_floor": float(kappa)}
+            "s_floor": float(kappa), "width": float(width), "height": float(height)}
 
 
 @dataclass

@@ -15,6 +15,7 @@ from .density import Layout
 from .tissue import Cell
 
 _REFINE_MIN_CELLS = 50
+FIRST_SHELL_WARN_RATIO = 0.9
 
 
 def _stochastic_round(weights, total: int, rng: np.random.Generator) -> np.ndarray:
@@ -350,6 +351,13 @@ class PackingReport:
             ``mean_displacement``, ``max_displacement``, ``accept_rate``,
             ``s_target``, ``seconds``); None when refinement did not run.
             All other fields describe the final (refined) positions.
+        first_shell: First-shell fidelity of the final cells against the
+            source (``factor``, ``replicate`` and ``source`` summaries,
+            ``ratios`` replicate / source, ``same_window``: whether the layout
+            window equals the source window, None when the source window is
+            unknown); None for thick slabs or layouts without a source
+            summary. A deterministic measurement, so it is reported for every
+            strategy. Ratios are only comparable when ``same_window`` is True.
     """
     n_target: int
     n_placed: int
@@ -372,6 +380,7 @@ class PackingReport:
     dense_bin_fraction_short: Optional[float] = None
     radius_assignment: Optional[str] = None
     refinement: Optional[Dict[str, float]] = None
+    first_shell: Optional[Dict] = None
 
     @property
     def bin_correlation(self) -> float:
@@ -393,6 +402,9 @@ class PackingReport:
                 out[key] = dict(out[key])
         if self.refinement is not None:
             out['refinement'] = dict(self.refinement)
+        if self.first_shell is not None:
+            out['first_shell'] = {k: dict(v) if isinstance(v, dict) else v
+                                  for k, v in self.first_shell.items()}
         out['bin_correlation'] = self.bin_correlation
         return out
 
@@ -723,7 +735,28 @@ class InhomogeneousPacker:
             and getattr(layout, "strategy", "legacy") == "adaptive"
             and shell and len(shell.get("edges", ())) > 1 and len(shell.get("pairs_per_cell", ())) > 0
             and len(self._xs) >= _REFINE_MIN_CELLS
-            and self.bounds[2] <= 2.0 * layout.marks.median_radius)
+            and self._thin_slab())
+
+    def _thin_slab(self) -> bool:
+        """Thickness at most twice the median radius (cells overlap in projection)."""
+        return self.bounds[2] <= 2.0 * self.layout.marks.median_radius
+
+    def _first_shell_report(self) -> Optional[Dict]:
+        """Final-cell first-shell summary against the source's (no RNG)."""
+        layout = self.layout
+        shell = getattr(layout, "shell", None)
+        source = shell.get("summary") if shell else None
+        if not source or not self._thin_slab() or not self._xs:
+            return None
+        rep = _shell.first_shell_summary(
+            np.column_stack([self._xs, self._ys]), np.asarray(self._rs),
+            layout.width, layout.height, factor=1.5)
+        same = None
+        if "width" in shell and "height" in shell:
+            same = bool(abs(shell["width"] - layout.width) < 1e-6
+                        and abs(shell["height"] - layout.height) < 1e-6)
+        return {"factor": 1.5, "replicate": rep, "source": dict(source),
+                "ratios": _shell.first_shell_ratios(rep, source), "same_window": same}
 
     def _refine_shell(self, s_target: float = 2.0, sigma_factor: float = 0.25,
                       min_gain: float = 1e-3) -> Dict[str, float]:
@@ -948,6 +981,7 @@ class InhomogeneousPacker:
             dense_bin_fraction_short=dense_short,
             radius_assignment='per_candidate' if deck is None else 'deck',
             refinement=refinement,
+            first_shell=self._first_shell_report(),
         )
 
         cells = []

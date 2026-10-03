@@ -20,7 +20,7 @@ from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
 from .tissue import TissueSection, Cell, load_tissue_from_csv
-from .packing import SpherePacker, separation_diagnostics
+from .packing import FIRST_SHELL_WARN_RATIO, SpherePacker, separation_diagnostics
 from .density import DensityModel, _intensity_grids, _pixel_indices
 from ._persistence import superlevel_h0, persistence_distance
 from .spatial_analysis import (SpatialNetworkAnalyzer, InteractionStatistics,
@@ -1224,6 +1224,17 @@ class ReplicateGenerator:
         requested = self._round_proportions_to_counts(proportions, int(report.n_target))
         achieved = {t: int(n) for t, n in tissue_stats.get('cell_types', {}).items()}
         achieved = {t: achieved.get(t, 0) for t in requested}
+        first_shell = report.first_shell
+        if (first_shell and first_shell.get("same_window")
+                and getattr(layout, "strategy", "legacy") == "adaptive"
+                and first_shell["ratios"]["mean_degree"] < FIRST_SHELL_WARN_RATIO):
+            # Legacy layouts sit near 0.8 on real tissue, so only adaptive ones warn.
+            warnings.warn(
+                f"Replicate {replicate_id}: first-shell mean degree is "
+                f"{first_shell['ratios']['mean_degree']:.2f} of the source's "
+                f"(below {FIRST_SHELL_WARN_RATIO}); the packed cells are sparser at "
+                "contact range than the source. Check that refine_shell is not disabled "
+                "and the radii deck is source-matched.", stacklevel=2)
         fidelity = None
         if self.diagnostics:
             cells = tissue.cells
@@ -1235,6 +1246,7 @@ class ReplicateGenerator:
                 intensities=[layout.intensity_at(float(c.center[0]), float(c.center[1])) for c in cells],
                 source_radii=self._source_radii, source_size_nll=self._source_size_nll,
                 finest_bin=min(scale_sizes) if scale_sizes else None)
+            fidelity["first_shell"] = first_shell
         if composition_info is not None:
             fidelity = dict(fidelity or {})
             fidelity.update(composition_info)

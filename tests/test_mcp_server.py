@@ -701,3 +701,25 @@ def test_generate_colored_replicates_seed_reproducible():
         assert a["mean_pairwise_diversity"] == b["mean_pairwise_diversity"]
     finally:
         os.remove(csv_path)
+
+
+def test_generate_replicates_summary_carries_first_shell_ratios():
+    """Each replicate summary reports the rounded first-shell ratios when present."""
+    from types import SimpleNamespace
+
+    def stats(rid, first_shell):
+        return SimpleNamespace(
+            replicate_id=rid, num_cells=10, cell_type_counts={"a": 10}, packing_fraction=0.5,
+            divergence_score=0.1, packing_report={"first_shell": first_shell} if first_shell else {})
+
+    block = {"ratios": {"mean_degree": 0.987654, "overlap_pairs_per_cell": 1.0123456,
+                        "median_radius": 1.0, "area_fraction": 0.99}, "same_window": True}
+    reps = [(None, stats(0, block)), (None, stats(1, None))]
+    server = TissueSimulatorMCPServer()
+    server.replicate_generator = SimpleNamespace(generate_replicates=lambda **kw: reps)
+    result = _result_json(_call(server._handle_generate_replicates({"num_replicates": 2})))
+    first, second = result["replicates"]
+    assert first["first_shell_ratios"]["mean_degree"] == 0.9877
+    assert first["first_shell_ratios"]["overlap_pairs_per_cell"] == 1.0123
+    assert first["first_shell_same_window"] is True
+    assert "first_shell_ratios" not in second

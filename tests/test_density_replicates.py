@@ -462,3 +462,44 @@ def test_nests_replicate_keeps_nest_purity():
     assert inside.sum() >= 20
     assert (types[inside] == 'B').mean() > NESTS_B_MIN
 
+
+
+# -- first-shell fidelity -----------------------------------------------------
+
+def _sparser_source(model, factor=5.0):
+    """Copy of ``model`` whose source claims ``factor`` x the mean degree."""
+    import copy
+    out = copy.deepcopy(model)
+    out.shell["summary"]["mean_degree"] *= factor
+    return out
+
+
+def _warnings_about_first_shell(fn, *args):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = _quiet(fn, *args)
+    return result, [w for w in caught if "first-shell" in str(w.message)]
+
+
+def test_adaptive_replicate_reports_first_shell(adaptive_setup):
+    gen = _adaptive_generator(adaptive_setup)
+    (_, stats), _ = _warnings_about_first_shell(gen.generate_single_replicate, 0)
+    block = stats.fidelity["first_shell"]
+    assert block == stats.packing_report["first_shell"]
+    assert block["same_window"] is True and block["factor"] == 1.5
+    assert set(block["ratios"]) == {"mean_degree", "overlap_pairs_per_cell",
+                                    "median_radius", "area_fraction"}
+
+
+def test_adaptive_sparse_replicate_warns_but_legacy_does_not(setup, adaptive_setup):
+    gen = _adaptive_generator(adaptive_setup, packing_params={"refine_shell": False})
+    gen.density_model = _sparser_source(adaptive_setup[2])
+    (_, stats), caught = _warnings_about_first_shell(gen.generate_single_replicate, 0)
+    assert stats.packing_report["first_shell"]["ratios"]["mean_degree"] < 0.9
+    assert len(caught) == 1 and "mean degree" in str(caught[0].message)
+
+    legacy = _generator(setup)
+    legacy.density_model = _sparser_source(setup[2])
+    (_, stats), caught = _warnings_about_first_shell(legacy.generate_single_replicate, 0)
+    assert stats.packing_report["first_shell"]["ratios"]["mean_degree"] < 0.9
+    assert caught == [] and stats.fidelity is None
