@@ -1447,10 +1447,137 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#adaptive-strategy-opt-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptive strategy (opt-in)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#learned-scales-and-estimation-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Learned scales and estimation metadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#organization-models-planarradial" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Organization models (planar/radial)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Organization models (planar/radial)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#trend-null" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trend null
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#voids-and-lumens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Voids and lumens
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persistent-homology-unit-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persistent homology unit detection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#germ-grain-layouts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Germ-grain layouts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composition-constraints-and-size-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition constraints and size compatibility
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Diagnostics
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schema-evolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema evolution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#known-limits" class="md-nav__link">
     <span class="md-ellipsis">
       
         Known limits
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mechanical-neighbour-graph" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mechanical neighbour graph
       
     </span>
   </a>
@@ -1796,6 +1923,318 @@ complete version. Each finding was checked against code and data:</p>
 </tr>
 </tbody>
 </table>
+<h2 id="adaptive-strategy-opt-in">Adaptive strategy (opt-in)<a class="headerlink" href="#adaptive-strategy-opt-in" title="Permanent link">&para;</a></h2>
+<p><code>strategy="adaptive"</code> (on <code>DensityModel.fit</code>, <code>ReplicateGenerator</code>,
+<code>ReplicateGenerator.from_coordinates</code> and the MCP <code>setup_replicate_generator</code>
+tool) turns on, together: data-derived bandwidth range, per-type bandwidths,
+organization (trend) fitting with detrended residual maps, learned boundary
+bands, multi-scale composition targets, a size-compatibility term and
+fidelity diagnostics. <code>strategy="legacy"</code> is the default and draws no new
+random numbers and takes no new arithmetic path; golden tests pin it. Switching
+the default is a separate reviewed change. Individual pieces can be forced with
+<code>fit(per_type_bandwidth=..., organization=..., bandwidth_range=...)</code>,
+<code>composition_scales=</code>, <code>composition_bin=</code>, <code>size_weight=</code> and <code>diagnostics=</code>.</p>
+<h2 id="learned-scales-and-estimation-metadata">Learned scales and estimation metadata<a class="headerlink" href="#learned-scales-and-estimation-metadata" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Auto bandwidth range (<code>_auto_bandwidth_range</code>), with <code>d_nn</code> the median
+  nearest-neighbor distance, <code>r_med</code> the median radius, <code>L</code> the shorter side
+  of the mask bounding box: <code>lo = max(grid_step, d_nn, 2 r_med)</code>,
+  <code>hi = max(min(L/3, 20 d_nn), 3 lo)</code>. Legacy keeps <code>(15, 80)</code>.</li>
+<li>Per-type bandwidths: a type keeps the pooled bandwidth
+  (<code>"pooled_fallback"</code>) if it has fewer than <code>_TYPE_BW_MIN_CELLS = 10</code> cells or
+  its cross-validated gain over the pooled bandwidth is below
+  <code>_TYPE_BW_MIN_GAIN = 2.0</code> nats. Otherwise
+  <code>log h_t = (n_t log h_cv + m log h_pool) / (n_t + m)</code> with
+  <code>_TYPE_BW_SHRINK_M = 30</code>; evidence is <code>"cv"</code> when
+  <code>n_t/(n_t+m) &gt;= _TYPE_BW_CV_WEIGHT = 0.9</code>, else <code>"shrunk"</code>.</li>
+<li>Learned band edges: quantiles <code>_BAND_EDGE_QUANTILES = (0.25, 0.5, 0.75)</code> of
+  the cells' distance to their compartment edge (legacy: <code>_BAND_EDGES_UM</code>).</li>
+<li>Size model: Gaussian in log radius per (type, density bin), shrunk toward the
+  type's pooled Gaussian with <code>_SIZE_SHRINK_M = 20</code> pseudo-cells; types with
+  fewer than <code>_SIZE_MIN_TYPE_CELLS = 10</code> cells use the all-type Gaussian
+  (listed in <code>estimation["size_fallbacks"]</code>); <code>sigma &gt;= _MIN_LOG_SIGMA = 0.02</code>.
+  Fitted under both strategies (RNG-free); only the adaptive path uses it.</li>
+<li>Detrending regularization: inverse-trend weights clipped to
+  <code>[1/_DETREND_WEIGHT_CAP, _DETREND_WEIGHT_CAP]</code> (5) and renormalized to mean 1;
+  per-(compartment, band) compositions shrunk with
+  <code>_COMPOSITION_PRIOR_CELLS = 10</code> pseudo-cells; maps floored at
+  <code>_DETREND_FLOOR = 1e-3</code>.</li>
+<li><code>DensityModel.estimation</code> keys: <code>strategy</code>, <code>detrend_weight_cap</code>,
+  <code>composition_prior_cells</code>, <code>bandwidth</code>, <code>bandwidth_source</code>,
+  <code>bandwidth_range</code>, <code>bandwidth_range_source</code>, <code>bandwidth_at_bound</code> /
+  <code>bandwidth_bound</code> (also flag <code>bandwidth_at_{lower,upper}_bound</code>),
+  <code>per_type_bandwidth</code>, <code>type_bandwidths</code>, <code>type_bandwidth_evidence</code>,
+  <code>type_counts</code>, <code>size_fallbacks</code>, <code>learned_band_edges</code>, and (adaptive) <code>d_nn</code>.</li>
+<li><code>Layout.quota_scale</code> (adaptive only): <code>max(bandwidth/2, 2 d_nn, 2 grid_step,
+  sqrt(4/mean_density))</code> snapped to the grid; the packer uses it as quota bin
+  side instead of the legacy <code>max(bandwidth/2, 10)</code>.</li>
+</ul>
+<h2 id="organization-models-planarradial">Organization models (planar/radial)<a class="headerlink" href="#organization-models-planarradial" title="Permanent link">&para;</a></h2>
+<p>Implemented in <code>tissue_simulator/_organization.py</code> (private; the module
+docstring is the full method). Fitting is RNG-free; sampling happens in
+<code>DensityModel.sample_layout</code>.</p>
+<ul>
+<li>Candidates: <code>density</code> (log-quadratic Poisson trend), <code>composition</code>
+  (multinomial logit, linear), <code>both</code>; each for a planar coordinate
+  <code>s = x cos(theta) + y sin(theta)</code> and a radial one <code>s = |p - c|</code>.
+  Models: <code>none</code>, <code>planar_density|composition|both</code>,
+  <code>radial_density|composition|both</code>.</li>
+<li>Selection by BIC: a candidate is accepted only if <code>delta_bic &gt;=
+  BIC_THRESHOLD = 10</code>. Radial must beat the best planar by the same margin;
+  otherwise it is stored as <code>weak_candidate="radial"</code> and planar (or <code>none</code>)
+  is used. No trend is attempted below <code>MIN_CELLS = 60</code>. Search: <code>N_ANGLE_STARTS
+  = 12</code>, radial <code>CENTER_GRID = 5</code> per axis, <code>CENTER_MAX_ITER = 200</code>,
+  <code>CELLS_PER_KNOT = 40</code>, <code>PROFILE_SMOOTHING = 0.5</code>, <code>MAX_INTEGRAL_PIXELS = 4000</code>.</li>
+<li>A model fitted on a region that the null test calls homogeneous is set to
+  <code>none</code> with <code>fallback="homogeneous"</code>.</li>
+<li>Resampling: a new direction (planar) or center (radial, drawn from the window
+  shrunk by <code>CENTER_MARGIN = 0.10</code> per side) is proposed up to
+  <code>max_proposals</code> (<code>DEFAULT_MAX_PROPOSALS = 20</code>) times. A proposal is accepted
+  if the window spans at least <code>MIN_COVERAGE = 0.9</code> of the source knot range
+  and every type's expected proportion <code>p'_t</code> satisfies
+  <code>|p'_t - p_t| &lt;= max(PROPORTION_ABS_TOL = 0.02, PROPORTION_REL_TOL * p_t)</code>
+  with <code>PROPORTION_REL_TOL = 0.15</code>. If none is accepted the best-coverage
+  proposal is used, <code>Layout.organization["accepted"]</code> is False,
+  <code>fallback == "best_of_proposals"</code>, the flag <code>organization_unsatisfied</code> is
+  added and a warning is issued.</li>
+<li><code>Layout.organization</code> keys: <code>model</code>, <code>geometry</code>, <code>direction</code>+<code>theta</code> or
+  <code>center</code>, <code>proposals_tried</code>, <code>accepted</code>, <code>fallback</code>.</li>
+</ul>
+<h3 id="trend-null">Trend null<a class="headerlink" href="#trend-null" title="Permanent link">&para;</a></h3>
+<p>An adaptive fit that selects a trend (and is not homogeneous) tests it against
+its own stationary residual model: <code>n_null</code> layouts (default 19) are drawn from
+the final detrended model's <code>_residual_maps</code> (holes included), sampled as
+inhomogeneous Poisson cell sets, and <code>trend_statistic</code> (max delta BIC over the
+candidates) is recomputed on each. <code>p = (1 + #{null &gt;= observed}) / (n_null + 1)</code>;
+the trend is accepted iff <code>observed &gt;= BIC_THRESHOLD</code> and <code>p &lt;= alpha</code> (0.05).
+With <code>n_null=19</code> the smallest attainable p is 0.05, so acceptance means no
+null draw reaches the observed value. If every null statistic is non-finite
+the null is reported as degenerate and the BIC threshold alone decides.
+On rejection the model is rebuilt once without detrending and
+<code>organization["fallback"] == "stationary_null"</code> (candidates are kept). The
+result is in <code>organization["null"]</code>. A bootstrap from the fitted stationary
+model was rejected: it reproduced concentric/layered trends at window scale, so
+the null is deliberately the detrended one. It costs several seconds in
+adaptive fits; set <code>n_null=0</code> to skip it (the BIC threshold alone then decides).</p>
+<h2 id="voids-and-lumens">Voids and lumens<a class="headerlink" href="#voids-and-lumens" title="Permanent link">&para;</a></h2>
+<p><code>DensityModel.fit(..., voids="auto"|"none")</code> (default <code>"auto"</code> under adaptive,
+<code>"none"</code> under legacy, where nothing changes and no random numbers are drawn).</p>
+<ul>
+<li><strong>Empty-space criterion</strong> (<code>_voids.infer_voids</code>, run before anything uses the
+  mask): a grid pixel is void when its distance to the nearest cell center
+  exceeds <code>tau = max(sqrt(ln N / (pi lambda)), TAU_NN_FACTOR d_nn (1.5),
+  TAU_RADIUS_FACTOR r_med + grid_step (2))</code> (largest Poisson gap, a multiple of
+  the nearest-neighbour spacing, a multiple of the cell radius). The core is
+  regrown by <code>tau</code>, opened with a 3x3 element (<code>OPENING_STRUCTURE</code>) and
+  components smaller than <code>MIN_HOLE_AREA_FACTOR pi tau^2</code> (1) are dropped.
+  Pixels holding a cell stay tissue.</li>
+<li>The inferred tissue mask becomes <code>model.mask</code> (edge correction, k-means pixels,
+  per-tissue-area <code>density</code> and the organization fit all exclude the lumen).
+  With a user <code>mask</code>, its interior holes are summarized instead (separation
+  fallback: one median hole diameter) and the mask is unchanged.</li>
+<li>Only interior components (not touching the window edge) are removed from the
+  tissue mask and re-placed in layouts; edge-touching components are reported
+  but left in the mask, because they are never re-placed and removing them
+  would inflate replicate cell counts. <code>DensityModel.voids</code> holds <code>n_holes</code>,
+  <code>equivalent_diameters</code>, <code>areas</code>, <code>min_center_separation</code>, <code>tau</code> and
+  <code>all_components</code>; <code>estimation["voids"]</code> carries the same summary without
+  <code>all_components</code>.</li>
+<li><strong>Placement</strong> (<code>_voids.place_voids</code>, in <code>_residual_maps</code> after the two noise
+  fields; organized layouts draw holes after theta/center): the exact source
+  interior hole count, diameters resampled with replacement, disc centers by
+  rejection (&lt;= 50 tries) keeping center separation &gt;= the learned minimum
+  (fallback <code>2 tau</code>). Inside holes compartment is -1 and intensity 0; bands are
+  recomputed so they see the void edge; composition there is the global
+  proportions. <code>n_target = round(density W H * tissue_fraction)</code>. Shortfalls are
+  in <code>Layout.voids</code> and flagged <code>voids_unsatisfied</code>; replicates report
+  <code>ReplicateStatistics.layout_voids</code>.</li>
+<li><strong>Radial anchoring</strong>: for a radial trend whose center lies inside a source hole
+  (centroid within one hole radius), the largest placed hole is put on the
+  proposed center at every proposal (rings around a lumen). <code>combine_trend</code>
+  multiplies, so zeros persist, and <code>expected_proportions</code> is intensity weighted,
+  so void pixels do not affect acceptance.</li>
+<li>The packer is unchanged. Relaxation can push cells into a hole by at most
+  <code>displacement_cap</code> (0.5 median radius); cells are also drawn from pixels next
+  to the hole, adding up to half a pixel diagonal.</li>
+</ul>
+<p>Known limits: the void edge and the compartment edge share one band axis
+(band-edge conflation; <code>band_edge_type</code> would split them); holes are discs, not
+ducts or elongated lumens (elongation is recorded, not used); inference needs
+holes of at least ~<code>tau</code> radius.</p>
+<h2 id="persistent-homology-unit-detection">Persistent homology unit detection<a class="headerlink" href="#persistent-homology-unit-detection" title="Permanent link">&para;</a></h2>
+<p>Adaptive fits (<code>units="auto"</code>, the default; <code>"none"</code> disables) look for compact
+<em>units</em>: tumor nests (blobs), follicles (a ring of one type around a core of
+another) and glomeruli/arteries (a ring around an empty lumen). Detection is in
+<code>_units.detect_units</code> on per-type intensity maps (<code>_persistence.superlevel_h0/h1</code>).
+Rules, exactly as implemented:</p>
+<ul>
+<li><strong>Maps.</strong> Edge-corrected kernel intensities at the per-type bandwidth capped
+  at <code>UNIT_MAX_BANDWIDTH_NN = 3</code> nearest-neighbour distances, at the scales
+  <code>UNIT_BANDWIDTH_SCALES = (1.0, 0.5)</code> of the capped value, plus the empty-space
+  distance map. A planar trend is removed by inverse-trend weights; a radial
+  trend is not (it is the unit itself). Nothing else is detrended.</li>
+<li><strong>Null.</strong> <code>UNIT_NULL_DRAWS = 9</code> uniform (CSR) packings with the global type
+  mix and the source cell count (no patch structure). <code>n_null=0</code> disables
+  detection (<code>units == {}</code>, <code>estimation["units"] == {"skipped": "n_null=0"}</code>).</li>
+<li><strong>Significance.</strong> Rank matched: the i-th largest bar (top <code>RANK_DEPTH = 8</code>)
+  of a type/degree/scale must exceed the <code>UNIT_NULL_QUANTILE = 0.95</code> quantile
+  (with 9 draws, about their maximum) of the null's i-th largest bar. Bars above
+  the <code>UNIT_WEAK_QUANTILE = 0.5</code> quantile only are <em>weak</em> and kept only when
+  paired with a strong partner.</li>
+<li><strong>Advisory comparison.</strong> The same top-unit test against draws from the fitted
+  patch model only sets <code>units["ambiguous_with_patches"]</code>; it never drops units.</li>
+<li><strong>Unpaired blobs</strong> (kind <code>blob</code>; paired <code>ring_core</code>/<code>ring_lumen</code> keep the
+  CSR-only rule). <em>Confirmation:</em> a strong (rank-matched, above the CSR null)
+  H0 bar of the same type at the other scale, with its peak in the blob's
+  footprint and footprint circularity at least
+  <code>UNIT_SUPPORT_MIN_CIRCULARITY = 0.5</code> (other shape gates not applied). It is
+  required in every case: with ~12 tests per fit (3 types x 2 scales x 2
+  degrees) at the 95th percentile of 9 draws, a chance bump at one scale is
+  expected; at both it is rare. <em>Homogeneous model:</em> the patch null equals the
+  CSR null, so confirmation is the only extra rule. <em>Inhomogeneous model:</em> the
+  blob must also exceed the 0.95 quantile of the patch-null maximum persistence
+  (<code>advisory_draws</code>, its key); a patch-ambiguous blob is kept only when at least
+  <code>UNIT_AMBIGUOUS_MIN_BLOBS = 3</code> distinct confirmed strong blobs of the same
+  type and scale exist (a patch process can make a bump or two, tumor nests
+  repeat). Strong Potts clustering (J=1.5) gives no units; random labels none.</li>
+<li><strong>Footprint.</strong> Component of the map at <code>birth - 0.5 * persistence</code>
+  (<code>UNIT_FOOTPRINT_LEVEL</code>). Area must be
+  below <code>MAX_UNIT_AREA_FRACTION = 0.25</code> of the window and radius at least
+  <code>MIN_UNIT_RADIUS_PX = 1.5</code>.</li>
+<li><strong>Circularity</strong> <code>area / (pi r_max^2)</code> (r_max from the centroid; footprints cut
+  by the window are mirrored across the border first) at least
+  <code>UNIT_MIN_CIRCULARITY = 0.6</code>.</li>
+<li><strong>Enrichment</strong> (blobs). Peak intensity at least
+  <code>1 + ENRICH_FACTOR * (1 - p_t)</code> times the type's mean intensity outside the
+  footprint, <code>ENRICH_FACTOR = 0.5</code>, <code>p_t</code> the type's share: 1.5x for a rare
+  type, 1.25x for a 50 % type. A matrix type (share at least
+  <code>UNIT_MATRIX_SHARE = 0.62</code>) needs <code>UNIT_MATRIX_MIN_ENRICHMENT = 1.5</code>, because
+  its bumps between units are the complement of the units.</li>
+<li><strong>Pairing.</strong> A lumen (empty-space peak, radius at least <code>UNIT_MIN_LUMEN_NN =
+  1.6</code> nearest-neighbour distances) or another type's blob inside the footprint
+  and within <code>UNIT_CENTER_FRACTION = 0.4</code> of the outer radius of its centroid
+  makes <code>ring_lumen</code> / <code>ring_core</code>; otherwise <code>blob</code>.</li>
+<li><strong>No fine-only blobs.</strong> A blob found only at 0.5x with no strong 1.0x
+  footprint around its peak is reported only as a core or lumen of a strong
+  partner (<code>FINE_ONLY_BLOBS_ALLOWED = False</code>).</li>
+<li><strong>Duplicates.</strong> Units whose center lies in an earlier-ranked unit's outer
+  radius are dropped.</li>
+<li><strong>Size.</strong> Radii of one kind within <code>UNIT_SIZE_FACTOR = 1.7</code> of the kind's
+  median; with <code>UNIT_SIZE_FILTER_MIN_UNITS = 3</code> or fewer units outliers are
+  flagged (<code>size_inconsistent</code>, a list of unit indices) instead of dropped.</li>
+<li><strong>Edges.</strong> Window-cut units are kept and flagged <code>edge_touching</code> when the
+  outer radius reaches the border (censored: counted, to be left out of the
+  radius pool). They need a score (persistence / null threshold) of at least
+  <code>UNIT_EDGE_MIN_SCORE = 2.0</code>, since border bumps are the noisiest. Footprints touching two perpendicular borders (corners) are
+  discarded.</li>
+</ul>
+<p>Kinds: <code>blob</code>, <code>ring_core</code>, <code>ring_lumen</code>. <code>model.units</code> holds the units
+(<code>center</code>, <code>outer_radius</code>, <code>inner_radius</code>, <code>ring_type</code>, <code>core_type</code>,
+<code>persistence</code>, <code>score</code>, <code>scale</code>, <code>edge_touching</code>), <code>kinds</code>, <code>thresholds</code>,
+<code>min_center_separation</code>, <code>size_inconsistent</code>, <code>ambiguous_with_patches</code> and,
+after the profile fit, <code>profiles</code> and <code>d_nn</code>.</p>
+<h2 id="germ-grain-layouts">Germ-grain layouts<a class="headerlink" href="#germ-grain-layouts" title="Permanent link">&para;</a></h2>
+<p><code>_grains.fit_unit_profiles</code> pools, per kind, the density relative to the window
+mean and the type composition against the normalized distance <code>s = r / R_outer</code>
+on <code>DEFAULT_N_KNOTS = 8</code> equal bins of <code>[0, S_MAX = 1.5]</code> (<code>PROFILE_PRIOR_CELLS = 5</code>
+Dirichlet pseudo-cells toward the global mix; <code>DENSITY_FLOOR = 0.05</code> for empty
+non-lumen knots; lumen knots have density 0). Fitting is RNG-free and runs in <code>fit</code>
+after detection; profiles are stored in <code>model.units["profiles"]</code> (JSON-friendly;
+<code>from_dict</code> tolerates their absence).</p>
+<p><code>sample_layout</code> (adaptive, units present, <code>layout="resample"</code>, homogeneous models
+included) draws every existing field first (noise fields; theta/center for organized
+layouts; the legacy-compatible voids) and then <code>_grains.place_grains</code> with the exact
+source counts per kind, radii resampled with replacement and hard-core centers at
+<code>model.units["min_center_separation"]</code> (<code>UNIT_PLACEMENT_TRIES = 500</code> draws per
+grain). <code>rasterize_grains</code> yields an intensity factor, grain composition and a lumen
+mask; intensity = residual x factor (lumen -&gt; 0, compartment -1), composition = grain
+composition inside grains and the residual elsewhere, <code>n_target =
+round(density W H tissue_fraction)</code> and the intensity is renormalized to it.
+<code>Layout.units</code> holds the placed dict; <code>"units_unsatisfied"</code> is flagged on shortfall.
+<code>rasterize_grains</code> ignores the inner radius for non-lumen kinds (a core is not a
+void); only <code>ring_lumen</code> grains get zero intensity inside it.</p>
+<p>Precedence (constants <code>UNIT_OWNS_LUMEN</code>, <code>UNIT_OWNS_RADIAL</code> in <code>density.py</code>):</p>
+<ul>
+<li>Units own their lumens: a void whose centroid lies inside a unit's outer radius is
+  dropped from the placement pool (a filtered copy; <code>model.voids</code> and its diagnostics
+  are untouched), so holes are not placed twice.</li>
+<li>A radial trend whose center lies inside a unit's outer radius is skipped for
+  sampling (<code>Layout.organization = {"model": "none", "fallback": "units"}</code>; the
+  organization stays recorded on the model). Planar trends coexist with units: grains
+  are applied after the trend.</li>
+</ul>
+<p>Replicate diagnostics: <code>ReplicateStatistics.layout_units</code> and
+<code>fidelity["persistence_distance"]</code> (per type, Wasserstein-1 between H0 barcodes of the
+source and replicate KDE maps at the model's type bandwidths, essential bar dropped).</p>
+<p>Known limits of units: discs only (no elongated or irregular units); fitted radii are
+biased about 20 % low (the smoothed footprint is smaller than the true edge), so
+placed grains are slightly small; units touching the window edge are detected but
+censored (<code>edge_touching</code>) and re-placed as full discs inside the window; the null
+costs <code>UNIT_NULL_DRAWS</code> packings per fit (seconds, scales with cell count); and the
+source's smallest center separation can be infeasible for several large units in the
+same window (for example four r = 38 blobs in 300 um), so grains may fall short and
+<code>units_unsatisfied</code> is flagged.</p>
+<ul>
+<li><strong>Small cores.</strong> A core of only a few cells (about five per unit in the follicle
+  fixture) is detected as part of its ring but reproduced only as an enrichment:
+  the per-kind profile is shrunk toward the global proportions by
+  <code>PROFILE_PRIOR_CELLS</code> pseudo-cells and the annealer's composition bins are
+  coarser than the core, so the replicate core is C-enriched (about 4x its
+  global share) rather than C-dominant.</li>
+</ul>
+<h2 id="composition-constraints-and-size-compatibility">Composition constraints and size compatibility<a class="headerlink" href="#composition-constraints-and-size-compatibility" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Multi-scale composition (<code>ReplicateGenerator._resolve_composition_scales</code>).
+  <code>composition_scales=[...]</code> wins; else numeric <code>composition_bin</code> is one scale;
+  <code>"auto"</code> (adaptive default) uses <code>[max(bw/2, 2 d_nn, MIN_AUTO_SCALE_UM),
+  max(patch_length, 2 first_band_edge), min(W, H)/4]</code>, deduplicated so
+  successive scales differ by <code>MIN_SCALE_RATIO = 1.5</code>, at most
+  <code>MAX_COMPOSITION_SCALES = 3</code>, <code>MIN_AUTO_SCALE_UM = 10</code>. Expected bin counts
+  are the layout composition (Sinkhorn-rescaled to node counts), unshrunk.
+  Passed to the annealer as <code>spatial_composition_scales</code>; each scale's weight is
+  calibrated so the summed spatial term equals <code>composition_weight</code> (default
+  <code>ADAPTIVE_COMPOSITION_WEIGHT = 1.0</code>; legacy keeps 4.0 on its own scale)
+  times the edge-count SSE of a shuffled warm-start labeling (recorded in
+  <code>fidelity['composition_weight_effective']</code> / <code>['composition_calibration']</code>).
+  Unit profiles use equal-count radial bins (<code>PROFILE_MIN_CELLS = 10</code>) and a
+  neighbour-bin prior (<code>PROFILE_PRIOR_CELLS = 2</code>).</li>
+<li>Size compatibility: the annealer's <code>size_compatibility</code> target holds
+  <code>nll[node][color] = 0.5 ((log r - mu)/sigma)^2 + log sigma</code> for the cell's
+  local density bin, weighted <code>size_weight * mean_degree</code> (default
+  <code>size_weight=1.0</code> adaptive, 0 legacy). Radii are therefore a constraint on
+  type assignment, not re-drawn.</li>
+<li><code>cost_terms</code> gains <code>spatial_scales</code> and <code>size</code> entries when those targets exist.</li>
+<li>Requested vs achieved counts: <code>requested_cell_type_counts</code> (layout quota) and
+  <code>achieved_cell_type_counts</code> are reported so rare-type shortfalls are visible.</li>
+</ul>
+<h2 id="diagnostics">Diagnostics<a class="headerlink" href="#diagnostics" title="Permanent link">&para;</a></h2>
+<p>Adaptive generators default to <code>diagnostics=True</code>; legacy to off. Per replicate
+<code>ReplicateStatistics</code> gains <code>requested_cell_type_counts</code>,
+<code>achieved_cell_type_counts</code>, <code>layout_organization</code>, <code>separation</code> (clearance
+and normalized nearest-neighbor distance quantiles, plus count) and <code>fidelity</code>
+(<code>fidelity_diagnostics</code>): <code>size_nll</code> (replicate vs source), <code>size_ks_by_type</code>,
+<code>nn_distance_quantiles</code> (p5/p50/p95; <code>NN_QUANTILES</code>), <code>mixing_index</code>,
+<code>organization_rmse</code>, <code>interface_fraction</code>, <code>n_components</code>, <code>persistence_distance</code>, <code>n_holes</code> (bins whose
+layout-expected count exceeds <code>HOLE_MIN_EXPECTED = 2</code> but hold no cell, at the
+finest scale). Entries that cannot be computed are None. Source reference
+values are cached by <code>ReplicateGenerator._cache_source_reference(tissue)</code>
+(called by <code>from_coordinates</code> and the MCP tool), so a generator built
+directly from a model has no source KS/NLL.
+<code>PackingReport</code> adds <code>bin_shortfall</code>, <code>quota_floor</code>, <code>quota_floor_source</code>,
+<code>clearance_quantiles</code>, <code>normalized_distance_quantiles</code>,
+<code>dense_bin_fraction_short</code> (bins with target &gt;= 4 achieved below 0.9 of target).</p>
+<h2 id="schema-evolution">Schema evolution<a class="headerlink" href="#schema-evolution" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>DensityModel.to_dict</code> writes <code>format_version: 2</code> (adds <code>strategy</code>,
+  <code>type_bandwidths</code>, size model, <code>organization</code>, <code>estimation</code>).
+  <code>from_dict</code> skips absent keys, so version-1 files load with legacy defaults
+  (<code>strategy="legacy"</code>, <code>organization={"model": "none"}</code>) and behave as before.</li>
+<li>Each replicate draws layout, packing, warm start and annealing from separate
+  streams spawned from <code>SeedSequence([seed, replicate_id])</code>, so adaptive
+  replicates are identical serial and parallel. Legacy seeding is unchanged.</li>
+<li>All new dataclass fields have defaults and come last; the generator stores
+  only plain data, so it pickles for process pools.</li>
+</ul>
 <h2 id="known-limits">Known limits<a class="headerlink" href="#known-limits" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Short-range structure.</strong> kNN composition (1.45) and L at 20 µm and
@@ -1824,7 +2263,39 @@ complete version. Each finding was checked against code and data:</p>
   thin slab so replicate graphs stay planar.</li>
 <li><strong>Fit cost.</strong> A fit takes a few seconds: 19 null packings plus 80
   calibration simulations. Pass <code>n_null=0</code> or a <code>patch_prior</code> for speed.</li>
+<li><strong>Symmetric multi-nest samples.</strong> A pattern of several similar nests can be
+  selected as radial (delta BIC above <code>BIC_THRESHOLD = 10</code>) although it is not
+  one center-to-periphery structure; inspect <code>organization["candidates"]</code>.</li>
+<li><strong>Auto bandwidth bound.</strong> On near-uniform data the cross-validated bandwidth
+  often sits at the upper bound of the auto range (flag
+  <code>bandwidth_at_upper_bound</code>); treat the density map as nearly flat there.</li>
+<li><strong>Fidelity summaries are evidence, not calibrated intervals.</strong> <code>fidelity</code>
+  values have no null distribution; compare against replicates of other
+  seeds or the source's own floor.</li>
+<li><strong>Radius definition.</strong> Size targets reproduce whatever the source radii mean.
+  State whether they are whole-cell or nuclear radii; mixing them between
+  source and <code>cell_radii</code> changes packing density.</li>
+<li><strong>Radial coverage ignores masks.</strong> The radial acceptance check uses the
+  replicate window's rectangle, not a mask on the <code>Layout</code>.</li>
+<li><strong>Small windows.</strong> When no proposal meets the coverage and proportion
+  criteria the organization falls back to <code>best_of_proposals</code>
+  (flag <code>organization_unsatisfied</code>); the replicate is still produced.</li>
+<li><strong>Unit detection power.</strong> Persistence against a 9-draw CSR null is
+  conservative: nests of an abundant type (90 % pure nests of r = 38 µm in a
+  50/50 or 65/35 matrix) are found 0-3 times of 4 across seeds, and small
+  window-cut units next to a corner are discarded. Nests of a rare type, follicles,
+  glomeruli and arteries are found reliably. A count-based evidence stage
+  would be the next step.</li>
+<li><strong>Size filter with few units.</strong> With three units or fewer, size outliers are
+  flagged, not dropped; a spurious unit can survive there.</li>
 </ul>
+<h2 id="mechanical-neighbour-graph">Mechanical neighbour graph<a class="headerlink" href="#mechanical-neighbour-graph" title="Permanent link">&para;</a></h2>
+<p>Replicates are scored on a neighbour graph, and the contact rule (1.01 x summed
+radii) is nearly empty for packings with spacing. The <code>"mechanical"</code> mode uses
+<code>d &lt;= 1.5 * (r_i + r_j)</code> (PhysiCell's default mechanics interaction distance),
+so neighbourhoods scale with cell size, unlike a fixed radius. It is applied
+identically to source targets and replicates (<code>TargetStatistics.network_rule</code>
+is checked, with a warning on mismatch) and is the <code>from_coordinates</code> default.</p>
 
 
 

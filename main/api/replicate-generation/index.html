@@ -826,6 +826,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#neighbour-graph-rule-network_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neighbour-graph rule (network_mode)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#key-features" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -878,6 +889,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Density-aware scaffolds">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adaptive-strategy-opt-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptive strategy (opt-in)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -2103,6 +2131,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#neighbour-graph-rule-network_mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neighbour-graph rule (network_mode)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#key-features" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2155,6 +2194,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Density-aware scaffolds">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#adaptive-strategy-opt-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adaptive strategy (opt-in)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -2792,6 +2848,20 @@ hold one geometry fixed and draw several diverse <em>type labelings</em> of it, 
 <code>TissueNetworkWorkflow.generate_colored_replicates(n)</code>, documented under
 <a href="../graph-coloring/#generating-colored-replicates">Generating colored replicates</a>.</p>
 </blockquote>
+<h2 id="neighbour-graph-rule-network_mode">Neighbour-graph rule (<code>network_mode</code>)<a class="headerlink" href="#neighbour-graph-rule-network_mode" title="Permanent link">&para;</a></h2>
+<p><code>network_mode</code> is <code>"contact"</code>, <code>"radius"</code> or <code>"mechanical"</code> (edge iff
+<code>d &lt;= interaction_factor * (r_i + r_j)</code>, default factor 1.5 after PhysiCell's
+mechanics interaction distance). <code>ReplicateGenerator(...)</code> still defaults to
+<code>"contact"</code>; <strong><code>ReplicateGenerator.from_coordinates</code> now defaults to
+<code>network_mode="mechanical"</code></strong> (<code>network_radius</code> is ignored unless the mode is
+<code>"radius"</code>). Pass <code>network_mode="radius", network_radius=20.0</code> to reproduce the
+earlier behaviour. <code>interaction_factor</code> is accepted by <code>ReplicateGenerator</code>,
+<code>from_coordinates</code>, <code>load_target_statistics_from_tissue</code> and
+<code>load_target_statistics_from_coordinates</code>.</p>
+<p>Targets and replicates must be measured with the same rule.
+<code>TargetStatistics.network_rule</code> records the rule
+(<code>{"mode", "radius", "interaction_factor"}</code>, <code>None</code> for CSV tables) and
+<code>ReplicateGenerator</code> warns when it differs from its own <code>network_rule</code>.</p>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Target-based generation</strong>: Generate tissues matching specified spatial statistics</li>
@@ -2882,25 +2952,56 @@ and <code>ReplicateGenerator(..., method="graph_coloring", density_model=model)<
   below the smoothing bandwidth. Use it for regions flagged <code>"trend"</code> or
   <code>"patch_length_at_upper_bound"</code>, where resampling assumes a stationarity
   the region does not have.</li>
-<li><strong><code>composition_weight</code></strong> (default 4.0) scales the composition term, which is
-  multiplied by the squared mean degree of each replicate graph. Larger values
-  trade pair-fraction accuracy for composition accuracy.</li>
+<li><strong><code>composition_weight</code></strong> scales the composition term. Under the legacy
+  strategy it is multiplied by the squared mean degree of each replicate graph
+  (default 4.0, unchanged). Under <code>strategy="adaptive"</code> the term is calibrated
+  per replicate so the value is its size relative to the edge-count term for a
+  shuffled labeling (default 1.0; a multi-seed sweep on twelve synthetic
+  scenarios showed 4.0 over-constrains strongly clustered samples under the
+  mechanical graph). Larger values trade pair-fraction accuracy for
+  composition accuracy.</li>
 <li>Regions that are no more heterogeneous than a uniform packing
   (<code>model.homogeneous</code>) get uniform layouts.</li>
 <li>For a 2D source, use a thin slab (thickness about 1 µm) so replicate graphs
   stay planar.</li>
 </ul>
+<h4 id="adaptive-strategy-opt-in">Adaptive strategy (opt-in)<a class="headerlink" href="#adaptive-strategy-opt-in" title="Permanent link">&para;</a></h4>
+<p><code>strategy="legacy"</code> is the default and reproduces earlier releases exactly;
+switching the default is a separate reviewed change. <code>strategy="adaptive"</code>
+fits the model with data-derived bandwidths, per-type bandwidths and a
+planar/radial organization trend, uses multi-scale composition targets and a
+size-compatibility term, and records fidelity diagnostics.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">gen</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="o">.</span><span class="n">from_coordinates</span><span class="p">(</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="s2">"region.csv"</span><span class="p">,</span> <span class="n">network_mode</span><span class="o">=</span><span class="s2">"radius"</span><span class="p">,</span> <span class="n">network_radius</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s2">"adaptive"</span><span class="p">,</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">tissue</span><span class="p">,</span> <span class="n">stats</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">generate_single_replicate</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">stats</span><span class="o">.</span><span class="n">layout_organization</span><span class="p">,</span> <span class="n">stats</span><span class="o">.</span><span class="n">fidelity</span><span class="p">[</span><span class="s2">"size_ks_by_type"</span><span class="p">])</span>
+</code></pre></div>
+<p>Keyword-only generator options: <code>strategy</code>, <code>composition_scales</code> (list of bin
+sides in µm; default <code>"auto"</code> under adaptive), <code>composition_weight</code>,
+<code>size_weight</code> (default 1.0 adaptive, 0 legacy), <code>diagnostics</code> (default on for
+adaptive), <code>max_proposals</code> (organization re-draws, default 20).
+<code>DensityModel.fit</code> accepts <code>strategy</code>, <code>bandwidth_range</code> (<code>(lo, hi)</code>, <code>"auto"</code>
+or None), <code>per_type_bandwidth</code> and <code>organization</code>. It also takes <code>voids</code> (<code>"auto"</code>/<code>"none"</code>; default <code>"auto"</code> under
+adaptive): lumens and holes in the source are inferred and re-placed in each
+layout, reported as <code>layout_voids</code> on the replicate statistics. <code>units</code> (<code>"auto"</code>/<code>"none"</code>;
+default <code>"auto"</code> under adaptive) detects compact units (nests, follicles, glomeruli) by persistent
+homology and re-places them as germ-grain units with fitted radial profiles; they appear as
+<code>layout_units</code> and take precedence over voids inside them and over a radial trend centered in a
+unit. Criteria and limits are in
+<a href="../../notes/density-aware-packing/">the design notes</a>.</p>
 <p>Design, ablations and known limits are in
 <a href="../../notes/density-aware-packing/">the design notes</a>.</p>
 <h3 id="measuring-consistency">Measuring consistency<a class="headerlink" href="#measuring-consistency" title="Permanent link">&para;</a></h3>
 <p><code>consistency_report</code> quantifies run-to-run variability and compares methods
 (via the <code>power_analysis</code> module), so you can <em>prove</em> an approach is more
 consistent:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">report</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">consistency_report</span><span class="p">({</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="s2">"radius_tuning"</span><span class="p">:</span> <span class="n">radius_replicates</span><span class="p">,</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="s2">"graph_coloring"</span><span class="p">:</span> <span class="n">colored_replicates</span><span class="p">,</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">})</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1"># report["per_method"][name] -&gt; {n, mean, std, cv};  report["pairwise"] -&gt; Cohen's d, required N</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">report</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">consistency_report</span><span class="p">({</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="s2">"radius_tuning"</span><span class="p">:</span> <span class="n">radius_replicates</span><span class="p">,</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="s2">"graph_coloring"</span><span class="p">:</span> <span class="n">colored_replicates</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">})</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># report["per_method"][name] -&gt; {n, mean, std, cv};  report["pairwise"] -&gt; Cohen's d, required N</span>
 </code></pre></div>
 <p>Note: the coefficient of variation is <code>std/|mean|</code> and inflates when the mean
 sits near zero (a method matching the target almost perfectly), so read <code>cv</code>
@@ -2918,56 +3019,56 @@ distributions, and cluster processes (Matérn / Thomas / log-Gaussian Cox) for
 clustered arrangements.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
 <p>The replicate generator requires pandas and NetworkX:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span>pandas<span class="w"> </span>networkx
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>pandas<span class="w"> </span>networkx
 </code></pre></div>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
 <h3 id="generate-from-existing-tissue">Generate from Existing Tissue<a class="headerlink" href="#generate-from-existing-tissue" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">TissueSection</span><span class="p">,</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">load_target_statistics_from_tissue</span><span class="p">,</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">ReplicateGenerator</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="p">)</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Create reference tissue</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">reference</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> 
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>                         <span class="n">cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">'type_b'</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)})</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">reference</span><span class="o">.</span><span class="n">generate_cells</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="c1"># Extract spatial statistics</span>
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_target_statistics_from_tissue</span><span class="p">(</span>
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="n">reference</span><span class="p">,</span> 
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="p">)</span>
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="c1"># Setup generator</span>
-<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
-<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
-<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
-<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">'type_b'</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
-<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
-<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="p">)</span>
-<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>
-<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="c1"># Generate replicates</span>
-<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">TissueSection</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">load_target_statistics_from_tissue</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">ReplicateGenerator</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="p">)</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Create reference tissue</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">reference</span> <span class="o">=</span> <span class="n">TissueSection</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">,</span> 
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>                         <span class="n">cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">'type_b'</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)})</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">reference</span><span class="o">.</span><span class="n">generate_cells</span><span class="p">(</span><span class="n">max_attempts</span><span class="o">=</span><span class="mi">1000</span><span class="p">)</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="c1"># Extract spatial statistics</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_target_statistics_from_tissue</span><span class="p">(</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="n">reference</span><span class="p">,</span> 
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="p">)</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="c1"># Setup generator</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">'type_b'</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="p">)</span>
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a>
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="c1"># Generate replicates</span>
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="generate-from-csv-file">Generate from CSV File<a class="headerlink" href="#generate-from-csv-file" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">load_target_statistics_from_csv</span><span class="p">,</span>
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">ReplicateGenerator</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="p">)</span>
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="c1"># Load target statistics from CSV</span>
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_target_statistics_from_csv</span><span class="p">(</span><span class="s2">"statistics.csv"</span><span class="p">)</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="c1"># Setup and generate</span>
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
-<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
-<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
-<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">'type_b'</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
-<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
-<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="p">)</span>
-<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
-<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">load_target_statistics_from_csv</span><span class="p">,</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">ReplicateGenerator</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">)</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c1"># Load target statistics from CSV</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_target_statistics_from_csv</span><span class="p">(</span><span class="s2">"statistics.csv"</span><span class="p">)</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="c1"># Setup and generate</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">'type_b'</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="p">)</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="generate-from-a-coordinate-csv">Generate from a Coordinate CSV<a class="headerlink" href="#generate-from-a-coordinate-csv" title="Permanent link">&para;</a></h3>
 <p><code>load_target_statistics_from_csv</code> (above) expects a <em>precomputed interaction
@@ -2977,26 +3078,26 @@ from another tool to the <code>export_to_csv</code> schema (<code>x, y, z, radiu
 is_boundary</code>) — use <code>load_target_statistics_from_coordinates</code>, which returns a
 <em>fully populated</em> <code>TargetStatistics</code> (interactions <strong>plus</strong> proportions and
 density). Added in v0.1.7.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    <span class="n">load_target_statistics_from_coordinates</span><span class="p">,</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">ReplicateGenerator</span><span class="p">,</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="p">)</span>
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="c1"># Full statistics straight from a coordinate CSV.</span>
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_target_statistics_from_coordinates</span><span class="p">(</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>    <span class="s2">"cells.csv"</span><span class="p">,</span>
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"radius"</span><span class="p">,</span>
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span>
-<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="p">)</span>
-<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
-<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
-<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
-<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">'type_b'</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
-<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"radius"</span><span class="p">,</span>
-<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span>
-<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="p">)</span>
-<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="n">load_target_statistics_from_coordinates</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">ReplicateGenerator</span><span class="p">,</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">)</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># Full statistics straight from a coordinate CSV.</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="n">target_stats</span> <span class="o">=</span> <span class="n">load_target_statistics_from_coordinates</span><span class="p">(</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="s2">"cells.csv"</span><span class="p">,</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"radius"</span><span class="p">,</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="p">)</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">12</span><span class="p">),</span> <span class="s1">'type_b'</span><span class="p">:</span> <span class="p">(</span><span class="mi">5</span><span class="p">,</span> <span class="mi">8</span><span class="p">)},</span>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"radius"</span><span class="p">,</span>
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="mf">20.0</span><span class="p">,</span>
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="p">)</span>
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span><span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 </code></pre></div>
 <p>It is exactly equivalent to
 <code>load_target_statistics_from_tissue(load_tissue_from_csv(path), ...)</code>; reach for
@@ -3004,13 +3105,13 @@ it when your source is coordinates rather than an interaction table. See
 <a href="../core/"><code>core.md</code></a> for <code>load_tissue_from_csv</code> and <code>TissueSection.from_cells</code>.</p>
 <h2 id="csv-format-for-target-statistics">CSV Format for Target Statistics<a class="headerlink" href="#csv-format-for-target-statistics" title="Permanent link">&para;</a></h2>
 <p>The CSV file should contain interaction statistics with these columns:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>type_a,type_b,num_interactions,normalized_interactions,avg_distance,median_distance
-<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cancer,cancer,45,0.12,0.0,0.0
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>cancer,immune,38,0.15,0.0,0.0
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>cancer,fibroblast,42,0.14,0.0,0.0
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>immune,immune,28,0.18,0.0,0.0
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>immune,fibroblast,35,0.16,0.0,0.0
-<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>fibroblast,fibroblast,30,0.11,0.0,0.0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>type_a,type_b,num_interactions,normalized_interactions,avg_distance,median_distance
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>cancer,cancer,45,0.12,0.0,0.0
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>cancer,immune,38,0.15,0.0,0.0
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>cancer,fibroblast,42,0.14,0.0,0.0
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>immune,immune,28,0.18,0.0,0.0
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>immune,fibroblast,35,0.16,0.0,0.0
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>fibroblast,fibroblast,30,0.11,0.0,0.0
 </code></pre></div>
 <p><strong>Required columns:</strong>
 - <code>type_a</code>: First cell type
@@ -3030,23 +3131,23 @@ it when your source is coordinates rather than an interaction table. See
 <h2 id="core-classes">Core Classes<a class="headerlink" href="#core-classes" title="Permanent link">&para;</a></h2>
 <h3 id="targetstatistics">TargetStatistics<a class="headerlink" href="#targetstatistics" title="Permanent link">&para;</a></h3>
 <p>Defines the spatial patterns to match:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TargetStatistics</span><span class="p">,</span> <span class="n">InteractionStatistics</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">target</span> <span class="o">=</span> <span class="n">TargetStatistics</span><span class="p">(</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">interaction_stats</span><span class="o">=</span><span class="p">[</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>        <span class="n">InteractionStatistics</span><span class="p">(</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>            <span class="n">type_a</span><span class="o">=</span><span class="s1">'cancer'</span><span class="p">,</span>
-<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>            <span class="n">type_b</span><span class="o">=</span><span class="s1">'immune'</span><span class="p">,</span>
-<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>            <span class="n">num_interactions</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
-<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>            <span class="n">normalized_interactions</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span>
-<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>            <span class="n">avg_distance</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
-<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>            <span class="n">median_distance</span><span class="o">=</span><span class="mf">0.0</span>
-<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>        <span class="p">)</span>
-<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    <span class="p">],</span>
-<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>    <span class="n">cell_type_proportions</span><span class="o">=</span><span class="p">{</span><span class="s1">'cancer'</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span> <span class="s1">'immune'</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">},</span>
-<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a>    <span class="n">target_cell_count</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
-<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a>    <span class="n">target_density</span><span class="o">=</span><span class="mf">0.45</span>
-<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">TargetStatistics</span><span class="p">,</span> <span class="n">InteractionStatistics</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="n">target</span> <span class="o">=</span> <span class="n">TargetStatistics</span><span class="p">(</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">interaction_stats</span><span class="o">=</span><span class="p">[</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>        <span class="n">InteractionStatistics</span><span class="p">(</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>            <span class="n">type_a</span><span class="o">=</span><span class="s1">'cancer'</span><span class="p">,</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>            <span class="n">type_b</span><span class="o">=</span><span class="s1">'immune'</span><span class="p">,</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>            <span class="n">num_interactions</span><span class="o">=</span><span class="mi">40</span><span class="p">,</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>            <span class="n">normalized_interactions</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>            <span class="n">avg_distance</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>            <span class="n">median_distance</span><span class="o">=</span><span class="mf">0.0</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>        <span class="p">)</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>    <span class="p">],</span>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>    <span class="n">cell_type_proportions</span><span class="o">=</span><span class="p">{</span><span class="s1">'cancer'</span><span class="p">:</span> <span class="mf">0.6</span><span class="p">,</span> <span class="s1">'immune'</span><span class="p">:</span> <span class="mf">0.4</span><span class="p">},</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>    <span class="n">target_cell_count</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>    <span class="n">target_density</span><span class="o">=</span><span class="mf">0.45</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="p">)</span>
 </code></pre></div>
 <p><strong>Attributes:</strong>
 - <code>interaction_stats</code>: List of InteractionStatistics objects
@@ -3055,34 +3156,34 @@ it when your source is coordinates rather than an interaction table. See
 - <code>target_density</code>: Target packing fraction (optional)</p>
 <h3 id="replicategenerator">ReplicateGenerator<a class="headerlink" href="#replicategenerator" title="Permanent link">&para;</a></h3>
 <p>Main class for generating tissue replicates:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">thickness</span><span class="p">),</span>
-<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="n">min_r</span><span class="p">,</span> <span class="n">max_r</span><span class="p">),</span> <span class="o">...</span><span class="p">},</span>
-<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">,</span>  <span class="c1"># or "radius"</span>
-<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>     <span class="c1"># required if mode="radius"</span>
-<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>               <span class="c1"># for reproducibility</span>
-<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="n">method</span><span class="o">=</span><span class="s2">"radius_tuning"</span><span class="p">,</span>  <span class="c1"># or "graph_coloring"</span>
-<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>    <span class="n">density_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>      <span class="c1"># DensityModel: density-aware scaffold (graph_coloring only)</span>
-<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="n">layout</span><span class="o">=</span><span class="s2">"resample"</span><span class="p">,</span>       <span class="c1"># or "copy"; used with density_model</span>
-<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>    <span class="n">composition_weight</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span>  <span class="c1"># composition term weight (times squared mean degree)</span>
-<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>    <span class="n">composition_bin</span><span class="o">=</span><span class="mf">40.0</span><span class="p">,</span>    <span class="c1"># composition bin side in µm</span>
-<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>    <span class="n">packing_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>     <span class="c1"># extra InhomogeneousPacker arguments</span>
-<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">thickness</span><span class="p">),</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="p">{</span><span class="s1">'type_a'</span><span class="p">:</span> <span class="p">(</span><span class="n">min_r</span><span class="p">,</span> <span class="n">max_r</span><span class="p">),</span> <span class="o">...</span><span class="p">},</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">,</span>  <span class="c1"># or "radius"</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">network_radius</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>     <span class="c1"># required if mode="radius"</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">seed</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>               <span class="c1"># for reproducibility</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>    <span class="n">method</span><span class="o">=</span><span class="s2">"radius_tuning"</span><span class="p">,</span>  <span class="c1"># or "graph_coloring"</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="n">density_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>      <span class="c1"># DensityModel: density-aware scaffold (graph_coloring only)</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    <span class="n">layout</span><span class="o">=</span><span class="s2">"resample"</span><span class="p">,</span>       <span class="c1"># or "copy"; used with density_model</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>    <span class="n">composition_weight</span><span class="o">=</span><span class="mf">4.0</span><span class="p">,</span>  <span class="c1"># composition term weight (times squared mean degree)</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    <span class="n">composition_bin</span><span class="o">=</span><span class="mf">40.0</span><span class="p">,</span>    <span class="c1"># composition bin side in µm</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>    <span class="n">packing_params</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>     <span class="c1"># extra InhomogeneousPacker arguments</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="p">)</span>
 </code></pre></div>
 <p><code>ReplicateGenerator.from_coordinates(path, ...)</code> builds a density-aware
 generator directly from a coordinate CSV; see
 <a href="#density-aware-scaffolds">Density-aware scaffolds</a>.</p>
 <p><strong>Key Methods:</strong></p>
 <h4 id="generate_single_replicate">generate_single_replicate()<a class="headerlink" href="#generate_single_replicate" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">tissue</span><span class="p">,</span> <span class="n">stats</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_single_replicate</span><span class="p">(</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="n">replicate_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="n">allow_boundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.15</span>
-<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">tissue</span><span class="p">,</span> <span class="n">stats</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_single_replicate</span><span class="p">(</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="n">replicate_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="n">allow_boundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.15</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="p">)</span>
 </code></pre></div>
 <p>Generates a single replicate with iterative parameter adjustment.</p>
 <p><strong>Parameters:</strong>
@@ -3096,28 +3197,28 @@ generator directly from a coordinate CSV; see
 - <code>tissue</code>: TissueSection object
 - <code>stats</code>: ReplicateStatistics object</p>
 <h4 id="generate_replicates">generate_replicates()<a class="headerlink" href="#generate_replicates" title="Permanent link">&para;</a></h4>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
-<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="n">allow_boundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.15</span>
-<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="n">min_spacing</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="n">allow_boundary</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.15</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="p">)</span>
 </code></pre></div>
 <p>Generates multiple replicates.</p>
 <p><strong>Returns:</strong>
 - List of (TissueSection, ReplicateStatistics) tuples</p>
 <h3 id="replicatestatistics">ReplicateStatistics<a class="headerlink" href="#replicatestatistics" title="Permanent link">&para;</a></h3>
 <p>Contains statistics for a generated replicate:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">ReplicateStatistics</span><span class="p">(</span>
-<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>    <span class="n">replicate_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="n">num_cells</span><span class="o">=</span><span class="mi">195</span><span class="p">,</span>
-<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>    <span class="n">cell_type_counts</span><span class="o">=</span><span class="p">{</span><span class="s1">'cancer'</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span> <span class="s1">'immune'</span><span class="p">:</span> <span class="mi">75</span><span class="p">},</span>
-<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="n">packing_fraction</span><span class="o">=</span><span class="mf">0.438</span><span class="p">,</span>
-<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="n">interaction_stats</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>
-<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="n">divergence_score</span><span class="o">=</span><span class="mf">0.083</span>
-<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">ReplicateStatistics</span><span class="p">(</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="n">replicate_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="n">num_cells</span><span class="o">=</span><span class="mi">195</span><span class="p">,</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="n">cell_type_counts</span><span class="o">=</span><span class="p">{</span><span class="s1">'cancer'</span><span class="p">:</span> <span class="mi">120</span><span class="p">,</span> <span class="s1">'immune'</span><span class="p">:</span> <span class="mi">75</span><span class="p">},</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="n">packing_fraction</span><span class="o">=</span><span class="mf">0.438</span><span class="p">,</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="n">interaction_stats</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="n">divergence_score</span><span class="o">=</span><span class="mf">0.083</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="p">)</span>
 </code></pre></div>
 <p><strong>Attributes:</strong>
 - <code>replicate_id</code>: Unique identifier
@@ -3131,16 +3232,36 @@ generator directly from a coordinate CSV; see
 - <code>composition_error</code>: Fraction of cells whose type would have to move between
   composition bins to match the layout (density-aware replicates only)
 - <code>layout_flags</code>: Layout mode (for example <code>"mode:resample"</code>) followed by the
-  density model's flags (density-aware replicates only)</p>
+  density model's flags (density-aware replicates only)
+- <code>requested_cell_type_counts</code>, <code>achieved_cell_type_counts</code>: per-type cell
+  quota from the layout and final counts (density-aware replicates)
+- <code>layout_organization</code>: the layout's organization dict (<code>model</code>, <code>geometry</code>,
+  <code>direction</code>/<code>center</code>, <code>proposals_tried</code>, <code>accepted</code>, <code>fallback</code>)
+- <code>layout_voids</code>: placed voids of the layout (<code>centers</code>, <code>radii</code>, <code>n_requested</code>,
+  <code>n_placed</code>, <code>anchored</code>); None when the model has none
+- <code>layout_units</code>: placed units of the layout (<code>centers</code>, <code>outer_radii</code>,
+  <code>inner_radii</code>, <code>kinds</code>, <code>n_requested</code>, <code>n_placed</code>, <code>shortfall</code>, <code>anchored</code>);
+  None when the model has none
+- <code>fidelity</code>: diagnostics against the source (<code>size_nll</code>, <code>size_ks_by_type</code>,
+  <code>nn_distance_quantiles</code>, <code>mixing_index</code>, <code>organization_rmse</code>,
+  <code>interface_fraction</code>, <code>n_components</code>, <code>n_holes</code>, <code>persistence_distance</code>
+  per type: H0 Wasserstein-1 of source vs replicate KDE maps); None unless
+  <code>diagnostics</code> is on. Evidence, not calibrated intervals.
+- <code>separation</code>: nearest-neighbor <code>clearance_quantiles</code>,
+  <code>normalized_distance_quantiles</code> and <code>n_nearest_neighbour</code></p>
+<p><code>packing_report</code> (<code>PackingReport.to_dict()</code>) also carries <code>bin_shortfall</code>,
+<code>quota_floor</code>, <code>quota_floor_source</code> (<code>"layout"</code> or <code>"legacy"</code>),
+<code>clearance_quantiles</code>, <code>normalized_distance_quantiles</code> and
+<code>dense_bin_fraction_short</code>.</p>
 <h2 id="export-functions">Export Functions<a class="headerlink" href="#export-functions" title="Permanent link">&para;</a></h2>
 <h3 id="export-statistics">Export Statistics<a class="headerlink" href="#export-statistics" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">generator</span><span class="o">.</span><span class="n">export_replicate_statistics</span><span class="p">(</span><span class="n">replicates</span><span class="p">,</span> <span class="s2">"output/stats"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">generator</span><span class="o">.</span><span class="n">export_replicate_statistics</span><span class="p">(</span><span class="n">replicates</span><span class="p">,</span> <span class="s2">"output/stats"</span><span class="p">)</span>
 </code></pre></div>
 <p>Creates two CSV files:
 - <code>output/stats_summary.csv</code>: Overall replicate statistics
 - <code>output/stats_interactions.csv</code>: Detailed interaction data</p>
 <h3 id="export-tissues">Export Tissues<a class="headerlink" href="#export-tissues" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">generator</span><span class="o">.</span><span class="n">export_replicate_tissues</span><span class="p">(</span><span class="n">replicates</span><span class="p">,</span> <span class="s2">"output/tissues"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">generator</span><span class="o">.</span><span class="n">export_replicate_tissues</span><span class="p">(</span><span class="n">replicates</span><span class="p">,</span> <span class="s2">"output/tissues"</span><span class="p">)</span>
 </code></pre></div>
 <p>Creates individual CSV files:
 - <code>output/tissues/replicate_000_tissue.csv</code>
@@ -3158,7 +3279,7 @@ generator directly from a coordinate CSV; see
 </ol>
 <h3 id="divergence-metric">Divergence Metric<a class="headerlink" href="#divergence-metric" title="Permanent link">&para;</a></h3>
 <p>Divergence is calculated as the mean relative difference in normalized interactions:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>divergence = mean(|measured - target| / target)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>divergence = mean(|measured - target| / target)
 </code></pre></div>
 <p>Lower values indicate better matches to target statistics.</p>
 <h3 id="parameter-adjustment">Parameter Adjustment<a class="headerlink" href="#parameter-adjustment" title="Permanent link">&para;</a></h3>
@@ -3167,34 +3288,34 @@ generator directly from a coordinate CSV; see
 - <strong>Sampling</strong>: Biased toward under-represented types</p>
 <h2 id="advanced-usage">Advanced Usage<a class="headerlink" href="#advanced-usage" title="Permanent link">&para;</a></h2>
 <h3 id="custom-optimization">Custom Optimization<a class="headerlink" href="#custom-optimization" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># More aggressive optimization</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="n">num_replicates</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>        <span class="c1"># More packing attempts</span>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>        <span class="c1"># More optimization steps</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.05</span>            <span class="c1"># Stricter tolerance</span>
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># More aggressive optimization</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="n">num_replicates</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="n">max_attempts</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>        <span class="c1"># More packing attempts</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>        <span class="c1"># More optimization steps</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="n">tolerance</span><span class="o">=</span><span class="mf">0.05</span>            <span class="c1"># Stricter tolerance</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="p">)</span>
 </code></pre></div>
 <h3 id="reproducibility">Reproducibility<a class="headerlink" href="#reproducibility" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Use seed for reproducible results</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="n">cell_radii</span><span class="p">,</span>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">,</span>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span>  <span class="c1"># Reproducible</span>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Use seed for reproducible results</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>    <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>    <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>    <span class="n">base_cell_radii</span><span class="o">=</span><span class="n">cell_radii</span><span class="p">,</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>    <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">,</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>    <span class="n">seed</span><span class="o">=</span><span class="mi">42</span>  <span class="c1"># Reproducible</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="p">)</span>
 </code></pre></div>
 <h3 id="network-modes">Network Modes<a class="headerlink" href="#network-modes" title="Permanent link">&para;</a></h3>
 <p><strong>Contact Mode</strong> (default):
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
 </code></pre></div>
 - Connects cells that are touching
 - Best for direct cell-cell interactions
 - Faster computation</p>
 <p><strong>Radius Mode</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">network_mode</span><span class="o">=</span><span class="s2">"radius"</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">network_radius</span><span class="o">=</span><span class="mf">30.0</span>  <span class="c1"># micrometers</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">network_mode</span><span class="o">=</span><span class="s2">"radius"</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">network_radius</span><span class="o">=</span><span class="mf">30.0</span>  <span class="c1"># micrometers</span>
 </code></pre></div>
 - Connects cells within distance
 - Captures proximity effects
@@ -3205,41 +3326,47 @@ generator directly from a coordinate CSV; see
 <ol>
 <li>
 <p><strong>Load statistics</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>load_target_statistics(csv_filepath="stats.csv")
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>load_target_statistics(csv_filepath="stats.csv")
 </code></pre></div>
 or
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>load_target_statistics(use_current_tissue=True)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>load_target_statistics(use_current_tissue=True)
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Setup generator</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>setup_replicate_generator(
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>    height=400,
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>    width=400,
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>    thickness=100,
-<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>    cell_radii={"cancer": [8, 12], "immune": [5, 8]}
-<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>setup_replicate_generator(
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    height=400,
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    width=400,
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    thickness=100,
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>    cell_radii={"cancer": [8, 12], "immune": [5, 8]}
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>)
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Generate replicates</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>generate_replicates(
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>    num_replicates=5,
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>    tolerance=0.15
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>generate_replicates(
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>    num_replicates=5,
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>    tolerance=0.15
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>)
 </code></pre></div></p>
 </li>
 <li>
 <p><strong>Export results</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>export_replicate_statistics(base_filename="output")
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>export_replicate_tissues(output_dir="tissues")
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>export_replicate_statistics(base_filename="output")
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>export_replicate_tissues(output_dir="tissues")
 </code></pre></div></p>
 </li>
-<li>
-<p><strong>Get summary</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>get_replicate_summary()
-</code></pre></div></p>
-</li>
+</ol>
+<p>For a density-aware scaffold add <code>density_layout</code> (<code>"resample"</code> or
+   <code>"copy"</code>, needs source coordinates loaded with
+   <code>load_target_statistics_from_coordinates</code>) and optionally <code>strategy</code>
+   (<code>"legacy"</code> default or <code>"adaptive"</code>), <code>diagnostics</code>, <code>composition_weight</code>
+   and <code>size_weight</code>. The result echoes <code>strategy</code> and <code>diagnostics</code>; adaptive
+   fits the source model with <code>strategy="adaptive"</code>.</p>
+<ol>
+<li><strong>Get summary</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>get_replicate_summary()
+</code></pre></div></li>
 </ol>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <h3 id="example-1-match-existing-tissue">Example 1: Match Existing Tissue<a class="headerlink" href="#example-1-match-existing-tissue" title="Permanent link">&para;</a></h3>
@@ -3247,24 +3374,24 @@ or
 <h3 id="example-2-load-from-csv">Example 2: Load from CSV<a class="headerlink" href="#example-2-load-from-csv" title="Permanent link">&para;</a></h3>
 <p>See <code>examples/replicate_from_csv_example.py</code></p>
 <h3 id="example-3-batch-analysis">Example 3: Batch Analysis<a class="headerlink" href="#example-3-batch-analysis" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Generate multiple batches with different parameters</span>
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="k">for</span> <span class="n">tolerance</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.10</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.20</span><span class="p">]:</span>
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>    <span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
-<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a>        <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
-<a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>        <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
-<a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>        <span class="n">base_cell_radii</span><span class="o">=</span><span class="n">cell_radii</span><span class="p">,</span>
-<a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a>        <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
-<a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a>    <span class="p">)</span>
-<a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a>
-<a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a>    <span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span>
-<a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a>        <span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-<a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a>        <span class="n">tolerance</span><span class="o">=</span><span class="n">tolerance</span>
-<a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a>    <span class="p">)</span>
-<a id="__codelineno-26-14" name="__codelineno-26-14" href="#__codelineno-26-14"></a>
-<a id="__codelineno-26-15" name="__codelineno-26-15" href="#__codelineno-26-15"></a>    <span class="n">generator</span><span class="o">.</span><span class="n">export_replicate_statistics</span><span class="p">(</span>
-<a id="__codelineno-26-16" name="__codelineno-26-16" href="#__codelineno-26-16"></a>        <span class="n">replicates</span><span class="p">,</span> 
-<a id="__codelineno-26-17" name="__codelineno-26-17" href="#__codelineno-26-17"></a>        <span class="sa">f</span><span class="s2">"output/tolerance_</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">tolerance</span><span class="o">*</span><span class="mi">100</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
-<a id="__codelineno-26-18" name="__codelineno-26-18" href="#__codelineno-26-18"></a>    <span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># Generate multiple batches with different parameters</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="k">for</span> <span class="n">tolerance</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.05</span><span class="p">,</span> <span class="mf">0.10</span><span class="p">,</span> <span class="mf">0.15</span><span class="p">,</span> <span class="mf">0.20</span><span class="p">]:</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>    <span class="n">generator</span> <span class="o">=</span> <span class="n">ReplicateGenerator</span><span class="p">(</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>        <span class="n">target_stats</span><span class="o">=</span><span class="n">target_stats</span><span class="p">,</span>
+<a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>        <span class="n">tissue_dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">100</span><span class="p">),</span>
+<a id="__codelineno-27-6" name="__codelineno-27-6" href="#__codelineno-27-6"></a>        <span class="n">base_cell_radii</span><span class="o">=</span><span class="n">cell_radii</span><span class="p">,</span>
+<a id="__codelineno-27-7" name="__codelineno-27-7" href="#__codelineno-27-7"></a>        <span class="n">network_mode</span><span class="o">=</span><span class="s2">"contact"</span>
+<a id="__codelineno-27-8" name="__codelineno-27-8" href="#__codelineno-27-8"></a>    <span class="p">)</span>
+<a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a>
+<a id="__codelineno-27-10" name="__codelineno-27-10" href="#__codelineno-27-10"></a>    <span class="n">replicates</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_replicates</span><span class="p">(</span>
+<a id="__codelineno-27-11" name="__codelineno-27-11" href="#__codelineno-27-11"></a>        <span class="n">num_replicates</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<a id="__codelineno-27-12" name="__codelineno-27-12" href="#__codelineno-27-12"></a>        <span class="n">tolerance</span><span class="o">=</span><span class="n">tolerance</span>
+<a id="__codelineno-27-13" name="__codelineno-27-13" href="#__codelineno-27-13"></a>    <span class="p">)</span>
+<a id="__codelineno-27-14" name="__codelineno-27-14" href="#__codelineno-27-14"></a>
+<a id="__codelineno-27-15" name="__codelineno-27-15" href="#__codelineno-27-15"></a>    <span class="n">generator</span><span class="o">.</span><span class="n">export_replicate_statistics</span><span class="p">(</span>
+<a id="__codelineno-27-16" name="__codelineno-27-16" href="#__codelineno-27-16"></a>        <span class="n">replicates</span><span class="p">,</span> 
+<a id="__codelineno-27-17" name="__codelineno-27-17" href="#__codelineno-27-17"></a>        <span class="sa">f</span><span class="s2">"output/tolerance_</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">tolerance</span><span class="o">*</span><span class="mi">100</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+<a id="__codelineno-27-18" name="__codelineno-27-18" href="#__codelineno-27-18"></a>    <span class="p">)</span>
 </code></pre></div>
 <h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
 <h3 id="generation-time">Generation Time<a class="headerlink" href="#generation-time" title="Permanent link">&para;</a></h3>

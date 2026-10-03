@@ -1,7 +1,7 @@
 {
   "version": "1",
   "metadata": {
-    "marimo_version": "0.24.2",
+    "marimo_version": "0.25.1",
     "script_metadata_hash": null
   },
   "cells": [
@@ -72,7 +72,7 @@
         {
           "type": "stream",
           "name": "stdout",
-          "text": "tissue_simulator 0.1.17\n",
+          "text": "tissue_simulator 0.1.18\n",
           "mimetype": "text/plain"
         }
       ]

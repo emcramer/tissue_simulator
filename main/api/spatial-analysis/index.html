@@ -854,6 +854,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#mechanical-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mechanical Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#radius-mode" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2009,6 +2020,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#mechanical-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mechanical Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#radius-mode" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2475,9 +2497,26 @@
 - Direct cell-cell contact
 - Adhesion-based interactions
 - Physical touching relationships</p>
+<h3 id="mechanical-mode">Mechanical Mode<a class="headerlink" href="#mechanical-mode" title="Permanent link">&para;</a></h3>
+<p>Size-aware neighbour rule modelled on PhysiCell's mechanics interaction
+distance (1.5 x cell radius): cells i and j are neighbours iff
+<code>d &lt;= interaction_factor * (r_i + r_j)</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"mechanical"</span><span class="p">)</span>  <span class="c1"># factor 1.5</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"mechanical"</span><span class="p">,</span> <span class="n">interaction_factor</span><span class="o">=</span><span class="mf">2.0</span><span class="p">)</span>
+</code></pre></div>
+<ul>
+<li><code>interaction_factor</code> defaults to <code>MECHANICAL_INTERACTION_FACTOR</code> (1.5). With
+  factor 1.01 the graph equals the <code>"contact"</code> graph; larger factors give
+  supersets. Works for 3D tissues and 2D slices.</li>
+<li>Every graph records its rule in
+  <code>graph.graph["network_rule"] = {"mode", "radius", "interaction_factor"}</code>
+  (<code>interaction_factor</code> is <code>None</code> unless the mode is <code>"mechanical"</code>).</li>
+<li>Use the <strong>identical rule</strong> for source target statistics and replicates;
+  statistics from different rules are not comparable.</li>
+</ul>
 <h3 id="radius-mode">Radius Mode<a class="headerlink" href="#radius-mode" title="Permanent link">&para;</a></h3>
 <p>Connects cells within a specified distance:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"radius"</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"radius"</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
 </code></pre></div>
 <p><strong>Parameters:</strong>
 - <code>radius</code>: Distance threshold in micrometers</p>
@@ -2490,7 +2529,7 @@
 - Neighborhood analysis</p>
 <h2 id="statistics">Statistics<a class="headerlink" href="#statistics" title="Permanent link">&para;</a></h2>
 <h3 id="global-network-statistics">Global Network Statistics<a class="headerlink" href="#global-network-statistics" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">compute_global_statistics</span><span class="p">()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">compute_global_statistics</span><span class="p">()</span>
 </code></pre></div>
 <p><strong>Returns NetworkStatistics with:</strong>
 - <code>total_nodes</code>: Number of cells
@@ -2504,13 +2543,13 @@
 - <code>is_connected</code>: Whether network is fully connected
 - <code>num_components</code>: Number of connected components</p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Cells: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_nodes</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Contacts: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_edges</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Avg contacts per cell: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_degree</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Clustering: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_clustering</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Cells: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_nodes</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Contacts: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">total_edges</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Avg contacts per cell: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_degree</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Clustering: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_clustering</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div></p>
 <h3 id="cell-type-statistics">Cell Type Statistics<a class="headerlink" href="#cell-type-statistics" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">type_stats</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">compute_cell_type_statistics</span><span class="p">()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">type_stats</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">compute_cell_type_statistics</span><span class="p">()</span>
 </code></pre></div>
 <p><strong>Returns dict mapping cell type to CellTypeStatistics:</strong>
 - <code>cell_type</code>: Cell type name
@@ -2521,14 +2560,14 @@
 - <code>betweenness_centrality</code>: Betweenness centrality
 - <code>closeness_centrality</code>: Closeness centrality</p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">for</span> <span class="n">cell_type</span><span class="p">,</span> <span class="n">stats</span> <span class="ow">in</span> <span class="n">type_stats</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">cell_type</span><span class="si">}</span><span class="s2">:"</span><span class="p">)</span>
-<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Count: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">count</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Avg degree: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_degree</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Clustering: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_clustering</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">for</span> <span class="n">cell_type</span><span class="p">,</span> <span class="n">stats</span> <span class="ow">in</span> <span class="n">type_stats</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">cell_type</span><span class="si">}</span><span class="s2">:"</span><span class="p">)</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Count: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">count</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Avg degree: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_degree</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Clustering: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_clustering</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div></p>
 <h3 id="interaction-statistics">Interaction Statistics<a class="headerlink" href="#interaction-statistics" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">interactions</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">compute_interaction_statistics</span><span class="p">()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="n">interactions</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">compute_interaction_statistics</span><span class="p">()</span>
 </code></pre></div>
 <p><strong>Returns list of InteractionStatistics:</strong>
 - <code>type_a</code>, <code>type_b</code>: Cell types
@@ -2540,15 +2579,15 @@
 - Self-interactions: divided by n<em>(n-1)/2
 - Cross-interactions: divided by n</em>m</p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">for</span> <span class="n">interaction</span> <span class="ow">in</span> <span class="n">interactions</span><span class="p">:</span>
-<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">type_a</span><span class="si">}</span><span class="s2"> &lt;-&gt; </span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">type_b</span><span class="si">}</span><span class="s2">:"</span><span class="p">)</span>
-<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Raw: </span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">num_interactions</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Normalized: </span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">normalized_interactions</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Avg distance: </span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">avg_distance</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> μm"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">for</span> <span class="n">interaction</span> <span class="ow">in</span> <span class="n">interactions</span><span class="p">:</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">type_a</span><span class="si">}</span><span class="s2"> &lt;-&gt; </span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">type_b</span><span class="si">}</span><span class="s2">:"</span><span class="p">)</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Raw: </span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">num_interactions</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Normalized: </span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">normalized_interactions</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"  Avg distance: </span><span class="si">{</span><span class="n">interaction</span><span class="o">.</span><span class="n">avg_distance</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> μm"</span><span class="p">)</span>
 </code></pre></div></p>
 <h2 id="comprehensive-analysis">Comprehensive Analysis<a class="headerlink" href="#comprehensive-analysis" title="Permanent link">&para;</a></h2>
 <p>Get all statistics at once:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="n">analysis</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">get_comprehensive_analysis</span><span class="p">()</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">analysis</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">get_comprehensive_analysis</span><span class="p">()</span>
 </code></pre></div>
 <p><strong>Returns dict with:</strong>
 - <code>global</code>: Global network statistics
@@ -2556,14 +2595,14 @@
 - <code>interactions</code>: Interaction statistics</p>
 <h2 id="export-functions">Export Functions<a class="headerlink" href="#export-functions" title="Permanent link">&para;</a></h2>
 <h3 id="export-statistics-to-csv">Export Statistics to CSV<a class="headerlink" href="#export-statistics-to-csv" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">export_statistics_csv</span><span class="p">(</span><span class="s2">"analysis"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">export_statistics_csv</span><span class="p">(</span><span class="s2">"analysis"</span><span class="p">)</span>
 </code></pre></div>
 <p>Creates three files:
 - <code>analysis_global.csv</code>: Global statistics
 - <code>analysis_cell_types.csv</code>: Per-cell-type statistics
 - <code>analysis_interactions.csv</code>: Pairwise interactions</p>
 <h3 id="export-network">Export Network<a class="headerlink" href="#export-network" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">export_network</span><span class="p">(</span><span class="s2">"network.graphml"</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"graphml"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">export_network</span><span class="p">(</span><span class="s2">"network.graphml"</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">"graphml"</span><span class="p">)</span>
 </code></pre></div>
 <p><strong>Supported formats:</strong>
 - <code>graphml</code>: GraphML (recommended)
@@ -2576,11 +2615,11 @@
 - igraph: Any format
 - NetworkX: Any format</p>
 <h2 id="visualization">Visualization<a class="headerlink" href="#visualization" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">visualize_network</span><span class="p">(</span>
-<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">layout</span><span class="o">=</span><span class="s2">"spring"</span><span class="p">,</span>
-<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="n">save_path</span><span class="o">=</span><span class="s2">"network.png"</span>
-<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">visualize_network</span><span class="p">(</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">layout</span><span class="o">=</span><span class="s2">"spring"</span><span class="p">,</span>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">save_path</span><span class="o">=</span><span class="s2">"network.png"</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="p">)</span>
 </code></pre></div>
 <p><strong>Parameters:</strong>
 - <code>figsize</code>: Figure size tuple
@@ -2596,50 +2635,50 @@ yields the same node colors regardless of input order or the Python
 interpreter's <code>PYTHONHASHSEED</code>. Added in v0.1.12.</p>
 <h2 id="advanced-usage">Advanced Usage<a class="headerlink" href="#advanced-usage" title="Permanent link">&para;</a></h2>
 <h3 id="compare-contact-vs-radius">Compare Contact vs Radius<a class="headerlink" href="#compare-contact-vs-radius" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Contact network</span>
-<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">analyzer1</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">analyzer1</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">)</span>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="n">contact_stats</span> <span class="o">=</span> <span class="n">analyzer1</span><span class="o">.</span><span class="n">compute_global_statistics</span><span class="p">()</span>
-<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>
-<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="c1"># Radius network</span>
-<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="n">analyzer2</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
-<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="n">analyzer2</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"radius"</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
-<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="n">radius_stats</span> <span class="o">=</span> <span class="n">analyzer2</span><span class="o">.</span><span class="n">compute_global_statistics</span><span class="p">()</span>
-<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>
-<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Contact edges: </span><span class="si">{</span><span class="n">contact_stats</span><span class="o">.</span><span class="n">total_edges</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Radius edges: </span><span class="si">{</span><span class="n">radius_stats</span><span class="o">.</span><span class="n">total_edges</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Contact network</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">analyzer1</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">analyzer1</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">)</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="n">contact_stats</span> <span class="o">=</span> <span class="n">analyzer1</span><span class="o">.</span><span class="n">compute_global_statistics</span><span class="p">()</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="c1"># Radius network</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="n">analyzer2</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="n">analyzer2</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"radius"</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="n">radius_stats</span> <span class="o">=</span> <span class="n">analyzer2</span><span class="o">.</span><span class="n">compute_global_statistics</span><span class="p">()</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Contact edges: </span><span class="si">{</span><span class="n">contact_stats</span><span class="o">.</span><span class="n">total_edges</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Radius edges: </span><span class="si">{</span><span class="n">radius_stats</span><span class="o">.</span><span class="n">total_edges</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="analyze-multiple-slices">Analyze Multiple Slices<a class="headerlink" href="#analyze-multiple-slices" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_standard_slices</span>
-<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>
-<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="n">slicers</span> <span class="o">=</span> <span class="n">create_standard_slices</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">num_slices</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>
-<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">slicer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">slicers</span><span class="p">):</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="n">analyzer</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
-<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>    <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">)</span>
-<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>    <span class="n">stats</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">compute_global_statistics</span><span class="p">()</span>
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Slice </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_degree</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> avg degree"</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">tissue_simulator</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_standard_slices</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="n">slicers</span> <span class="o">=</span> <span class="n">create_standard_slices</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">num_slices</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">slicer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">slicers</span><span class="p">):</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="n">analyzer</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>    <span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_slice</span><span class="p">(</span><span class="n">slicer</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">)</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    <span class="n">stats</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">compute_global_statistics</span><span class="p">()</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Slice </span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">stats</span><span class="o">.</span><span class="n">avg_degree</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> avg degree"</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="custom-network-analysis">Custom Network Analysis<a class="headerlink" href="#custom-network-analysis" title="Permanent link">&para;</a></h3>
 <p>Access the NetworkX graph directly:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">graph</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="c1"># Custom analysis</span>
-<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
-<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>
-<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="c1"># Find most connected cell</span>
-<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="n">degrees</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">degree</span><span class="p">())</span>
-<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="n">max_node</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">degrees</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">degrees</span><span class="o">.</span><span class="n">get</span><span class="p">)</span>
-<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Most connected cell: </span><span class="si">{</span><span class="n">max_node</span><span class="si">}</span><span class="s2"> with </span><span class="si">{</span><span class="n">degrees</span><span class="p">[</span><span class="n">max_node</span><span class="p">]</span><span class="si">}</span><span class="s2"> connections"</span><span class="p">)</span>
-<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>
-<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="c1"># Find communities</span>
-<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="kn">from</span><span class="w"> </span><span class="nn">networkx.algorithms</span><span class="w"> </span><span class="kn">import</span> <span class="n">community</span>
-<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="n">communities</span> <span class="o">=</span> <span class="n">community</span><span class="o">.</span><span class="n">greedy_modularity_communities</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
-<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">communities</span><span class="p">)</span><span class="si">}</span><span class="s2"> communities"</span><span class="p">)</span>
-<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>
-<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="c1"># Calculate additional metrics</span>
-<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="n">pagerank</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">pagerank</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
-<a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a><span class="n">eigenvector</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">eigenvector_centrality</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">graph</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">graph</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c1"># Custom analysis</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">networkx</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nx</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="c1"># Find most connected cell</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="n">degrees</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">degree</span><span class="p">())</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="n">max_node</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">degrees</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="n">degrees</span><span class="o">.</span><span class="n">get</span><span class="p">)</span>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Most connected cell: </span><span class="si">{</span><span class="n">max_node</span><span class="si">}</span><span class="s2"> with </span><span class="si">{</span><span class="n">degrees</span><span class="p">[</span><span class="n">max_node</span><span class="p">]</span><span class="si">}</span><span class="s2"> connections"</span><span class="p">)</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="c1"># Find communities</span>
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="kn">from</span><span class="w"> </span><span class="nn">networkx.algorithms</span><span class="w"> </span><span class="kn">import</span> <span class="n">community</span>
+<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="n">communities</span> <span class="o">=</span> <span class="n">community</span><span class="o">.</span><span class="n">greedy_modularity_communities</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">communities</span><span class="p">)</span><span class="si">}</span><span class="s2"> communities"</span><span class="p">)</span>
+<a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>
+<a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a><span class="c1"># Calculate additional metrics</span>
+<a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="n">pagerank</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">pagerank</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+<a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a><span class="n">eigenvector</span> <span class="o">=</span> <span class="n">nx</span><span class="o">.</span><span class="n">eigenvector_centrality</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
 </code></pre></div>
 <h2 id="interpretation-guide">Interpretation Guide<a class="headerlink" href="#interpretation-guide" title="Permanent link">&para;</a></h2>
 <h3 id="network-density">Network Density<a class="headerlink" href="#network-density" title="Permanent link">&para;</a></h3>
@@ -2689,18 +2728,18 @@ interpreter's <code>PYTHONHASHSEED</code>. Added in v0.1.12.</p>
 - <code>slice_spatial_analysis.py</code>: Analyze multiple slices</p>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="issue-networkx-not-installed">Issue: "NetworkX not installed"<a class="headerlink" href="#issue-networkx-not-installed" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>pip<span class="w"> </span>install<span class="w"> </span>networkx
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>pip<span class="w"> </span>install<span class="w"> </span>networkx
 </code></pre></div>
 <h3 id="issue-network-visualization-doesnt-show">Issue: Network visualization doesn't show<a class="headerlink" href="#issue-network-visualization-doesnt-show" title="Permanent link">&para;</a></h3>
 <p>Make sure matplotlib is installed and use appropriate backend:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">matplotlib</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">'TkAgg'</span><span class="p">)</span>  <span class="c1"># or 'Qt5Agg'</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">matplotlib</span><span class="o">.</span><span class="n">use</span><span class="p">(</span><span class="s1">'TkAgg'</span><span class="p">)</span>  <span class="c1"># or 'Qt5Agg'</span>
 </code></pre></div>
 <h3 id="issue-network-not-built">Issue: "Network not built"<a class="headerlink" href="#issue-network-not-built" title="Permanent link">&para;</a></h3>
 <p>Call <code>build_network_from_tissue()</code> or <code>build_network_from_slice()</code> first:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">)</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="c1"># Now you can compute statistics</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">SpatialNetworkAnalyzer</span><span class="p">()</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">build_network_from_tissue</span><span class="p">(</span><span class="n">tissue</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"contact"</span><span class="p">)</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="c1"># Now you can compute statistics</span>
 </code></pre></div>
 <h3 id="issue-large-networks-are-slow">Issue: Large networks are slow<a class="headerlink" href="#issue-large-networks-are-slow" title="Permanent link">&para;</a></h3>
 <p>For tissues with &gt; 1000 cells:
