@@ -3,14 +3,18 @@ Sphere packing algorithm for cell placement.
 """
 
 import math
+import time
 from collections import defaultdict
 from dataclasses import dataclass, fields
 from typing import Dict, Iterator, List, Optional, Tuple
 
 import numpy as np
 
+from . import _shell
 from .density import Layout
 from .tissue import Cell
+
+_REFINE_MIN_CELLS = 50
 
 
 def _stochastic_round(weights, total: int, rng: np.random.Generator) -> np.ndarray:
@@ -341,6 +345,11 @@ class PackingReport:
         radius_assignment: ``'deck'`` when every ticket keeps one radius from
             a source-matched deck (adaptive layouts), ``'per_candidate'`` when
             a radius is drawn for every candidate position (legacy).
+        refinement: Summary of the first-shell refinement (``sweeps``,
+            ``energy_before``, ``energy_after``, ``n_moved``,
+            ``mean_displacement``, ``max_displacement``, ``accept_rate``,
+            ``s_target``, ``seconds``); None when refinement did not run.
+            All other fields describe the final (refined) positions.
     """
     n_target: int
     n_placed: int
@@ -362,6 +371,7 @@ class PackingReport:
     normalized_distance_quantiles: Optional[Dict[str, float]] = None
     dense_bin_fraction_short: Optional[float] = None
     radius_assignment: Optional[str] = None
+    refinement: Optional[Dict[str, float]] = None
 
     @property
     def bin_correlation(self) -> float:
@@ -381,6 +391,8 @@ class PackingReport:
         for key in ('clearance_quantiles', 'normalized_distance_quantiles'):
             if out[key] is not None:
                 out[key] = dict(out[key])
+        if self.refinement is not None:
+            out['refinement'] = dict(self.refinement)
         out['bin_correlation'] = self.bin_correlation
         return out
 
@@ -400,6 +412,11 @@ class InhomogeneousPacker:
        and a one-bin halo are relaxed by soft-sphere pushes. No cell moves more
        than ``displacement_cap`` from where it was placed, and relaxation stops
        once the overlap fraction reaches the source region's.
+    4. Adaptive layouts that carry a first-shell profile (``layout.shell``) are
+       then refined (:meth:`_refine_shell`): greedy single-cell moves lower the
+       squared mismatch between the replicate's and the source's size-normalised
+       pair counts. Each cell stays in its quota bin, off zero-intensity pixels
+       and within ``refine_cap`` of where it was packed; z never changes.
 
     The z coordinate is uniform through the thickness; use a thin slab
     (thickness below one cell diameter) to mirror a 2D source region.
@@ -414,7 +431,10 @@ class InhomogeneousPacker:
                  max_relax_iterations: int = 100,
                  displacement_cap: Optional[float] = None,
                  placeholder_type: str = "default",
-                 radius_assignment: Optional[str] = None):
+                 radius_assignment: Optional[str] = None,
+                 refine_shell: Optional[bool] = None,
+                 refine_sweeps: int = 20,
+                 refine_cap: Optional[float] = None):
         """
         Args:
             bounds: (height, width, thickness) of the tissue; height and width
@@ -433,6 +453,17 @@ class InhomogeneousPacker:
                 ``'deck'`` for adaptive layouts and ``'per_candidate'`` otherwise.
             placeholder_type: Cell type given to placed cells (labels are
                 normally assigned afterwards).
+            refine_shell: Refine positions towards the source's first-shell
+                pair profile after packing. None (default) enables it when
+                ``radius_assignment == 'deck'``; False disables it. It only
+                runs for adaptive layouts with ``layout.shell``, at least 50
+                cells and a thin slab (thickness at most twice the median
+                radius), because the profile is a 2-D measurement.
+            refine_sweeps: Maximum refinement sweeps (each cell proposes one
+                move per sweep); stops earlier when a sweep lowers the energy
+                by less than 0.1%.
+            refine_cap: Largest distance in µm a cell may end from its
+                pre-refinement position; defaults to the median radius.
         """
         height, width, _ = bounds
         if abs(width - layout.width) > 1e-6 or abs(height - layout.height) > 1e-6:
@@ -465,6 +496,11 @@ class InhomogeneousPacker:
         if radius_assignment not in ("deck", "per_candidate"):
             raise ValueError("radius_assignment must be 'deck' or 'per_candidate'")
         self.radius_assignment = radius_assignment
+        self.refine_shell = (radius_assignment == "deck" if refine_shell is None
+                             else bool(refine_shell))
+        self.refine_sweeps = int(refine_sweeps)
+        self.refine_cap = (layout.marks.median_radius if refine_cap is None
+                           else float(refine_cap))
         self._rng = np.random.default_rng(seed)
         self.report: Optional[PackingReport] = None
 
@@ -679,6 +715,178 @@ class InhomogeneousPacker:
                     break
         return violating / n
 
+    def _refine_enabled(self) -> bool:
+        layout = self.layout
+        shell = getattr(layout, "shell", None)
+        return bool(
+            self.refine_shell and self.refine_sweeps > 0
+            and getattr(layout, "strategy", "legacy") == "adaptive"
+            and shell and len(shell.get("edges", ())) > 1 and len(shell.get("pairs_per_cell", ())) > 0
+            and len(self._xs) >= _REFINE_MIN_CELLS
+            and self.bounds[2] <= 2.0 * layout.marks.median_radius)
+
+    def _refine_shell(self, s_target: float = 2.0, sigma_factor: float = 0.25,
+                      min_gain: float = 1e-3) -> Dict[str, float]:
+        """Greedy position refinement towards the source's first-shell profile.
+
+        The objective is ``E = sum_k (h_k - t_k)^2 / (t_k + 5)`` over the pair
+        counts ``h_k`` of the replicate (2-D distances) in the source's s-bins
+        up to ``s_target`` (``s = d / (r_i + r_j)``), against
+        ``t_k = pairs_per_cell_k * n / 2``. Every cell proposes one truncated
+        Gaussian move per sweep (sigma = ``sigma_factor`` x median radius, cut
+        at 3 sigma) and a move is kept only if E drops strictly. A move must
+        stay in its x/y bounds, in its pre-refinement quota bin, on a pixel with
+        positive intensity and within ``refine_cap`` of its starting point,
+        and must not create a 3-D pair below ``kappa`` (a pair already below
+        kappa may only move apart). z never changes.
+
+        Cells are processed in batches that cannot interact: the window is
+        cut into squares at least the pair-search range wide, a batch holds at
+        most one cell per square and only squares of one checkerboard colour.
+        Each batch evaluates all its moves with NumPy against frozen
+        neighbour lists (built once per sweep with enough slack for every
+        cell's single move); acceptance then runs sequentially on the shared
+        histogram. All randomness comes from ``self._rng``.
+        """
+        from scipy.spatial import cKDTree
+        t0 = time.perf_counter()
+        layout, rng = self.layout, self._rng
+        shell = layout.shell
+        edges = np.asarray(shell["edges"], dtype=float)
+        bw = float(edges[1] - edges[0])
+        per_cell = np.asarray(shell["pairs_per_cell"], dtype=float)
+        nb = min(int(np.count_nonzero(edges[1:] <= s_target + 1e-9)), per_cell.size)
+        s_hi = nb * bw
+        kappa = float(layout.kappa)
+        height, width, _ = self.bounds
+        xy = np.column_stack([self._xs, self._ys])
+        z, r = np.asarray(self._zs, dtype=float), np.asarray(self._rs, dtype=float)
+        n = len(r)
+        xy0 = xy.copy()
+        target = per_cell[:nb] * n / 2.0
+        weight = 1.0 / (target + 5.0)
+
+        def histogram():
+            _, _, s = _shell._pairs(xy, r, s_hi)
+            return np.bincount(np.minimum((s / bw).astype(int), nb - 1), minlength=nb)
+
+        def energy(h):
+            return float(np.sum(weight * (h - target) ** 2))
+
+        median = layout.marks.median_radius
+        sigma, max_step = sigma_factor * median, 3.0 * sigma_factor * median
+        cap2 = self.refine_cap ** 2
+        r_max = float(r.max())
+        reach = s_hi * 2.0 * r_max + 2.0 * max_step     # pair search range, any sweep
+        step_px, intensity = layout.grid_step, layout.intensity
+        ny, nx = intensity.shape
+        margin = 0.0 if self.allow_boundary_cells else r
+
+        def bin_index(p):
+            col = np.clip((p[:, 0] // self.bin_size).astype(int), 0, self._cols - 1)
+            row = np.clip((p[:, 1] // self.bin_size).astype(int), 0, self._rows - 1)
+            return row * self._cols + col
+
+        def has_intensity(p):
+            ix = np.clip((p[:, 0] // step_px).astype(int), 0, nx - 1)
+            iy = np.clip((p[:, 1] // step_px).astype(int), 0, ny - 1)
+            return intensity[iy, ix] > 0
+
+        bin0 = bin_index(xy0)
+        h = histogram().astype(float)
+        energy_before = e_now = energy(h)
+        proposed = accepted = sweeps = 0
+        for sweep in range(self.refine_sweeps):
+            # Draws first (fixed amount per sweep), then geometry.
+            keys = rng.random(n)
+            steps = rng.normal(size=(n, 2)) * sigma
+            norm = np.hypot(steps[:, 0], steps[:, 1])
+            steps *= np.minimum(1.0, max_step / np.maximum(norm, 1e-300))[:, None]
+
+            pairs = cKDTree(xy).query_pairs(reach, output_type="ndarray")
+            if pairs.size:
+                a, b = pairs[:, 0], pairs[:, 1]
+                d = np.hypot(xy[a, 0] - xy[b, 0], xy[a, 1] - xy[b, 1])
+                keep = d <= s_hi * (r[a] + r[b]) + 2.0 * max_step
+                a, b = a[keep], b[keep]
+            else:
+                a = b = np.zeros(0, dtype=int)
+            src = np.concatenate([a, b])
+            order = np.argsort(src, kind="stable")
+            nbr = np.concatenate([b, a])[order]
+            count = np.bincount(src, minlength=n)
+            start = np.cumsum(count) - count
+
+            cell = (xy[:, 0] // reach).astype(int), (xy[:, 1] // reach).astype(int)
+            cell_id = cell[1] * (int(width // reach) + 2) + cell[0]
+            colour = (cell[0] % 2) + 2 * (cell[1] % 2)
+            by_cell = np.lexsort((keys, cell_id))
+            first = np.r_[True, cell_id[by_cell][1:] != cell_id[by_cell][:-1]]
+            rank = np.empty(n, dtype=int)
+            rank[by_cell] = np.arange(n) - np.maximum.accumulate(np.where(first, np.arange(n), 0))
+            batch = rank * 4 + colour
+            ordered = np.argsort(batch, kind="stable")
+            cuts = np.flatnonzero(np.diff(batch[ordered])) + 1
+
+            for ib in np.split(ordered, cuts):
+                proposed += ib.size
+                new = xy[ib] + steps[ib]
+                m = margin if np.isscalar(margin) else margin[ib]
+                ok = ((new[:, 0] >= m) & (new[:, 0] <= width - m)
+                      & (new[:, 1] >= m) & (new[:, 1] <= height - m)
+                      & (np.sum((new - xy0[ib]) ** 2, axis=1) <= cap2)
+                      & (bin_index(new) == bin0[ib]) & has_intensity(new))
+                ib, new = ib[ok], new[ok]
+                if not ib.size:
+                    continue
+                cnt = count[ib]
+                total = int(cnt.sum())
+                if total == 0:
+                    continue
+                mv = np.repeat(np.arange(ib.size), cnt)
+                pos = (np.arange(total) - np.repeat(np.cumsum(cnt) - cnt, cnt)
+                       + np.repeat(start[ib], cnt))
+                j = nbr[pos]
+                i = ib[mv]
+                rs = r[i] + r[j]
+                dz2 = (z[i] - z[j]) ** 2
+                dxy_old = np.hypot(xy[i, 0] - xy[j, 0], xy[i, 1] - xy[j, 1])
+                dxy_new = np.hypot(new[mv, 0] - xy[j, 0], new[mv, 1] - xy[j, 1])
+                s_old, s_new = dxy_old / rs, dxy_new / rs
+                f_old = np.sqrt(dxy_old ** 2 + dz2) / rs
+                f_new = np.sqrt(dxy_new ** 2 + dz2) / rs
+                bad = (f_new < kappa) & ~((f_old < kappa) & (f_new > f_old))
+                free = np.bincount(mv[bad], minlength=ib.size) == 0
+                in_old, in_new = s_old < s_hi, s_new < s_hi
+                dh = (np.bincount((mv * nb + np.minimum((s_new / bw).astype(int), nb - 1))[in_new],
+                                  minlength=ib.size * nb)
+                      - np.bincount((mv * nb + np.minimum((s_old / bw).astype(int), nb - 1))[in_old],
+                                    minlength=ib.size * nb)).reshape(ib.size, nb)
+                for k in np.flatnonzero(free):
+                    delta = dh[k]
+                    gain = float(np.dot(weight, delta * (2.0 * (h - target) + delta)))
+                    if gain < 0.0:
+                        h += delta
+                        xy[ib[k]] = new[k]
+                        accepted += 1
+            sweeps = sweep + 1
+            e_prev, e_now = e_now, energy(h)
+            if e_prev - e_now < min_gain * e_prev:
+                break
+
+        h_final = histogram()
+        move = np.hypot(xy[:, 0] - xy0[:, 0], xy[:, 1] - xy0[:, 1])
+        moved = np.flatnonzero(move > 0.0)
+        for i in moved:
+            self._grid.move(int(i), (self._xs[i], self._ys[i], self._zs[i]),
+                            (float(xy[i, 0]), float(xy[i, 1]), self._zs[i]))
+            self._xs[i], self._ys[i] = float(xy[i, 0]), float(xy[i, 1])
+        return {"sweeps": sweeps, "energy_before": energy_before,
+                "energy_after": energy(h_final.astype(float)), "n_moved": int(moved.size),
+                "mean_displacement": float(move.mean()), "max_displacement": float(move.max()),
+                "accept_rate": accepted / max(proposed, 1), "s_target": float(s_hi),
+                "seconds": time.perf_counter() - t0}
+
     def pack(self) -> List[Cell]:
         """Place ``layout.n_target`` cells and store a :class:`PackingReport`."""
         layout = self.layout
@@ -710,6 +918,8 @@ class InhomogeneousPacker:
             self._insert_at_best_clearance(b, radius)
         n_relaxed, iterations, max_displacement = (
             self._relax(set(deficit)) if deficit else (0, 0, 0.0))
+        # Last stage, so every RNG draw above is unchanged when it is off.
+        refinement = self._refine_shell() if self._refine_enabled() else None
 
         achieved = np.zeros(quotas.size, dtype=int)
         for x, y in zip(self._xs, self._ys):
@@ -737,6 +947,7 @@ class InhomogeneousPacker:
             clearance_quantiles=gap_q, normalized_distance_quantiles=norm_q,
             dense_bin_fraction_short=dense_short,
             radius_assignment='per_candidate' if deck is None else 'deck',
+            refinement=refinement,
         )
 
         cells = []

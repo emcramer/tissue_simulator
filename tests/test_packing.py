@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from tissue_simulator import Cell
+from tissue_simulator import Cell, _shell
 from tissue_simulator.density import Layout, RadiusMarks
 from tissue_simulator.packing import (
     InhomogeneousPacker, SpatialHashGrid, SpherePacker, _stochastic_round,
@@ -276,3 +276,137 @@ def test_radius_deck_is_seeded():
     c, _ = _pack_layout(layout, seed=5)
     np.testing.assert_array_equal(_as_array(a), _as_array(b))
     assert not np.array_equal(_as_array(a), _as_array(c))
+
+
+# -- first-shell refinement ---------------------------------------------------
+
+_SIZE = 220.0
+_RADIUS = 4.35
+
+
+def _confluent_source(seed=0):
+    """Jittered stretched-triangular lattice: neighbours sit near s = 1.15."""
+    rng = np.random.default_rng(seed)
+    pts = np.array([(10.0 * (i + 0.5 * (j % 2)) + 2.5, 8.8 * j + 4.4)
+                    for j in range(25) for i in range(22)])
+    pts = np.clip(pts + rng.normal(0.0, 0.8, pts.shape), 0.0, _SIZE)
+    return pts, np.full(len(pts), _RADIUS)
+
+
+def _refine_layout(strategy="adaptive", with_shell=True):
+    pts, radii = _confluent_source()
+    n = len(pts)
+    grid = int(_SIZE / 5.0)
+    marks = RadiusMarks(np.zeros(0), [np.linspace(0.95 * _RADIUS, 1.05 * _RADIUS, 11)])
+    layout = Layout(width=_SIZE, height=_SIZE, grid_step=5.0,
+                    intensity=np.full((grid, grid), n / _SIZE ** 2),
+                    composition=np.ones((1, grid, grid)),
+                    compartment=np.zeros((grid, grid), dtype=int), cell_types=('A',),
+                    marks=marks, kappa=0.8, n_target=n, target_overlap_fraction=0.02,
+                    mode='copy', bandwidth=20.0)
+    layout.strategy = strategy
+    if with_shell:
+        prof = _shell.pair_profile(pts, radii, _SIZE, _SIZE)
+        layout.shell = {"edges": prof["edges"].tolist(),
+                        "pairs_per_cell": prof["pairs_per_cell"].tolist(),
+                        "g": prof["g"].tolist(), "edge": _shell.shell_edge(prof),
+                        "summary": _shell.first_shell_summary(pts, radii, _SIZE, _SIZE),
+                        "s_floor": 0.8}
+    return layout, pts, radii
+
+
+def _xyzr(cells):
+    return np.array([[*c.center, c.radius] for c in cells])
+
+
+def _degree(cells):
+    a = _xyzr(cells)
+    return _shell.first_shell_summary(a[:, :2], a[:, 3], _SIZE, _SIZE)["mean_degree"]
+
+
+def _pairs_below(cells, kappa):
+    a = _xyzr(cells)
+    d = np.linalg.norm(a[:, None, :3] - a[None, :, :3], axis=2)
+    s = d / (a[:, None, 3] + a[None, :, 3])
+    return int(np.count_nonzero(np.triu(s < kappa, 1)))
+
+
+def test_refinement_moves_replicate_toward_source_shell():
+    layout, pts, radii = _refine_layout()
+    source = _shell.first_shell_summary(pts, radii, _SIZE, _SIZE)["mean_degree"]
+    plain, rep_off = _pack_layout(layout, seed=3, refine_shell=False)
+    refined, rep_on = _pack_layout(layout, seed=3)
+    assert rep_off.refinement is None and rep_on.refinement is not None
+    info = rep_on.refinement
+    assert info["energy_after"] < info["energy_before"]
+    assert 1 <= info["sweeps"] <= 20 and info["n_moved"] > 0
+    assert 0.0 < info["accept_rate"] <= 1.0 and info["seconds"] >= 0.0
+    assert info["max_displacement"] <= layout.marks.median_radius + 1e-9
+    assert abs(_degree(refined) - source) < abs(_degree(plain) - source)
+    assert rep_on.to_dict()["refinement"]["s_target"] == pytest.approx(2.0)
+    np.testing.assert_array_equal(rep_on.bin_achieved, rep_off.bin_achieved)
+    assert rep_on.n_placed == rep_off.n_placed == layout.n_target
+
+
+def test_refinement_respects_cap_floor_bins_and_z():
+    layout, _, _ = _refine_layout()
+    cap = 0.5 * layout.marks.median_radius
+    plain, _ = _pack_layout(layout, seed=4, refine_shell=False)
+    refined, rep = _pack_layout(layout, seed=4, refine_cap=cap)
+    a, b = _xyzr(plain), _xyzr(refined)
+    assert np.max(np.linalg.norm(b[:, :2] - a[:, :2], axis=1)) <= cap + 1e-9
+    np.testing.assert_array_equal(a[:, 2:], b[:, 2:])
+    assert _pairs_below(refined, layout.kappa) <= _pairs_below(plain, layout.kappa)
+    assert np.all((b[:, :2] >= 0.0) & (b[:, :2] <= _SIZE))
+    assert rep.refinement["max_displacement"] <= cap + 1e-9
+    # Each cell stays in its own 10 um quota bin.
+    assert np.array_equal(np.floor(a[:, :2] / 10.0), np.floor(b[:, :2] / 10.0))
+
+
+def test_refinement_keeps_cells_out_of_voids():
+    layout, _, _ = _refine_layout()
+    layout.intensity[:, 20:24] = 0.0
+    layout.n_target = int(round(layout.intensity.sum() * 25.0))
+    refined, rep = _pack_layout(layout, seed=5)
+    a = _xyzr(refined)
+    assert rep.refinement is not None
+    assert not np.any((a[:, 0] >= 100.0) & (a[:, 0] < 120.0))
+
+
+def test_refinement_is_deterministic_and_off_switch_is_exact():
+    layout, _, _ = _refine_layout()
+    first, _ = _pack_layout(layout, seed=6)
+    second, _ = _pack_layout(layout, seed=6)
+    np.testing.assert_array_equal(_xyzr(first), _xyzr(second))
+    off, rep = _pack_layout(layout, seed=6, refine_shell=False)
+    stripped, _ = _pack_layout(_refine_layout(with_shell=False)[0], seed=6)
+    np.testing.assert_array_equal(_xyzr(off), _xyzr(stripped))
+    assert rep.refinement is None
+    assert not np.array_equal(_xyzr(off), _xyzr(first))
+
+
+def test_refinement_is_skipped_for_legacy_thick_small_or_per_candidate():
+    layout, _, _ = _refine_layout()
+    assert _pack_layout(_refine_layout(strategy="legacy")[0], seed=7)[1].refinement is None
+    assert _pack_layout(layout, seed=7, radius_assignment="per_candidate")[1].refinement is None
+    packer = InhomogeneousPacker((_SIZE, _SIZE, 3.0 * _RADIUS), layout, seed=7)
+    packer.pack()
+    assert packer.report.refinement is None
+    small, _, _ = _refine_layout()
+    small.n_target = 40
+    assert _pack_layout(small, seed=7)[1].refinement is None
+    forced = _pack_layout(layout, seed=7, radius_assignment="per_candidate", refine_shell=True)[1]
+    assert forced.refinement is not None
+
+
+def test_report_describes_refined_positions():
+    layout, _, _ = _refine_layout()
+    cells, rep = _pack_layout(layout, seed=8)
+    a = _xyzr(cells)
+    from scipy.spatial import cKDTree
+    d, idx = cKDTree(a[:, :3]).query(a[:, :3], k=2)
+    norm = d[:, 1] / (a[:, 3] + a[idx[:, 1], 3])
+    assert rep.normalized_distance_quantiles["p50"] == pytest.approx(np.percentile(norm, 50))
+    full = np.linalg.norm(a[:, None, :3] - a[None, :, :3], axis=2) / (a[:, None, 3] + a[None, :, 3])
+    np.fill_diagonal(full, np.inf)
+    assert rep.overlap_fraction == pytest.approx(np.mean(full.min(axis=1) < layout.kappa))
