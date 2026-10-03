@@ -231,3 +231,48 @@ def test_separation_diagnostics_two_cells():
         assert out['normalized_distance_quantiles'][k] == pytest.approx(3.0)
     assert out['n_nearest_neighbour'] == 2
     assert separation_diagnostics(cells[:1])['n_nearest_neighbour'] == 0
+
+
+def _wide_layout(strategy, dense_radii=None, sparse_radii=None, dense=0.012, sparse=0.003):
+    """Crowded left half, sparse right half, two radius-mark bins."""
+    layout = _step_layout(dense=dense, sparse=sparse)
+    sparse_radii = np.linspace(2.0, 8.0, 41) if sparse_radii is None else sparse_radii
+    dense_radii = np.linspace(2.0, 8.0, 41) if dense_radii is None else dense_radii
+    layout.marks = RadiusMarks(np.array([0.5 * (dense + sparse)]), [sparse_radii, dense_radii])
+    layout.strategy = strategy
+    return layout
+
+
+def test_radius_deck_matches_source_marginal_where_legacy_is_biased():
+    pool = np.linspace(2.0, 8.0, 41)
+    adaptive, rep_a = _pack_layout(_wide_layout("adaptive"))
+    legacy, rep_l = _pack_layout(_wide_layout("legacy"))
+    ra = np.array([c.radius for c in adaptive])
+    rl = np.array([c.radius for c in legacy])
+    grid = np.unique(pool)
+    ks = np.max(np.abs(np.searchsorted(np.sort(ra), grid, side='right') / ra.size
+                       - np.searchsorted(pool, grid, side='right') / pool.size))
+    assert ks < 0.06
+    assert np.median(ra) == pytest.approx(np.median(pool), rel=0.01)
+    assert abs(np.median(ra) - np.median(pool)) < abs(np.median(rl) - np.median(pool))
+    assert np.median(rl) < np.median(pool)
+    assert rep_a.radius_assignment == "deck" and rep_l.radius_assignment == "per_candidate"
+    assert rep_a.to_dict()["radius_assignment"] == "deck"
+
+
+def test_radius_deck_keeps_density_conditioning():
+    layout = _wide_layout("adaptive", dense_radii=np.linspace(2.0, 5.0, 31),
+                          sparse_radii=np.linspace(5.0, 8.0, 31))
+    cells, _ = _pack_layout(layout)
+    left = [c.radius for c in cells if c.center[0] < 100.0]
+    right = [c.radius for c in cells if c.center[0] >= 100.0]
+    assert np.mean(left) < np.mean(right)
+
+
+def test_radius_deck_is_seeded():
+    layout = _wide_layout("adaptive")
+    a, _ = _pack_layout(layout, seed=4)
+    b, _ = _pack_layout(layout, seed=4)
+    c, _ = _pack_layout(layout, seed=5)
+    np.testing.assert_array_equal(_as_array(a), _as_array(b))
+    assert not np.array_equal(_as_array(a), _as_array(c))

@@ -1421,7 +1421,8 @@ class DensityModel:
                     lay = gen._uniform_layout(self.width, self.height, self.n_cells)
                     bins = max(self.width, self.height)
                 cells = InhomogeneousPacker((self.height, self.width, 0.0), lay, seed=rng,
-                                            bin_size=bins).pack()
+                                            bin_size=bins,
+                                            radius_assignment="per_candidate").pack()
                 if len(cells) < 10:
                     return None
                 centers = np.array([c.center[:2] for c in cells])
@@ -1463,7 +1464,8 @@ class DensityModel:
         for _ in range(n_null):
             # One bin: plain random sequential addition, like the uniform scaffold.
             cells = InhomogeneousPacker((self.height, self.width, 0.0), null_layout,
-                                        seed=rng, bin_size=max(self.width, self.height)).pack()
+                                        seed=rng, bin_size=max(self.width, self.height),
+                                        radius_assignment="per_candidate").pack()
             if not cells:
                 continue
             centers = np.array([c.center for c in cells])

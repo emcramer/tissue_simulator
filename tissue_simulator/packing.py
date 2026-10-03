@@ -338,6 +338,9 @@ class PackingReport:
         normalized_distance_quantiles: p5/p50/p95 of ``d / (r_i + r_j)``.
         dense_bin_fraction_short: Fraction of bins with target >= 4 whose
             achieved count is below 0.9 * target (of all bins).
+        radius_assignment: ``'deck'`` when every ticket keeps one radius from
+            a source-matched deck (adaptive layouts), ``'per_candidate'`` when
+            a radius is drawn for every candidate position (legacy).
     """
     n_target: int
     n_placed: int
@@ -358,6 +361,7 @@ class PackingReport:
     clearance_quantiles: Optional[Dict[str, float]] = None
     normalized_distance_quantiles: Optional[Dict[str, float]] = None
     dense_bin_fraction_short: Optional[float] = None
+    radius_assignment: Optional[str] = None
 
     @property
     def bin_correlation(self) -> float:
@@ -409,7 +413,8 @@ class InhomogeneousPacker:
                  insertion_candidates: int = 20,
                  max_relax_iterations: int = 100,
                  displacement_cap: Optional[float] = None,
-                 placeholder_type: str = "default"):
+                 placeholder_type: str = "default",
+                 radius_assignment: Optional[str] = None):
         """
         Args:
             bounds: (height, width, thickness) of the tissue; height and width
@@ -424,6 +429,8 @@ class InhomogeneousPacker:
             max_relax_iterations: Cap on relaxation sweeps.
             displacement_cap: Largest relaxation move in µm; defaults to half
                 the median radius.
+            radius_assignment: ``'deck'`` or ``'per_candidate'``; by default
+                ``'deck'`` for adaptive layouts and ``'per_candidate'`` otherwise.
             placeholder_type: Cell type given to placed cells (labels are
                 normally assigned afterwards).
         """
@@ -450,6 +457,14 @@ class InhomogeneousPacker:
                 bin_size = max(0.5 * (layout.bandwidth or 20.0), 10.0)
         self.bin_pixels = max(1, int(round(bin_size / layout.grid_step)))
         self.bin_size = self.bin_pixels * layout.grid_step
+        # Adaptive layouts deal each ticket one radius from a source-matched
+        # deck; legacy layouts (and fit-time null packs) redraw per candidate.
+        if radius_assignment is None:
+            radius_assignment = ("deck" if getattr(layout, "strategy", "legacy") == "adaptive"
+                                 else "per_candidate")
+        if radius_assignment not in ("deck", "per_candidate"):
+            raise ValueError("radius_assignment must be 'deck' or 'per_candidate'")
+        self.radius_assignment = radius_assignment
         self._rng = np.random.default_rng(seed)
         self.report: Optional[PackingReport] = None
 
@@ -483,7 +498,32 @@ class InhomogeneousPacker:
         row = min(max(int(y // self.bin_size), 0), self._rows - 1)
         return row * self._cols + col
 
-    def _candidate(self, b: int):
+    def _bin_density(self, b: int) -> float:
+        """Intensity-weighted mean layout intensity over the positive pixels of bin ``b``."""
+        _, cumulative = self._bin_pixels(b)
+        weights = np.diff(cumulative, prepend=0.0)
+        return float(np.sum(weights * weights) / cumulative[-1])
+
+    def _radius_deck(self, tickets: np.ndarray) -> np.ndarray:
+        """One radius per ticket whose marginal equals the source radii.
+
+        The deck is the pool's order statistics at stratified quantiles
+        ``(k + u_k) / n`` (actual pool values, no interpolation). Radii are
+        handed out in the rank order of provisional density-conditioned draws,
+        which keeps the density-size relationship.
+        """
+        rng, marks = self._rng, self.layout.marks
+        n = len(tickets)
+        pool = np.sort(np.concatenate(marks.radii_by_bin))
+        q = (np.arange(n) + rng.random(n)) / n
+        deck = pool[np.minimum((q * pool.size).astype(int), pool.size - 1)]
+        density = {int(b): self._bin_density(b) for b in np.unique(tickets)}
+        provisional = np.array([marks.draw(rng, density[int(b)]) for b in tickets])
+        radii = np.empty(n)
+        radii[np.argsort(provisional, kind='stable')] = deck
+        return radii
+
+    def _candidate(self, b: int, r: Optional[float] = None):
         # Pixel in proportion to intensity (never a zero-intensity void),
         # then a uniform point inside it.
         rng = self._rng
@@ -495,7 +535,8 @@ class InhomogeneousPacker:
         x = rng.uniform(ix * step, min((ix + 1) * step, self.bounds[1]))
         y = rng.uniform(iy * step, min((iy + 1) * step, self.bounds[0]))
         local_density = float(self.layout.intensity[iy, ix])
-        r = self.layout.marks.draw(rng, local_density)
+        if r is None:
+            r = self.layout.marks.draw(rng, local_density)
         height, width, thickness = self.bounds
         if self.allow_boundary_cells or thickness < 2 * r:
             z = rng.uniform(0.0, thickness) if thickness > 0 else 0.0
@@ -540,18 +581,18 @@ class InhomogeneousPacker:
 
     # -- stages ---------------------------------------------------------------
 
-    def _place_by_addition(self, b: int) -> bool:
+    def _place_by_addition(self, b: int, radius: Optional[float] = None) -> bool:
         for _ in range(self.max_failures):
-            x, y, z, r, valid = self._candidate(b)
+            x, y, z, r, valid = self._candidate(b, radius)
             if valid and self._fits(x, y, z, r):
                 self._add(x, y, z, r)
                 return True
         return False
 
-    def _insert_at_best_clearance(self, b: int) -> None:
+    def _insert_at_best_clearance(self, b: int, radius: Optional[float] = None) -> None:
         best, best_score = None, -math.inf
         for _ in range(self.insertion_candidates):
-            x, y, z, r, valid = self._candidate(b)
+            x, y, z, r, valid = self._candidate(b, radius)
             score = self._clearance(x, y, z, r) if valid else -math.inf
             if best is None or score > best_score:
                 best, best_score = (x, y, z, r), score
@@ -651,15 +692,22 @@ class InhomogeneousPacker:
         tickets = np.repeat(np.arange(quotas.size), quotas.ravel())
         self._rng.shuffle(tickets)
 
+        deck = None
+        if self.radius_assignment == "deck" and len(tickets):
+            deck = self._radius_deck(tickets)
+
         saturated = np.zeros(quotas.size, dtype=bool)
         deficit = []
-        for b in tickets:
-            if saturated[b] or not self._place_by_addition(b):
+        deficit_radii = []
+        for i, b in enumerate(tickets):
+            radius = None if deck is None else float(deck[i])
+            if saturated[b] or not self._place_by_addition(b, radius):
                 saturated[b] = True
                 deficit.append(b)
+                deficit_radii.append(radius)
         n_rsa = len(self._xs)
-        for b in deficit:
-            self._insert_at_best_clearance(b)
+        for b, radius in zip(deficit, deficit_radii):
+            self._insert_at_best_clearance(b, radius)
         n_relaxed, iterations, max_displacement = (
             self._relax(set(deficit)) if deficit else (0, 0, 0.0))
 
@@ -688,6 +736,7 @@ class InhomogeneousPacker:
             quota_floor_source=self.quota_floor_source,
             clearance_quantiles=gap_q, normalized_distance_quantiles=norm_q,
             dense_bin_fraction_short=dense_short,
+            radius_assignment='per_candidate' if deck is None else 'deck',
         )
 
         cells = []

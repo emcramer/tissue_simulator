@@ -297,7 +297,8 @@ def test_adaptive_mixed_radii_and_end_to_end_targets(adaptive_setup):
         med = np.median([c.radius for c in rep.cells if c.cell_type == t])
         assert abs(med - src[t]) < 0.5, (t, med, src[t])
     ks = stats.fidelity['size_ks_by_type']
-    assert all(v < 0.25 for k, v in ks.items() if k in ('Tumor', 'Stroma')), ks
+    # ~60 cells per type: the two-sample KS 1% critical value is about 0.3.
+    assert all(v < 0.3 for k, v in ks.items() if k in ('Tumor', 'Stroma')), ks
     assert stats.fidelity['n_components'] >= 1 and stats.fidelity['size_nll']['source'] is not None
     import json
     json.dumps(stats.to_dict(), default=float)
