@@ -290,20 +290,31 @@ the replicate workflow.
 
 ### `InhomogeneousPacker`
 
-`InhomogeneousPacker(bounds, layout, allow_boundary_cells=True, seed=None, bin_size=None, max_failures=100, insertion_candidates=20, max_relax_iterations=100, displacement_cap=None)`
+`InhomogeneousPacker(bounds, layout, allow_boundary_cells=True, seed=None, bin_size=None, max_failures=100, insertion_candidates=20, max_relax_iterations=100, displacement_cap=None, placeholder_type="default", radius_assignment=None, refine_shell=None, refine_sweeps=20, refine_cap=None)`
 places exactly `layout.n_target` cells:
 
 1. Square bins get quotas proportional to the layout intensity they cover.
 2. Cells are added at random inside their bins, with radii drawn from the
    layout's density-conditioned marks and hard core
-   `layout.kappa * (r_i + r_j)`.
+   `layout.kappa * (r_i + r_j)`. With `radius_assignment="deck"` (the default
+   for adaptive layouts) each cell gets one radius before placement from a deck
+   that reproduces the source's size distribution; otherwise a radius is drawn
+   for every candidate position.
 3. Where addition saturates, remaining cells are inserted at the best of
    several positions and overlaps are relaxed by soft-sphere pushes, with no
    cell moving more than `displacement_cap` (default half the median radius).
+4. Adaptive layouts with a first-shell profile in a thin slab (thickness at
+   most twice the median radius, at least 50 cells) are refined: greedy
+   single-cell moves bring the replicate's size-normalised pair counts closer
+   to the source's. A cell stays in its quota bin and within `refine_cap`
+   (default one median radius) of where it was placed. `refine_shell=False`
+   turns this off; `refine_sweeps` (default 20) caps the sweeps.
 
 `packer.report` (`PackingReport`) records target and achieved cells per bin
 (`bin_correlation`), inserted and relaxed cells, the largest displacement and
-the final overlap fraction.
+the final overlap fraction, plus `radius_assignment` and `refinement`
+(None when refinement did not run). See
+[First-shell fidelity](../notes/density-aware-packing.md#first-shell-fidelity).
 
 ### `load_tissue_from_csv`
 

@@ -117,6 +117,13 @@ Supporting features:
 
 - **`n_restarts`**: run several independent SA colorings per replicate and keep
   the lowest-cost one (hardens against bad local minima).
+- **Step budget**: the default schedule cools from 100 to 0.1 at a rate of
+  0.995 per step, which ends after about 1,400 swaps whatever
+  `max_iterations` is. To use a larger budget with the legacy strategy, pass a
+  matching `cooling_rate`, for example `(0.1 / 100) ** (1 / max_iterations)`.
+  With `strategy="adaptive"` and a density model the generator does this
+  itself: the budget is the larger of 20,000 and ten swaps per cell, unless
+  `coloring_params` sets `cooling_rate` or `max_iterations`.
 - **Adaptive stopping**: pass `patience` inside `coloring_params` to stop SA once
   the cost plateaus (uses the cost trajectory; see `colorize(return_history=True)`
   and `convergence.find_convergence_time`).
@@ -421,6 +428,16 @@ generator = ReplicateGenerator(
 )
 ```
 
+`packing_params` is passed to `InhomogeneousPacker`. Useful keys for adaptive
+models: `refine_shell` (None, the default, turns first-shell refinement on for
+adaptive layouts; False turns it off), `refine_sweeps` (maximum sweeps, default
+20), `refine_cap` (largest distance in µm a cell may move during refinement,
+default one median radius) and `radius_assignment` (`"deck"` or
+`"per_candidate"`). Refinement runs only for thin slabs (thickness at most twice
+the median radius) of at least 50 cells, and only when the model carries a
+first-shell profile; see
+[First-shell fidelity](../notes/density-aware-packing.md#first-shell-fidelity).
+
 `ReplicateGenerator.from_coordinates(path, ...)` builds a density-aware
 generator directly from a coordinate CSV; see
 [Density-aware scaffolds](#density-aware-scaffolds).
@@ -512,13 +529,32 @@ stats = ReplicateStatistics(
   `interface_fraction`, `n_components`, `n_holes`, `persistence_distance`
   per type: H0 Wasserstein-1 of source vs replicate KDE maps); None unless
   `diagnostics` is on. Evidence, not calibrated intervals.
+- `fidelity["first_shell"]` (adaptive replicates with diagnostics on):
+  `{"factor": 1.5, "replicate": summary, "source": summary, "ratios": {...}, "same_window": bool}`.
+  `same_window` says whether the replicate window has the source's size
+  (None for models saved before this field existed); the ratios are only
+  comparable, and the warning is only raised, when it is true.
+  A summary holds `mean_degree` (mechanical graph at the factor),
+  `overlap_pairs_per_cell` (pairs closer than `r_i + r_j`), `median_radius` and
+  `area_fraction`; `ratios` holds replicate over source for each. A warning is
+  raised when an adaptive replicate's `mean_degree` ratio is below 0.9. The
+  source's value assumes the replicate window has the source's cell density.
 - `separation`: nearest-neighbor `clearance_quantiles`,
   `normalized_distance_quantiles` and `n_nearest_neighbour`
 
 `packing_report` (`PackingReport.to_dict()`) also carries `bin_shortfall`,
 `quota_floor`, `quota_floor_source` (`"layout"` or `"legacy"`),
 `clearance_quantiles`, `normalized_distance_quantiles` and
-`dense_bin_fraction_short`.
+`dense_bin_fraction_short`, `radius_assignment` (`"deck"` for adaptive
+layouts, `"per_candidate"` otherwise), `refinement` (None, or `sweeps`,
+`energy_before`, `energy_after`, `n_moved`, `mean_displacement`,
+`max_displacement`, `accept_rate`, `s_target`, `seconds`) and `first_shell`.
+
+`layout_organization` also records `failed` (`"coverage"` or `"composition"`)
+and `best_coverage` when no proposal met the criteria and the best-coverage
+fallback was used. Replicate windows much smaller than the source region
+cannot span the source's trend range, so the fallback is likely there. With a
+trend in the model, use a window at least as large as the source region.
 
 ## Export Functions
 

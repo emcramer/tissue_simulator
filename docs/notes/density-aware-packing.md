@@ -49,6 +49,12 @@ cannot put dense nests and sparse stroma back into an evenly packed box.
      toward one corner),
    - per-bin RSA,
    - best-clearance insertion and capped relaxation where RSA saturates.
+
+   Adaptive layouts add two things around those stages: each cell gets one
+   radius from a source-matched deck before placement, and a final
+   first-shell refinement moves cells slightly toward the source's spacing
+   (thin slabs only). Both are described in
+   [First-shell fidelity](#first-shell-fidelity).
 8. **Labels.** The annealer matches pair fractions as before, plus the
    layout's expected composition in 40 µm bins. That term is weighted by
    `composition_weight * mean_degree**2` and warm-started from the layout.
@@ -441,7 +447,14 @@ values are cached by `ReplicateGenerator._cache_source_reference(tissue)`
 directly from a model has no source KS/NLL.
 `PackingReport` adds `bin_shortfall`, `quota_floor`, `quota_floor_source`,
 `clearance_quantiles`, `normalized_distance_quantiles`,
-`dense_bin_fraction_short` (bins with target >= 4 achieved below 0.9 of target).
+`dense_bin_fraction_short` (bins with target >= 4 achieved below 0.9 of target),
+`radius_assignment` (`"deck"` or `"per_candidate"`), `refinement` (None when
+refinement did not run; otherwise `sweeps`, `energy_before`, `energy_after`,
+`n_moved`, `mean_displacement`, `max_displacement`, `accept_rate`, `s_target`,
+`seconds`) and `first_shell`. `fidelity["first_shell"]` holds the same
+comparison per replicate (see [First-shell fidelity](#first-shell-fidelity)).
+`layout_organization` records `failed` (`"coverage"` or `"composition"`) and
+`best_coverage` when the organization fallback was used.
 
 ## Schema evolution
 
@@ -452,29 +465,46 @@ directly from a model has no source KS/NLL.
 - Each replicate draws layout, packing, warm start and annealing from separate
   streams spawned from `SeedSequence([seed, replicate_id])`, so adaptive
   replicates are identical serial and parallel. Legacy seeding is unchanged.
+- Later additions (unreleased): `DensityModel.shell` and `Layout.shell`
+  (default `{}`), and `PackingReport.radius_assignment`, `refinement` and
+  `first_shell` (default None). The shell profile is measured at fit time for
+  both strategies. Models saved before it existed load with an empty `shell`;
+  for those, adaptive packs use the radius deck but skip refinement, because
+  refinement needs the profile. Refit the model to get refinement.
 - All new dataclass fields have defaults and come last; the generator stores
   only plain data, so it pickles for process pools.
 
 ## Known limits
 
-- **Short-range structure.** kNN composition (1.45) and L at 20 µm and
-  below (1.38) remain above the sampling floor (about 0.55 truth SDs). Local
-  packing order and interfaces finer than 10 µm are not modeled.
+- **Short-range structure.** On the synthetic benchmark above (legacy
+  strategy), kNN composition (1.45) and L at 20 µm and below (1.38) remain
+  above the sampling floor (about 0.55 truth SDs). Interfaces finer than
+  10 µm are not modeled. Adaptive packs of thin slabs now match the source's
+  size-normalised first-shell spacing (see
+  [First-shell fidelity](#first-shell-fidelity)); that benchmark has not been
+  re-run with it.
 - **Where that gap comes from.** Keeping each target's true positions and
   re-annealing all labels reproduces L at 20 µm and below at the floor (0.53),
   and five times more annealing iterations changed nothing on either geometry.
-  The gap is therefore in the scaffold positions (local packing and density
-  variation within 10–20 µm), not in the annealing energy or budget. A
-  position-refinement stage that matches short-range spacing statistics is the
-  next step if the ABM contact check needs it.
+  That second check was not informative: with the default cooling rate the
+  schedule ended after about 1,400 swaps regardless of `max_iterations` (see
+  [Annealing schedule](#annealing-schedule)). The first check still places
+  the gap in the scaffold positions (local packing and density
+  variation within 10–20 µm). The
+  first-shell refinement is the position-refinement stage that note called
+  for, but it is only applied to adaptive thin slabs.
 - **Benchmark targets.** Replicates of one sample cannot be closer to the
   process than the sample itself, which already has 8.3 of 45 statistics
   beyond 1 SD. State acceptance thresholds relative to that floor.
 - **Tumor–immune contact.** Tumor cells with a CD8 T cell within 10 µm
   reach 0.64–0.93 of the target's fraction (uniform scaffold: 0.18–0.29).
   Check this against the t0 contact gate before the ABM re-run.
-- **Mean degree.** Replicates reach about 0.9 of the region's; the paper
-  gate is 0.95–1.05.
+- **Mean degree.** On the legacy strategy replicates reach about 0.9 of the
+  region's mean degree on a 20 µm radius graph; the paper gate is 0.95–1.05.
+  On a size-aware (mechanical, factor 1.5) graph the v0.1.18 adaptive packs
+  were lower, 0.79–0.81 of the source. Adaptive thin-slab packs on this branch
+  measure 0.985–1.029 at packer level on three regions; see
+  [First-shell fidelity](#first-shell-fidelity) for the conditions and limits.
 - **Local order.** Epithelial lattice order inside nests is not reproduced
   (g(r) is smooth).
 - **Stationarity.** `resample` assumes a stationary region. Trends and
@@ -499,7 +529,18 @@ directly from a model has no source KS/NLL.
   replicate window's rectangle, not a mask on the `Layout`.
 - **Small windows.** When no proposal meets the coverage and proportion
   criteria the organization falls back to `best_of_proposals`
-  (flag `organization_unsatisfied`); the replicate is still produced.
+  (flag `organization_unsatisfied`); the replicate is still produced. The
+  warning now says which criterion failed, and `layout.organization` records
+  `failed` (`"coverage"` or `"composition"`) and `best_coverage`. Coverage is
+  the fraction of the source's trend range that the window spans; a proposal
+  needs at least 90%. A window much smaller than the source cannot reach that.
+  On one fitted Keren field with a radial trend, the fallback fired in 1 of 300
+  layouts at the source window size (798.72 µm) and the result was only
+  marginally outside tolerance. It fired in 100% of layouts at a 400 µm window
+  and in 74% at 600 µm, and there the fallback composition was materially wrong
+  (one type about 24 percentage points over its proportion). **When the model
+  has a trend, generate replicates in a window at least as large as the source
+  region.** One regional measurement; it was not repeated on other datasets.
 - **Unit detection power.** Persistence against a 9-draw CSR null is
   conservative: nests of an abundant type (90 % pure nests of r = 38 µm in a
   50/50 or 65/35 matrix) are found 0-3 times of 4 across seeds, and small
@@ -509,6 +550,195 @@ directly from a model has no source KS/NLL.
 - **Size filter with few units.** With three units or fewer, size outliers are
   flagged, not dropped; a spurious unit can survive there.
 
+## First-shell fidelity
+
+### Problem
+
+Replicates of real tissue were scored on a 20 µm radius graph, which hid a
+short-range deficit. On three Keren et al. MIBI fields, v0.1.18 adaptive packs
+had about 20% fewer first-shell neighbours than the source on the mechanical
+graph (factor 1.5; replicate/source 0.78–0.81), about 25% fewer pairs closer
+than `r_i + r_j`, a median radius 3–9% small and a disc area fraction 6–14%
+low. A likely reason is that segmented tissue is often confluent, with
+neighbouring discs touching or overlapping, while a random-sequential-addition
+packer with a hard core leaves more space between cells.
+
+All distances below are size-normalised: `s = d / (r_i + r_j)` for a pair at
+centre distance `d`. Touching discs have `s = 1`.
+
+### Mechanism 1: measure the source's shell at fit time
+
+`DensityModel.fit` (both strategies) measures the source's pair profile with
+`tissue_simulator/_shell.py` and stores it as `DensityModel.shell`, which is
+copied to every `Layout.shell`. The measurement is deterministic.
+
+- `edges`, `pairs_per_cell`: bins of 0.05 in `s` up to 2.2, and the mean
+  number of neighbours per cell in each bin (no edge correction, so it is
+  comparable to a replicate in the same window).
+- `g`: an edge-corrected pair correlation in the same bins, normalised by the
+  annulus area of an uncorrelated pattern with the same radii (about 1 for
+  uncorrelated cells).
+- `edge`: the shell edge, the first minimum after the first peak of `g`
+  smoothed with a Gaussian of 0.1 in `s`. The minimum must be at `s >= 1` and
+  at least 5% below the peak. It is None when there is no clear shell, as for
+  Poisson-like or random-sequential-addition-like sources.
+- `summary`: mean mechanical degree at factor 1.5, overlapping pairs per cell
+  (`s < 1`), median radius and disc area fraction (sum of `pi r^2` over window
+  area).
+- `s_floor`: the hard core `kappa`.
+
+`interaction_factor="auto"` uses `edge` as the mechanical graph's factor (see
+[Mechanical neighbour graph](#mechanical-neighbour-graph)).
+
+### Mechanism 2: a radius deck
+
+Previously the packer drew a new radius for every candidate position, and a
+small radius is accepted more often than a large one, so placed cells were
+biased small (median radius 3–9% low). For adaptive layouts each cell (a
+"ticket" in the bin quota) now gets one radius before placement. The pool of
+source radii is sampled at stratified quantiles, so the deck reproduces the
+source's size distribution, and the radii are handed out in the rank order of
+a provisional density-conditioned draw, so dense areas keep their smaller
+cells. Retries change only the position, never the radius.
+
+`PackingReport.radius_assignment` is `"deck"` or `"per_candidate"`. Legacy
+layouts and the fit-time null packings keep the per-candidate draw, so legacy
+output and adaptive fits are unchanged. The deck matches the pooled size
+distribution; per-type size distributions still depend on the annealer's size
+term.
+
+### Mechanism 3: first-shell refinement
+
+After relaxation, an adaptive pack is refined by greedy single-cell moves.
+Each sweep, every cell proposes one Gaussian step (sigma 0.25 median radius,
+cut at 3 sigma). A move is kept only if it lowers
+
+`E = sum_k (h_k - t_k)^2 / (t_k + 5)`
+
+where `h_k` is the replicate's pair count in bin `k` of `s` (up to
+`s = 2.0`) and `t_k` is the source's `pairs_per_cell` times `n / 2`. A cell
+must also:
+
+- stay in its quota bin and off zero-intensity pixels, so the layout's density
+  map and bin quotas are preserved (quotas were identical with and without
+  refinement in the tests below);
+- end within `refine_cap` of its position before refinement;
+- not create a pair below the hard core `kappa` (a pair already below `kappa`
+  may only move apart). `z` never changes.
+
+Sweeps stop after `refine_sweeps` or when a sweep lowers `E` by less than
+0.1%. Cost measured on 3,000–6,000 cells: 0.3–0.9 s per pack.
+
+Refinement runs only when all of these hold: the layout is adaptive and has a
+shell profile, the pack has at least 50 cells, `refine_shell` is not False, and
+the slab is thin (thickness at most twice the median radius), because the
+profile is a 2-D measurement. Parameters go through `packing_params`:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `refine_shell` | None (on for adaptive) | False turns refinement off |
+| `refine_sweeps` | 20 | Maximum sweeps |
+| `refine_cap` | median radius | Largest distance in µm from the pre-refinement position |
+| `radius_assignment` | `"deck"` adaptive, else `"per_candidate"` | Radius draw |
+
+`PackingReport.refinement` records `sweeps`, `energy_before`, `energy_after`,
+`n_moved`, `mean_displacement`, `max_displacement`, `accept_rate`, `s_target`
+and `seconds`. The other report fields describe the refined positions.
+
+### Reporting
+
+`PackingReport.first_shell` and `ReplicateStatistics.fidelity["first_shell"]`
+compare each replicate with the source:
+
+```python
+{"factor": 1.5, "replicate": summary, "source": summary,
+ "ratios": {"mean_degree": ..., "overlap_pairs_per_cell": ...,
+            "median_radius": ..., "area_fraction": ...},
+ "same_window": True}
+```
+
+Each ratio is replicate over source. `same_window` is true when the replicate
+window has the source's size, which the comparison assumes. An adaptive
+replicate in the same window whose mean-degree ratio is below 0.9 raises a
+warning. The MCP replicate summary carries the ratios as
+`first_shell_ratios`.
+
+### Results
+
+Packer level, replicate/source, three Keren regions with 3 packs each.
+"Before" is v0.1.18 and "after" is this change.
+
+| Quantity | Before | After |
+|---|---|---|
+| Mean mechanical degree (factor 1.5) | 0.79–0.81 | 0.985–1.029 |
+| Pairs closer than `r_i + r_j`, per cell | 0.69–0.77 | 0.971–1.079 |
+| Median radius | 0.91–0.96 | 1.000 |
+| Disc area fraction | 0.86–0.94 | 1.000 |
+| Mean degree, 20 µm radius graph | | 0.93–1.08 |
+
+The 20 µm graph value changed little with refinement. Bin quotas were
+identical with and without refinement.
+
+End to end through `ReplicateGenerator` (adaptive strategy, mechanical graph
+at factor 1.5, `layout="resample"`, package defaults, three replicates per
+region; mean, replicate over source, v0.1.18 → this change):
+
+| Quantity | Sample 1 | Sample 3 | Sample 15 |
+|---|---|---|---|
+| Mean mechanical degree | 0.795 → 1.017 | 0.801 → 0.986 | 0.806 → 0.988 |
+| Pairs closer than `r_i + r_j`, per cell | 0.773 → 1.050 | 0.762 → 0.983 | 0.721 → 0.978 |
+| Median radius | 0.907 → 1.000 | 0.950 → 1.000 | 0.959 → 1.000 |
+| Disc area fraction | 0.858 → 1.000 | 0.920 → 1.000 | 0.944 → 1.000 |
+| Mean degree, 20 µm radius graph | 1.045 → 1.042 | 0.928 → 0.939 | 0.919 → 0.942 |
+| Composition error | 0.360 → 0.288 | 0.385 → 0.290 | 0.079 → 0.076 |
+| Divergence score | 0.313 → 0.316 | 0.196 → 0.160 | 0.785 → 0.769 |
+| Seconds per replicate | 17.6 → 20.5 | 25.0 → 28.8 | 7.5 → 8.2 |
+
+Cell counts equal the source in every replicate. One sample 1 replicate had
+an overlapping-pairs ratio of 1.110, just above the 0.90–1.10 range the
+requesting team proposed. The divergence score of sample 15 (95% tumour, with
+type pairs of zero or one edge) varies by about 0.1 between replicates, so its
+change is within noise.
+
+These figures come from three regions of one dataset.
+
+### Annealing schedule
+
+Correcting the geometry exposed a second problem. The annealer's default
+schedule cools from 100 to 0.1 at a rate of 0.995 per step, which reaches the
+final temperature after about 1,400 swaps whatever `max_iterations` is. On a
+graph of several thousand cells the labelling was therefore close to its warm
+start. With v0.1.18 geometry the replicate had about 20% too few edges, and
+that deficit happened to cancel the warm start's excess of contacts between
+unlike types, so the divergence score looked better than the labelling
+deserved. With the correct number of edges the excess showed: on sample 3
+the divergence rose from 0.196 to 0.293.
+
+The adaptive strategy now derives the cooling rate from the step budget, so
+the final temperature is reached on the last step. The budget is the larger
+of 20,000 and ten swaps per graph node
+(`ADAPTIVE_ANNEAL_STEPS_PER_NODE`). On sample 3 (new geometry) the divergence
+was 0.214 at 20,000 steps, 0.162 at 60,000 and 0.147 at 200,000. An explicit
+`cooling_rate` in `coloring_params` turns this off, an explicit
+`max_iterations` sets the budget, and the legacy strategy keeps the old
+schedule. The step count used is in `fidelity["anneal_steps"]`.
+
+### Limits
+
+- Refinement applies to thin slabs only. 3-D packs get the radius deck but are
+  not refined.
+- The target is the source's per-cell pair rate, so it assumes the replicate
+  window has the source's cell density (resample or copy layouts of the same
+  window). A different density changes the expected counts per cell.
+- One of nine test packs still had an overlap fraction above the source's
+  (0.047 against 0.020) because relaxation reached its displacement cap.
+- The deck matches the pooled size distribution, not per-type distributions.
+- A packing method built for confluent tissue (collective compression, or a
+  weighted Voronoi/Laguerre layout) was considered and deferred, because
+  refinement met the targets on these regions. It may be needed for tissue
+  that is more confluent than these three.
+- There is no real-tissue validation beyond these three regions yet.
+
 ## Mechanical neighbour graph
 
 Replicates are scored on a neighbour graph, and the contact rule (1.01 x summed
@@ -517,3 +747,8 @@ radii) is nearly empty for packings with spacing. The `"mechanical"` mode uses
 so neighbourhoods scale with cell size, unlike a fixed radius. It is applied
 identically to source targets and replicates (`TargetStatistics.network_rule`
 is checked, with a warning on mismatch) and is the `from_coordinates` default.
+
+With `interaction_factor="auto"` the factor is the source's shell edge, with
+1.5 and a warning when there is none. `network_rule["interaction_factor_source"]`
+is `"fixed"`, `"auto"` or `"auto_fallback"`, and replicates reuse the source's
+number. See [First-shell fidelity](#first-shell-fidelity).

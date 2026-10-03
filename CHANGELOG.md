@@ -5,6 +5,84 @@ All notable changes to `tissue_simulator` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **First-shell profile of the source.** `DensityModel.fit` (both strategies)
+  measures the source's size-normalised pair profile, `s = d / (r_i + r_j)` in
+  bins of 0.05 up to 2.2 (pairs per cell and an edge-corrected pair
+  correlation), the shell edge (first minimum after the first peak, or None)
+  and summary values (mean mechanical degree at factor 1.5, overlapping pairs
+  per cell, median radius, disc area fraction). It is stored as
+  `DensityModel.shell` and `Layout.shell`; older saved models load with an
+  empty `shell`.
+- **First-shell refinement** for adaptive packs of thin slabs (thickness at
+  most twice the median radius, at least 50 cells). After relaxation, greedy
+  single-cell moves bring the replicate's pair profile up to `s = 2.0` closer
+  to the source's, keeping each cell in its quota bin, within `refine_cap` of
+  its placed position and above the hard core. New `packing_params` keys:
+  `refine_shell`, `refine_sweeps`, `refine_cap`. Cost was 0.3-0.9 s per pack
+  for 3,000-6,000 cells.
+- `PackingReport.radius_assignment`, `PackingReport.refinement` and
+  `PackingReport.first_shell`, and `fidelity["first_shell"]` on
+  `ReplicateStatistics` (replicate and source summaries and their ratios). A
+  warning is raised when an adaptive replicate's mean-degree ratio is below
+  0.9.
+- `interaction_factor="auto"` for the mechanical graph: the factor is learned
+  once from the source's shell edge (1.5 with a warning if there is none) and
+  recorded in `network_rule` with `interaction_factor_source` (`"fixed"`,
+  `"auto"` or `"auto_fallback"`). Replicates reuse the source's number. See
+  `docs/api/spatial-analysis.md`.
+
+### Changed
+
+- **Adaptive packs draw each cell's radius once.** Each cell now gets one
+  radius before placement from a deck that reproduces the source's size
+  distribution, rank-matched to the density-conditioned draw so dense areas
+  keep smaller cells. Retries change only the position. Previously the radius
+  was redrawn for every attempt and small radii were accepted more often.
+  Legacy layouts and fit-time null packings keep the old draw, so legacy
+  output is unchanged (checked byte for byte on fixed seeds) and adaptive fits
+  are unchanged.
+- **The adaptive annealing schedule uses its step budget.** The default
+  cooling rate (0.995, from temperature 100 to 0.1) ended the schedule after
+  about 1,400 swaps whatever `max_iterations` was. The adaptive strategy now
+  derives the cooling rate from the budget, which is the larger of 20,000 and
+  ten swaps per graph node, and records it in `fidelity["anneal_steps"]`. An
+  explicit `cooling_rate` or `max_iterations` in `coloring_params` is
+  respected. The legacy schedule is unchanged. Replicates of 3,000-6,000
+  cells take about 1-4 s longer.
+- The organization fallback warning now says which criterion failed, and
+  `layout.organization` records `failed` (`"coverage"` or `"composition"`) and
+  `best_coverage`.
+
+### Fixed
+
+- Adaptive replicates of confluent tissue had about 20% fewer first-shell
+  neighbours than the source (mechanical graph, factor 1.5: replicate/source
+  0.78-0.81), about 25% fewer pairs closer than `r_i + r_j`, a median radius
+  3-9% small and a disc area fraction 6-14% low. On three Keren et al. regions
+  at packer level the ratios are now 0.985-1.029 (mean degree), 0.971-1.079
+  (close pairs), 1.000 (median radius) and 1.000 (area fraction). These come
+  from three regions of one dataset.
+
+### Known limits
+
+- Refinement applies to thin slabs only; 3-D packs are not refined.
+- The refinement target is a per-cell rate from the source, so it assumes the
+  replicate window has the source's cell density.
+- One of nine test packs still had a higher overlap fraction than the source
+  (0.047 against 0.020) because relaxation reached its displacement cap.
+- The radius deck matches the pooled size distribution; per-type size
+  distributions still depend on the annealer's size term.
+- Models with a radial or planar trend need a replicate window at least as
+  large as the source region. In one test the organization fallback fired in 1
+  of 300 layouts at the source window size, in 74% at 600 µm and in 100% at
+  400 µm, with a composition error of about 24 percentage points for one type.
+- No real-tissue validation beyond three regions yet. See
+  `docs/notes/density-aware-packing.md`.
+
 ## [0.1.18] - 2026-10-02
 
 ### Added
