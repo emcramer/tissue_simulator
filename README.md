@@ -19,7 +19,7 @@ A comprehensive Python package for generating 3D simulated biological tissue sec
 - **📊 Statistical Analysis**: Automatic calculation of packing fractions and cell distributions
 - **💾 Data Export**: CSV output for further analysis and integration with other tools
 - **🧪 Boundary Cell Support**: Handle cells that extend beyond tissue section boundaries
-- **⚡ Performance Optimized**: Efficient algorithms for generating hundreds of cells
+- **⚡ Performance Optimized**: Efficient algorithms for generating large-scale cell layouts
 
 Full documentation, guides, and API reference: [https://emcramer.github.io/tissue_simulator/](https://emcramer.github.io/tissue_simulator/)
 
@@ -122,7 +122,7 @@ slicer.export_slice_csv('slice_data.csv')  # Export slice data
 
 **Documentation site:** <https://emcramer.github.io/tissue_simulator/> (auto-deployed; per-version archives via the navbar switcher).
 
-**📊 Code-driven tour:** <https://emcramer.github.io/tissue_simulator/latest/slides/tour.html> — a scrolling, end-to-end tour (code + matplotlib output side by side), rendered from `docs/slides/tour.py` (Marimo) on every release.
+**Code-driven tour:** <https://emcramer.github.io/tissue_simulator/latest/slides/tour.html> — a scrolling, end-to-end tour (code + matplotlib output side by side), rendered from `docs/slides/tour.py` (Marimo) on every release.
 
 **Community wiki:** <https://github.com/emcramer/tissue_simulator/wiki> — FAQ, troubleshooting, roadmap (community-editable).
 
@@ -133,7 +133,7 @@ slicer.export_slice_csv('slice_data.csv')  # Export slice data
 - **[Complete Workflow](docs/guides/complete-workflow.md)**: End-to-end tutorial
 - **[CHANGELOG](CHANGELOG.md)**: Release history and migration notes
 
-## 💡 Examples
+## Examples
 
 The `examples/` directory contains several demonstration scripts:
 
@@ -189,7 +189,7 @@ Generate multiple parallel slices through tissue:
 python examples/serial_slices.py
 ```
 
-## 🎮 GUI Features
+## GUI Features
 
 The interactive GUI provides:
 
@@ -224,7 +224,7 @@ Define multiple cell types in the text box:
   "endothelial": [5, 8]
 }
 ```
-## 🕸️ Spatial Analysis & Graph-Based Cell Type Assignment
+## Spatial Analysis & Graph-Based Cell Type Assignment
 
 ### NEW: Graph-Based Cell Type Assignment
 
@@ -328,7 +328,7 @@ analyzer.export_statistics_csv("analysis")
 analyzer.visualize_network(save_path="network.png")
 ```
 
-## 🔄 Replicate Generation
+## Replicate Generation
 
 Generate multiple tissue samples matching specific spatial interaction patterns:
 
@@ -473,7 +473,7 @@ Claude: [Uses create_tissue, generate_cells, create_serial_slices tools]
 - **visualize_tissue** - Generate 3D visualization
 - **visualize_slice_2d** - Generate 2D visualization
 
-#### Replicate Generation (New!)
+#### Replicate Generation
 - **load_target_statistics** - Load target spatial statistics from CSV or current tissue
 - **setup_replicate_generator** - Configure replicate generator (`density_layout` for density-aware scaffolds, `strategy="adaptive"` for adaptive fidelity, `interaction_factor` for the mechanical graph)
 - **generate_replicates** - Generate multiple replicates matching targets
@@ -486,27 +486,6 @@ Claude: [Uses create_tissue, generate_cells, create_serial_slices tools]
 - **[MCP Quick Start](docs/guides/mcp.md)** - Get started in 5 minutes
 - **[MCP Complete Guide](docs/api/mcp.md)** - Full API reference
 - **[Example Conversations](examples/mcp_examples/)** - Usage examples
-
-## 🔬 Scientific Background
-
-### Cell Sizes (typical ranges)
-- **Red blood cells**: ~7-8 μm diameter
-- **Lymphocytes**: ~6-10 μm
-- **Epithelial cells**: ~10-30 μm
-- **Fibroblasts**: ~10-20 μm
-- **Hepatocytes**: ~20-30 μm
-
-### Tissue Dimensions
-- **Histological sections**: 5-10 μm thick
-- **Simulated sections**: 50-200 μm thick (for 3D context)
-- **Field of view**: 100-1000 μm typical
-
-### Packing Algorithm
-The Random Sequential Addition (RSA) algorithm:
-- Maximum packing fraction ~38% for monodisperse spheres
-- Higher fractions achievable with polydisperse distributions
-- Biologically realistic cell distributions
-- Efficient for up to thousands of cells
 
 ## 🧪 Testing
 
@@ -547,35 +526,12 @@ Fields:
 - `cell_type`: Classification string
 - `is_boundary`: Boolean indicating if cell extends beyond tissue bounds
 
-## 🎯 Use Cases
-
-1. **Algorithm Development**: Generate synthetic data for testing image analysis pipelines
-2. **Machine Learning**: Create training datasets for cell segmentation models
-3. **Education**: Visualize 3D tissue structure and spatial organization
-4. **Research**: Study cell packing efficiency and spatial statistics
-5. **Validation**: Compare simulated vs. real tissue morphology
-
 ## 🛠️ Requirements
 
 - **Python**: 3.8 or higher
 - **NumPy**: ≥1.20.0 (numerical operations)
 - **Matplotlib**: ≥3.3.0 (3D visualization)
 - **PyQt5**: ≥5.15.0 (GUI framework)
-
-## 📈 Performance
-
-Typical generation times (on modern hardware):
-
-| Tissue Size | Cell Count | Time |
-|------------|------------|------|
-| 100×100×50 μm | ~20-50 | <1 second |
-| 500×500×100 μm | ~200-400 | 10-30 seconds |
-| 1000×1000×200 μm | ~800-1500 | 1-3 minutes |
-
-Performance tips:
-- Reduce `max_attempts` for faster generation (lower cell count)
-- Smaller cell radii = more cells = longer generation time
-- Enable boundary cells for higher packing efficiency
 
 ## 📚 Citation
 
@@ -602,13 +558,6 @@ version-specific DOI for each release if you need to cite an exact version.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
-
-This package implements concepts from:
-- Random sphere packing algorithms in computational geometry
-- Histological tissue structure principles
-- Spatial cell organization in biological systems
-
 ## 📧 Support
 
 For issues and questions:
@@ -619,5 +568,3 @@ For issues and questions:
 4. File an issue on the project repository
 
 ---
-
-**Made with ❤️ for the computational biology community**
