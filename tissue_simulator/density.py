@@ -611,7 +611,7 @@ class RadiusMarks:
 
 def _fit_shell(points, radii, width, height, kappa) -> Dict:
     """First-shell spacing of the source (plain lists, so it survives JSON)."""
-    prof = _shell.pair_profile(points, radii, width, height)
+    prof = _shell.pair_profile(points, radii, width, height, s_max=3.5)
     return {"edges": prof["edges"].tolist(), "pairs_per_cell": prof["pairs_per_cell"].tolist(),
             "g": prof["g"].tolist(), "edge": _shell.shell_edge(prof),
             "summary": _shell.first_shell_summary(points, radii, width, height, factor=1.5),
@@ -1622,7 +1622,7 @@ class DensityModel:
                       target_overlap_fraction=self.target_overlap_fraction,
                       mode=mode, flags=self.flags, bandwidth=self.bandwidth,
                       strategy=self.strategy, quota_scale=self._quota_scale(),
-                      shell=self.shell)
+                      shell=getattr(self, "shell", {}))   # absent on older pickles
 
     def _has_voids(self) -> bool:
         return bool(self.voids) and int(self.voids.get("n_holes", 0)) > 0
@@ -1852,7 +1852,7 @@ class DensityModel:
         """JSON-serializable representation (see :meth:`from_dict`)."""
         out = {"format_version": 2}
         for f in fields(self):
-            value = getattr(self, f.name)
+            value = getattr(self, f.name, {} if f.name == "shell" else None)  # old pickles lack shell
             if isinstance(value, np.ndarray):
                 value = {"__ndarray__": value.tolist(), "dtype": str(value.dtype)}
             elif isinstance(value, RadiusMarks):

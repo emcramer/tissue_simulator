@@ -208,6 +208,14 @@ def test_auto_falls_back_on_poisson(poisson_tissue):
     assert an.network_rule["interaction_factor_source"] == "auto_fallback"
 
 
+def test_auto_falls_back_on_two_cells():
+    tiny = _tissue_from(np.array([[100.0, 100.0], [110.0, 104.0]]), np.array([4.0, 4.0]), 300.0)
+    an = SpatialNetworkAnalyzer()
+    with pytest.warns(UserWarning, match="auto"):
+        an.build_network_from_tissue(tiny, mode="mechanical", interaction_factor="auto")
+    assert an.network_rule["interaction_factor_source"] == "auto_fallback"
+
+
 def test_auto_slice_variant(relaxed_tissue):
     slicer = TissueSlicer(relaxed_tissue)
     slicer.slice_plane(z_position=relaxed_tissue.cells[0].center[2])

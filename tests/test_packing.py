@@ -344,6 +344,7 @@ def test_refinement_moves_replicate_toward_source_shell():
     assert info["max_displacement"] <= layout.marks.median_radius + 1e-9
     assert abs(_degree(refined) - source) < abs(_degree(plain) - source)
     assert rep_on.to_dict()["refinement"]["s_target"] == pytest.approx(2.0)
+    assert info["taper_end"] == pytest.approx(layout.shell["edges"][-1] if layout.shell["edges"][-1] < 3.5 else 3.5)
     np.testing.assert_array_equal(rep_on.bin_achieved, rep_off.bin_achieved)
     assert rep_on.n_placed == rep_off.n_placed == layout.n_target
 

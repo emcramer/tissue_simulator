@@ -39,8 +39,12 @@ earlier behaviour. `interaction_factor` is accepted by `ReplicateGenerator`,
 `interaction_factor="auto"` learns the factor from the source: the first
 minimum of its size-normalised pair correlation `g(s)`, `s = d / (r_i + r_j)`
 (bins of 0.05 in `s`, Gaussian smoothing with sigma 0.1, first minimum after the
-first peak and at least 5% below it). If there is none (a Poisson or
-random-sequential-addition source), the factor is 1.5 and a warning is raised.
+first peak and significantly below it: at least 50 cells, a peak of at least 1.2,
+a minimum at least 15% below the peak, and a peak-to-minimum difference of more
+than 4 Poisson standard errors). If there is none (a Poisson source), the factor
+is 1.5 and a warning is raised. A dense random-sequential-addition source can
+have a genuine shell and then returns a value. `"auto"` measures the x-y
+projection, so it is meant for 2-D or thin-slab sources.
 The factor is learned once, on the source. `from_coordinates` and the
 `load_target_statistics_from_*` functions record it in
 `TargetStatistics.network_rule`, and `ReplicateGenerator(..., interaction_factor="auto")`
@@ -524,6 +528,10 @@ stats = ReplicateStatistics(
 - `layout_units`: placed units of the layout (`centers`, `outer_radii`,
   `inner_radii`, `kinds`, `n_requested`, `n_placed`, `shortfall`, `anchored`);
   None when the model has none
+- `fidelity["anneal_budget"]`: the maximum number of swaps the annealer was
+  allowed (adaptive strategy). A user-supplied `cooling_rate` or `patience` in
+  `coloring_params` can stop the run earlier, so it is not the number of swaps
+  run.
 - `fidelity`: diagnostics against the source (`size_nll`, `size_ks_by_type`,
   `nn_distance_quantiles`, `mixing_index`, `organization_rmse`,
   `interface_fraction`, `n_components`, `n_holes`, `persistence_distance`

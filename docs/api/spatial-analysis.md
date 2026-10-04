@@ -100,9 +100,13 @@ graph = analyzer.build_network_from_tissue(tissue, mode="mechanical", interactio
   the first minimum of the size-normalised pair correlation `g(s)`, with
   `s = d / (r_i + r_j)`. `g` is binned in `s` at 0.05, smoothed with a Gaussian
   of sigma 0.1, and the factor is the first minimum after the first peak,
-  accepted only if it is at least 5% below that peak. If there is no such
-  minimum (for example a Poisson or random-sequential-addition pattern), the
-  factor falls back to 1.5 and a warning is raised. A 3D tissue uses its
+  accepted only if the shell is significant: at least 50 cells, a smoothed peak
+  of at least 1.2, a minimum at least 15% below the peak, and a peak-to-minimum
+  difference of more than 4 Poisson standard errors. If there is no such
+  minimum (for example a Poisson pattern), the factor falls back to 1.5 and a
+  warning is raised; a dense random-sequential-addition pattern can have a
+  genuine shell and then returns a value. `"auto"` measures the x-y projection
+  and is meant for 2-D or thin-slab sources. A 3D tissue uses its
   x, y centres in a `width` x `height` window; a slice uses its 2D centres and
   intersection radii in the bounding box of those centres. Any other string, or
   a non-positive number, raises `ValueError`.

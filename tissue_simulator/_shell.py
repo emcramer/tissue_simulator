@@ -6,11 +6,15 @@ O(pairs within ``s_max * 2 * r_max``).
 """
 
 import numpy as np
-from scipy.ndimage import gaussian_filter1d
+from scipy.ndimage import correlate1d, gaussian_filter1d
 from scipy.spatial import cKDTree
 
 _SAMPLE_PAIRS = 20000
-_PEAK_MARGIN = 0.05
+_PEAK_MARGIN = 0.05        # legacy rule, used only for profiles stored without counts
+_MIN_CELLS = 50
+_MIN_DEPTH = 0.15          # minimum relative drop from peak to minimum
+_MIN_PEAK = 1.2            # smoothed g at the peak
+_Z = 4.0                   # peak-minus-minimum contrast over its Poisson standard error
 
 
 def _pairs(points, radii, s_max):
@@ -33,7 +37,8 @@ def pair_profile(points, radii, width, height, s_max=2.2, bin_width=0.05):
     Returns a dict with ``edges`` (s bin edges), ``pairs_per_cell`` (per bin,
     2 x unordered pairs / n: mean neighbours per cell, NOT edge-corrected, for
     comparing against a replicate in the same window) and ``g`` (edge-corrected
-    size-normalised pair correlation).
+    size-normalised pair correlation), ``counts`` (raw unordered pair counts per
+    bin) and ``n`` (number of cells).
 
     ``g_k = 2 C_k / (rho^2 A_k)``: ``C_k`` sums ``1 / ((W - |dx|)(H - |dy|))``
     over unordered pairs in bin k (translation correction), ``rho = n / (W H)``
@@ -48,7 +53,8 @@ def pair_profile(points, radii, width, height, s_max=2.2, bin_width=0.05):
     edges = np.arange(0.0, s_max + 0.5 * bin_width, bin_width)
     nb = len(edges) - 1
     if n < 2:
-        return {"edges": edges, "pairs_per_cell": np.zeros(nb), "g": np.zeros(nb)}
+        return {"edges": edges, "pairs_per_cell": np.zeros(nb), "g": np.zeros(nb),
+                "counts": np.zeros(nb), "n": n}
     i, j, s = _pairs(points, radii, s_max)
     k = np.minimum(np.searchsorted(edges, s, side="right") - 1, nb - 1)
     counts = np.bincount(k, minlength=nb).astype(float)
@@ -63,7 +69,8 @@ def pair_profile(points, radii, width, height, s_max=2.2, bin_width=0.05):
     rho = n / (width * height)
     area = np.pi * (edges[1:] ** 2 - edges[:-1] ** 2) * mean_sq
     g = 2.0 * corrected / (rho ** 2 * area)
-    return {"edges": edges, "pairs_per_cell": 2.0 * counts / n, "g": g}
+    return {"edges": edges, "pairs_per_cell": 2.0 * counts / n, "g": g,
+            "counts": counts, "n": n}
 
 
 def shell_edge(profile, smooth=0.1, s_min=1.0, s_cap=2.1):
@@ -71,14 +78,29 @@ def shell_edge(profile, smooth=0.1, s_min=1.0, s_cap=2.1):
 
     The peak is searched over the whole range (in dense tissue with overlapping
     segmentation radii it can sit below s = 1); only the minimum must be at
-    ``s >= s_min``. Returns None when there is no peak-then-minimum in ``[s_min, s_cap]`` or the
-    minimum is not at least 5% below the peak (Poisson / RSA-like patterns).
+    ``s >= s_min``. Returns None when there is no peak-then-minimum in
+    ``[s_min, s_cap]`` or the shell is not significant (Poisson / RSA-like
+    patterns): at least 50 cells, smoothed ``g`` at the peak >= 1.2, minimum at
+    least 15% below the peak, and peak minus minimum more than 4 Poisson
+    standard errors of the two smoothed values (``var g_k ~ g_k^2 / counts_k``).
+    A profile stored without ``counts`` falls back to a 5% drop test.
     """
     edges = np.asarray(profile["edges"], dtype=float)
     g = np.asarray(profile["g"], dtype=float)
     centres = 0.5 * (edges[1:] + edges[:-1])
     width = float(edges[1] - edges[0])
-    gs = gaussian_filter1d(g, smooth / width, mode="nearest")
+    sigma = smooth / width
+    gs = gaussian_filter1d(g, sigma, mode="nearest")
+    counts = profile.get("counts")
+    if counts is not None:
+        if profile.get("n", _MIN_CELLS) < _MIN_CELLS:
+            return None
+        radius = int(4.0 * sigma + 0.5)
+        impulse = np.zeros(2 * radius + 1)
+        impulse[radius] = 1.0
+        kernel = gaussian_filter1d(impulse, sigma, mode="constant")
+        var = correlate1d(g ** 2 / np.maximum(np.asarray(counts, dtype=float), 1.0),
+                          kernel ** 2, mode="nearest")
     idx = np.flatnonzero(centres <= s_cap)
     if idx.size < 3:
         return None
@@ -92,7 +114,11 @@ def shell_edge(profile, smooth=0.1, s_min=1.0, s_cap=2.1):
         return None
     for t in range(peak + 1, hi):
         if centres[t] >= s_min and gs[t] < gs[t - 1] and gs[t] <= gs[t + 1]:
-            if gs[t] <= (1.0 - _PEAK_MARGIN) * gs[peak]:
+            if counts is None:
+                return float(centres[t]) if gs[t] <= (1.0 - _PEAK_MARGIN) * gs[peak] else None
+            se = float(np.sqrt(var[peak] + var[t]))
+            if (gs[peak] >= _MIN_PEAK and gs[t] <= (1.0 - _MIN_DEPTH) * gs[peak]
+                    and gs[peak] - gs[t] > _Z * se):
                 return float(centres[t])
             return None
     return None

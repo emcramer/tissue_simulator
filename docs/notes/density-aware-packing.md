@@ -468,7 +468,8 @@ comparison per replicate (see [First-shell fidelity](#first-shell-fidelity)).
 - Later additions (unreleased): `DensityModel.shell` and `Layout.shell`
   (default `{}`), and `PackingReport.radius_assignment`, `refinement` and
   `first_shell` (default None). The shell profile is measured at fit time for
-  both strategies. Models saved before it existed load with an empty `shell`;
+  both strategies. Models saved before it existed (dicts and pickles) load with an empty
+  `shell`;
   for those, adaptive packs use the radius deck but skip refinement, because
   refinement needs the profile. Refit the model to get refinement.
 - All new dataclass fields have defaults and come last; the generator stores
@@ -503,7 +504,7 @@ comparison per replicate (see [First-shell fidelity](#first-shell-fidelity)).
   region's mean degree on a 20 µm radius graph; the paper gate is 0.95–1.05.
   On a size-aware (mechanical, factor 1.5) graph the v0.1.18 adaptive packs
   were lower, 0.79–0.81 of the source. Adaptive thin-slab packs on this branch
-  measure 0.985–1.029 at packer level on three regions; see
+  measure 0.957–0.993 at packer level on three regions; see
   [First-shell fidelity](#first-shell-fidelity) for the conditions and limits.
 - **Local order.** Epithelial lattice order inside nests is not reproduced
   (g(r) is smooth).
@@ -572,16 +573,22 @@ centre distance `d`. Touching discs have `s = 1`.
 `tissue_simulator/_shell.py` and stores it as `DensityModel.shell`, which is
 copied to every `Layout.shell`. The measurement is deterministic.
 
-- `edges`, `pairs_per_cell`: bins of 0.05 in `s` up to 2.2, and the mean
+- `edges`, `pairs_per_cell`: bins of 0.05 in `s` up to 3.5, and the mean
   number of neighbours per cell in each bin (no edge correction, so it is
   comparable to a replicate in the same window).
 - `g`: an edge-corrected pair correlation in the same bins, normalised by the
   annulus area of an uncorrelated pattern with the same radii (about 1 for
   uncorrelated cells).
 - `edge`: the shell edge, the first minimum after the first peak of `g`
-  smoothed with a Gaussian of 0.1 in `s`. The minimum must be at `s >= 1` and
-  at least 5% below the peak. It is None when there is no clear shell, as for
-  Poisson-like or random-sequential-addition-like sources.
+  smoothed with a Gaussian of 0.1 in `s`. The minimum must be at `s >= 1`,
+  at least 15% below the peak, and the peak (at least 1.2) minus the minimum
+  must exceed 4 Poisson standard errors (`var g_k ~ g_k^2 / counts_k`); the
+  source needs at least 50 cells. It is None when there is no significant
+  shell: on Poisson patterns it was None in 400 of 400 seeds (n = 50 to 3,000).
+  Dense random-sequential-addition patterns have a real hard-core shell (peak
+  of g about 3 at contact) and do return an edge, typically 1.8. Profiles
+  stored without `counts` fall back to a 5% drop test. `"auto"` measures the
+  x-y projection and is meant for 2-D or thin-slab sources.
 - `summary`: mean mechanical degree at factor 1.5, overlapping pairs per cell
   (`s < 1`), median radius and disc area fraction (sum of `pi r^2` over window
   area).
@@ -615,9 +622,15 @@ cut at 3 sigma). A move is kept only if it lowers
 
 `E = sum_k (h_k - t_k)^2 / (t_k + 5)`
 
-where `h_k` is the replicate's pair count in bin `k` of `s` (up to
-`s = 2.0`) and `t_k` is the source's `pairs_per_cell` times `n / 2`. A cell
-must also:
+where `h_k` is the replicate's pair count in bin `k` of `s` (weighted by a
+taper) and `t_k` is the source's `pairs_per_cell` times `n / 2`. The taper is 1
+up to `s = 2.0` and falls along a smoothstep curve to 0 at `s = 3.5` (clamped
+to the stored profile, so models with profiles to 2.2 taper from 2.0 to 2.2).
+Without it, pairs just outside the objective were pulled in: on sample 15 the
+band `s` 2.0-2.2 held 0.80 of the source's pairs per cell with refinement, 1.20-1.25
+without refinement and 1.315 in the source. A linear taper to 2.6 or 3.0 only moved the
+deficit to the first unweighted band (0.80-0.84 and 0.88 there). A cell must
+also:
 
 - stay in its quota bin and off zero-intensity pixels, so the layout's density
   map and bin quotas are preserved (quotas were identical with and without
@@ -627,7 +640,7 @@ must also:
   may only move apart). `z` never changes.
 
 Sweeps stop after `refine_sweeps` or when a sweep lowers `E` by less than
-0.1%. Cost measured on 3,000–6,000 cells: 0.3–0.9 s per pack.
+0.1%. Cost measured on 3,000–6,000 cells: 0.6–1.9 s per pack.
 
 Refinement runs only when all of these hold: the layout is adaptive and has a
 shell profile, the pack has at least 50 cells, `refine_shell` is not False, and
@@ -643,7 +656,7 @@ profile is a 2-D measurement. Parameters go through `packing_params`:
 
 `PackingReport.refinement` records `sweeps`, `energy_before`, `energy_after`,
 `n_moved`, `mean_displacement`, `max_displacement`, `accept_rate`, `s_target`
-and `seconds`. The other report fields describe the refined positions.
+(2.0, where full weight ends), `taper_end` and `seconds`. The other report fields describe the refined positions.
 
 ### Reporting
 
@@ -670,11 +683,11 @@ Packer level, replicate/source, three Keren regions with 3 packs each.
 
 | Quantity | Before | After |
 |---|---|---|
-| Mean mechanical degree (factor 1.5) | 0.79–0.81 | 0.985–1.029 |
-| Pairs closer than `r_i + r_j`, per cell | 0.69–0.77 | 0.971–1.079 |
+| Mean mechanical degree (factor 1.5) | 0.79–0.81 | 0.957–0.993 |
+| Pairs closer than `r_i + r_j`, per cell | 0.69–0.77 | 0.946–0.994 |
 | Median radius | 0.91–0.96 | 1.000 |
 | Disc area fraction | 0.86–0.94 | 1.000 |
-| Mean degree, 20 µm radius graph | | 0.93–1.08 |
+| Mean degree, 20 µm radius graph | | 0.96–1.01 |
 
 The 20 µm graph value changed little with refinement. Bin quotas were
 identical with and without refinement.
@@ -685,21 +698,44 @@ region; mean, replicate over source, v0.1.18 → this change):
 
 | Quantity | Sample 1 | Sample 3 | Sample 15 |
 |---|---|---|---|
-| Mean mechanical degree | 0.795 → 1.017 | 0.801 → 0.986 | 0.806 → 0.988 |
-| Pairs closer than `r_i + r_j`, per cell | 0.773 → 1.050 | 0.762 → 0.983 | 0.721 → 0.978 |
+| Mean mechanical degree | 0.795 → 1.025 | 0.801 → 0.958 | 0.806 → 0.962 |
+| Pairs closer than `r_i + r_j`, per cell | 0.773 → 1.057 | 0.762 → 0.954 | 0.721 → 0.950 |
 | Median radius | 0.907 → 1.000 | 0.950 → 1.000 | 0.959 → 1.000 |
 | Disc area fraction | 0.858 → 1.000 | 0.920 → 1.000 | 0.944 → 1.000 |
-| Mean degree, 20 µm radius graph | 1.045 → 1.042 | 0.928 → 0.939 | 0.919 → 0.942 |
-| Composition error | 0.360 → 0.288 | 0.385 → 0.290 | 0.079 → 0.076 |
-| Divergence score | 0.313 → 0.316 | 0.196 → 0.160 | 0.785 → 0.769 |
-| Seconds per replicate | 17.6 → 20.5 | 25.0 → 28.8 | 7.5 → 8.2 |
+| Mean degree, 20 µm radius graph | 1.045 → 1.035 | 0.928 → 0.969 | 0.919 → 0.968 |
+| Composition error | 0.360 → 0.284 | 0.385 → 0.291 | 0.079 → 0.076 |
+| Divergence score | 0.313 → 0.347 | 0.196 → 0.169 | 0.785 → 0.686 |
+| Seconds per replicate | 17.6 → 25.3 | 25.0 → 35.6 | 7.5 → 10.0 |
 
-Cell counts equal the source in every replicate. One sample 1 replicate had
-an overlapping-pairs ratio of 1.110, just above the 0.90–1.10 range the
-requesting team proposed. The divergence score of sample 15 (95% tumour, with
-type pairs of zero or one edge) varies by about 0.1 between replicates, so its
-change is within noise.
+Cell counts equal the source in every replicate. Samples 3 and 15 vary little
+between replicates (mechanical degree 0.957–0.964). Sample 1 varies more:
+its three replicates had mechanical degree ratios of 0.973 to 1.079 and
+overlapping-pairs ratios of 0.974 to 1.144, so one replicate is above the
+0.95–1.05 and 0.90–1.10 ranges the requesting team proposed. The same
+replicates span 0.966 to 1.110 on the 20 µm graph, and v0.1.18 spanned 0.927
+to 1.153 there, so this spread comes from the resampled density layout of
+that region (it has a fitted radial trend), not from refinement. The
+divergence scores of sample 1 (0.215 to 0.519) and sample 15 (95% tumour,
+with type pairs of zero or one edge) vary by 0.1 or more between replicates,
+so their changes are within noise. Timings were taken with three regions
+running at once.
 
+Pairs per cell by band of `s`, replicate over source (three regions, three
+packs each; refinement off, then on):
+
+| Band of `s` | Off | On |
+|---|---|---|
+| below 1 | 0.76–0.99 | 0.95–0.99 |
+| 1–1.5 | 0.88–0.93 | 0.96–0.99 |
+| 1.5–2.0 | 0.95–1.02 | 0.97–1.00 |
+| 2.0–2.2 | 0.94–1.01 | 0.98–1.00 |
+| 2.2–2.6 | 0.95–1.01 | 0.98–1.00 |
+| 2.6–3.0 | 0.94–1.01 | 0.98–1.00 |
+| 3.0–3.5 | 0.96–1.02 | 0.92–1.01 |
+
+The last band is the guard edge: it is up to 5 points lower with refinement.
+The band table and the first two rows of the end-to-end table below were
+measured with the final taper; the end-to-end table was measured before it.
 These figures come from three regions of one dataset.
 
 ### Annealing schedule
@@ -721,10 +757,18 @@ of 20,000 and ten swaps per graph node
 was 0.214 at 20,000 steps, 0.162 at 60,000 and 0.147 at 200,000. An explicit
 `cooling_rate` in `coloring_params` turns this off, an explicit
 `max_iterations` sets the budget, and the legacy strategy keeps the old
-schedule. The step count used is in `fidelity["anneal_steps"]`.
+schedule. `fidelity["anneal_budget"]` is the maximum number of swaps allowed; a
+user-supplied `cooling_rate` or `patience` can stop the run earlier.
 
 ### Limits
 
+- Refinement pulls some pairs in from beyond its objective, so the bands just
+  past the taper end lose some. Pairs per cell in `s` 3.0–3.5 are 0.92–0.95 of
+  the source with refinement (0.94–1.02 without); pairs beyond 3.5 were not
+  checked.
+- For small samples (under a few hundred cells) the first-shell ratios are
+  noisy: a reviewer saw the mean-degree ratio move from 0.89 to 0.82 under
+  refinement at 70 cells.
 - Refinement applies to thin slabs only. 3-D packs get the radius deck but are
   not refined.
 - The target is the source's per-cell pair rate, so it assumes the replicate

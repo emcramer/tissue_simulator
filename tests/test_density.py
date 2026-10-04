@@ -1,5 +1,6 @@
 """Tests for density-aware layouts in ``tissue_simulator.density``."""
 
+import copy
 import json
 
 import numpy as np
@@ -937,3 +938,15 @@ def test_shell_fitted_and_round_trips(nest_model, gradient_model):
         data = model.to_dict()
         del data["shell"]
         assert DensityModel.from_dict(data).shell == {}
+
+
+def test_model_without_shell_attribute_still_samples_and_packs(nest_model):
+    from tissue_simulator.packing import InhomogeneousPacker
+    model = copy.deepcopy(nest_model[0])
+    del model.__dict__["shell"]  # what a model pickled before the field existed looks like
+    assert model.to_dict()["shell"] == {}
+    layout = model.sample_layout(rng=1)
+    assert layout.shell == {}
+    packer = InhomogeneousPacker((layout.height, layout.width, 1.0), layout, seed=1)
+    packer.pack()
+    assert packer.report.refinement is None and packer.report.first_shell is None

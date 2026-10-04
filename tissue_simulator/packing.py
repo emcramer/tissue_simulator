@@ -758,14 +758,17 @@ class InhomogeneousPacker:
         return {"factor": 1.5, "replicate": rep, "source": dict(source),
                 "ratios": _shell.first_shell_ratios(rep, source), "same_window": same}
 
-    def _refine_shell(self, s_target: float = 2.0, sigma_factor: float = 0.25,
-                      min_gain: float = 1e-3) -> Dict[str, float]:
+    def _refine_shell(self, s_target: float = 2.0, taper_end: float = 3.5,
+                      sigma_factor: float = 0.25, min_gain: float = 1e-3) -> Dict[str, float]:
         """Greedy position refinement towards the source's first-shell profile.
 
         The objective is ``E = sum_k (h_k - t_k)^2 / (t_k + 5)`` over the pair
         counts ``h_k`` of the replicate (2-D distances) in the source's s-bins
-        up to ``s_target`` (``s = d / (r_i + r_j)``), against
-        ``t_k = pairs_per_cell_k * n / 2``. Every cell proposes one truncated
+        (``s = d / (r_i + r_j)``), against ``t_k = pairs_per_cell_k * n / 2``,
+        each bin weighted by a taper: 1 up to ``s_target``, then falling
+        along a smoothstep curve to 0 at ``taper_end`` (clamped to the stored profile's last
+        edge). The guard bins keep moves from pulling pairs in across a hard
+        edge at ``s_target``. Every cell proposes one truncated
         Gaussian move per sweep (sigma = ``sigma_factor`` x median radius, cut
         at 3 sigma) and a move is kept only if E drops strictly. A move must
         stay in its x/y bounds, in its pre-refinement quota bin, on a pixel with
@@ -788,8 +791,12 @@ class InhomogeneousPacker:
         edges = np.asarray(shell["edges"], dtype=float)
         bw = float(edges[1] - edges[0])
         per_cell = np.asarray(shell["pairs_per_cell"], dtype=float)
-        nb = min(int(np.count_nonzero(edges[1:] <= s_target + 1e-9)), per_cell.size)
+        end = min(float(taper_end), float(edges[-1]))
+        nb = min(int(np.count_nonzero(edges[1:] <= end + 1e-9)), per_cell.size)
         s_hi = nb * bw
+        centres = (np.arange(nb) + 0.5) * bw
+        u = np.clip((s_hi - centres) / max(s_hi - s_target, 1e-9), 0.0, 1.0)
+        taper = u * u * (3.0 - 2.0 * u)
         kappa = float(layout.kappa)
         height, width, _ = self.bounds
         xy = np.column_stack([self._xs, self._ys])
@@ -797,7 +804,7 @@ class InhomogeneousPacker:
         n = len(r)
         xy0 = xy.copy()
         target = per_cell[:nb] * n / 2.0
-        weight = 1.0 / (target + 5.0)
+        weight = taper / (target + 5.0)
 
         def histogram():
             _, _, s = _shell._pairs(xy, r, s_hi)
@@ -917,7 +924,8 @@ class InhomogeneousPacker:
         return {"sweeps": sweeps, "energy_before": energy_before,
                 "energy_after": energy(h_final.astype(float)), "n_moved": int(moved.size),
                 "mean_displacement": float(move.mean()), "max_displacement": float(move.max()),
-                "accept_rate": accepted / max(proposed, 1), "s_target": float(s_hi),
+                "accept_rate": accepted / max(proposed, 1), "s_target": float(s_target),
+                "taper_end": float(s_hi),
                 "seconds": time.perf_counter() - t0}
 
     def pack(self) -> List[Cell]:

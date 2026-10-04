@@ -487,6 +487,7 @@ def test_adaptive_replicate_reports_first_shell(adaptive_setup):
     block = stats.fidelity["first_shell"]
     assert block == stats.packing_report["first_shell"]
     assert block["same_window"] is True and block["factor"] == 1.5
+    assert stats.fidelity["anneal_budget"] > 0 and "anneal_steps" not in stats.fidelity
     assert set(block["ratios"]) == {"mean_degree", "overlap_pairs_per_cell",
                                     "median_radius", "area_fraction"}
 

@@ -11,19 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **First-shell profile of the source.** `DensityModel.fit` (both strategies)
   measures the source's size-normalised pair profile, `s = d / (r_i + r_j)` in
-  bins of 0.05 up to 2.2 (pairs per cell and an edge-corrected pair
-  correlation), the shell edge (first minimum after the first peak, or None)
+  bins of 0.05 up to 3.5 (pairs per cell and an edge-corrected pair
+  correlation), the shell edge (first minimum after the first peak, or None when the shell is not
+  significant against counting noise)
   and summary values (mean mechanical degree at factor 1.5, overlapping pairs
   per cell, median radius, disc area fraction). It is stored as
-  `DensityModel.shell` and `Layout.shell`; older saved models load with an
-  empty `shell`.
+  `DensityModel.shell` and `Layout.shell`; models saved before it existed (dicts and
+  pickles) load with an empty `shell`.
 - **First-shell refinement** for adaptive packs of thin slabs (thickness at
   most twice the median radius, at least 50 cells). After relaxation, greedy
-  single-cell moves bring the replicate's pair profile up to `s = 2.0` closer
-  to the source's, keeping each cell in its quota bin, within `refine_cap` of
+  single-cell moves bring the replicate's pair profile closer to the source's:
+  full weight up to `s = 2.0`, then a smooth taper to zero at `s = 3.5`,
+  so no hard edge pulls pairs in from just outside the target, keeping each cell in its quota bin, within `refine_cap` of
   its placed position and above the hard core. New `packing_params` keys:
-  `refine_shell`, `refine_sweeps`, `refine_cap`. Cost was 0.3-0.9 s per pack
-  for 3,000-6,000 cells.
+  `refine_shell`, `refine_sweeps`, `refine_cap`. Cost was 0.6-1.9 s per pack
+  for 3,000-6,000 cells (0.4-1.9 s with the guard bins).
 - `PackingReport.radius_assignment`, `PackingReport.refinement` and
   `PackingReport.first_shell`, and `fidelity["first_shell"]` on
   `ReplicateStatistics` (replicate and source summaries and their ratios). A
@@ -49,7 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cooling rate (0.995, from temperature 100 to 0.1) ended the schedule after
   about 1,400 swaps whatever `max_iterations` was. The adaptive strategy now
   derives the cooling rate from the budget, which is the larger of 20,000 and
-  ten swaps per graph node, and records it in `fidelity["anneal_steps"]`. An
+  ten swaps per graph node, and records it in `fidelity["anneal_budget"]`, the maximum number of swaps
+  allowed (a user-supplied `cooling_rate` or `patience` can stop earlier). An
   explicit `cooling_rate` or `max_iterations` in `coloring_params` is
   respected. The legacy schedule is unchanged. Replicates of 3,000-6,000
   cells take about 1-4 s longer.
@@ -63,13 +66,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   neighbours than the source (mechanical graph, factor 1.5: replicate/source
   0.78-0.81), about 25% fewer pairs closer than `r_i + r_j`, a median radius
   3-9% small and a disc area fraction 6-14% low. On three Keren et al. regions
-  at packer level the ratios are now 0.985-1.029 (mean degree), 0.971-1.079
+  at packer level the ratios are now 0.957-0.993 (mean degree), 0.946-0.994
   (close pairs), 1.000 (median radius) and 1.000 (area fraction). These come
   from three regions of one dataset.
 
 ### Known limits
 
 - Refinement applies to thin slabs only; 3-D packs are not refined.
+- Refinement pulls some pairs in from beyond its objective. With the taper to
+  `s = 3.5`, every band up to `s = 3.5` is within 2-8% of the source on three
+  Keren regions (pairs per cell, replicate over source 0.92-1.01); the last
+  band, `s` 3.0-3.5, is 0.92-0.95 with refinement and 0.94-1.02 without. A
+  hard edge at `s = 2.0` instead left `s` 2.0-2.2 about 39% below the source
+  on one region. Pairs beyond 3.5 are not checked.
+- For small samples (under a few hundred cells) the first-shell ratios are
+  noisy: at 70 cells the mean-degree ratio moved from 0.89 to 0.82 under
+  refinement.
 - The refinement target is a per-cell rate from the source, so it assumes the
   replicate window has the source's cell density.
 - One of nine test packs still had a higher overlap fraction than the source

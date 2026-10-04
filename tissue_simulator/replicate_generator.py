@@ -1276,7 +1276,7 @@ class ReplicateGenerator:
                 source_radii=self._source_radii, source_size_nll=self._source_size_nll,
                 finest_bin=min(scale_sizes) if scale_sizes else None)
             fidelity["first_shell"] = first_shell
-            fidelity["anneal_steps"] = int(coloring_params['max_iterations'])
+            fidelity["anneal_budget"] = int(coloring_params['max_iterations'])
         if composition_info is not None:
             fidelity = dict(fidelity or {})
             fidelity.update(composition_info)
