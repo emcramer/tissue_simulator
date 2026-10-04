@@ -68,6 +68,11 @@ validation:
     absolute_links: warn
     unrecognized_links: warn
 
+# Working notes that are not public: left out of the build entirely, so they
+# are neither published nor link-checked.
+exclude_docs: |
+  TODO.md
+
 not_in_nav: |
   notes/plot-surface-bug.md
   notes/density-aware-packing.md
